@@ -576,15 +576,42 @@ void CPU::LAX() {
 }
 
 void CPU::LDA() {
-
+	if (op.status & Op::Modify) {
+		A == op.val;
+		if (A == 0) {
+			P |= 0x2;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::LDX() {
-
+	if (op.status & Op::Modify) {
+		X == op.val;
+		if (X == 0) {
+			P |= 0x2;
+		}
+		if (X & 0x80) {
+			P |= 0x80;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::LDY() {
-
+	if (op.status & Op::Modify) {
+		Y == op.val;
+		if (Y == 0) {
+			P |= 0x2;
+		}
+		if (Y & 0x80) {
+			P |= 0x80;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::LSR() {
