@@ -5,8 +5,6 @@
 
 bool readInInst(std::string filename, uint8_t data[], unsigned int &instNum);
 
-uint8_t hex2Dec(int hexNum);
-
 int main(int argc, char* argv[]) {
 	uint8_t data[65536] = {0};
 	unsigned int instNum = 0;
@@ -56,7 +54,7 @@ bool readInInst(std::string filename, uint8_t data[], unsigned int &instNum) {
 		for (int i = 0; i < line.size(); ++i) {
 			substring += line.at(i);
 			if (i % 2 == 1) {
-				data[dataIndex] = hex2Dec(stoi(substring));
+				data[dataIndex] = std::stoul(substring, nullptr, 16);
 				dataIndex++;
 				substring = "";
 			}
@@ -66,15 +64,4 @@ bool readInInst(std::string filename, uint8_t data[], unsigned int &instNum) {
 		}
 	}
 	return true;
-}
-
-uint8_t hex2Dec(int hexNum) {
-	uint8_t decNum = 0;
-	unsigned int powOfSixteen = 1;
-	for (int i = 0; i < 2; ++i) {
-		decNum += (hexNum % 10) * powOfSixteen;
-		powOfSixteen *= 16;
-		hexNum /= 10;
-	}
-	return decNum;
 }
