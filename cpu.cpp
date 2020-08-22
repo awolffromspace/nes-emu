@@ -577,7 +577,7 @@ void CPU::LAX() {
 
 void CPU::LDA() {
 	if (op.status & Op::Modify) {
-		A == op.val;
+		A = op.val;
 		if (A == 0) {
 			P |= 0x2;
 		}
@@ -590,7 +590,7 @@ void CPU::LDA() {
 
 void CPU::LDX() {
 	if (op.status & Op::Modify) {
-		X == op.val;
+		X = op.val;
 		if (X == 0) {
 			P |= 0x2;
 		}
@@ -603,7 +603,7 @@ void CPU::LDX() {
 
 void CPU::LDY() {
 	if (op.status & Op::Modify) {
-		Y == op.val;
+		Y = op.val;
 		if (Y == 0) {
 			P |= 0x2;
 		}
