@@ -431,7 +431,8 @@ void CPU::AND() {
 		A &= op.val;
 		if (A == 0) {
 			P |= 0x2;
-		} else if (A & 0x80) {
+		}
+		if (A & 0x80) {
 			P |= 0x80;
 		}
 		op.status |= Op::Done;
