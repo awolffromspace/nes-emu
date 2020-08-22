@@ -703,7 +703,10 @@ void CPU::SRE() {
 }
 
 void CPU::STA() {
-
+	if (op.status & Op::Write) {
+		mem.write(op.tempAddr, A);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::STP() {
@@ -711,11 +714,17 @@ void CPU::STP() {
 }
 
 void CPU::STX() {
-
+	if (op.status & Op::Write) {
+		mem.write(op.tempAddr, X);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::STY() {
-
+	if (op.status & Op::Write) {
+		mem.write(op.tempAddr, Y);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TAS() {
