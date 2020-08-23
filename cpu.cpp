@@ -939,7 +939,7 @@ void CPU::SAX() {
 
 void CPU::SBC() {
 	if (op.status & Op::Modify) {
-		uint8_t op.val = 0xff - op.val;
+		op.val = 0xff - op.val;
 		CPU::ADC();
 	}
 }
