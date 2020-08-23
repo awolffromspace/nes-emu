@@ -30,7 +30,7 @@ CPU::CPU(uint8_t data[])
 void CPU::step() {
 	while (true) {
 		// Fetch
-		if ((op.status & Op::Done) || totalCycles == 0) {
+		if ((op.status & Op::Done) || (totalCycles == 0)) {
 			op.reset();
 			op.PC = PC;
 			op.inst = mem.read(PC);
@@ -689,11 +689,26 @@ void CPU::ISC() {
 }
 
 void CPU::JMP() {
-
+	if (((op.addrMode == Op::Absolute) && (op.cycles == 2)) ||
+		((op.addrMode == Op::Indirect) && (op.cycles == 4))) {
+		PC = op.tempAddr;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::JSR() {
-
+	if (op.cycles == 2) {
+		--PC;
+	} else if (op.cycles == 3) {
+		uint8_t PCH = (PC & 0xff00) >> 8;
+		mem.push(SP, PCH);
+	} else if (op.cycles == 4) {
+		uint8_t PCL = PC & 0xff;
+		mem.push(SP, PCL);
+	} else if (op.cycles == 5) {
+		PC = op.tempAddr;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::LAS() {
@@ -856,7 +871,14 @@ void CPU::RTI() {
 }
 
 void CPU::RTS() {
-
+	if (op.cycles == 3) {
+		op.tempAddr = mem.pull(SP);
+	} else if (op.cycles == 4) {
+		op.tempAddr |= mem.pull(SP) << 8;
+	} else if (op.cycles == 5) {
+		PC = op.tempAddr + 1;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::SAX() {
