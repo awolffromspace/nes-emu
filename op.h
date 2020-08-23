@@ -37,14 +37,11 @@ class Op {
 			// When read-modify-write operations can write modified data to
 			// memory
 			WriteModified = 16,
-			// When an operation writes to memory in its last cycle
-			// (not flagged if the current cycle is not the last)
-			WroteToMem = 32,
 			// When certain operations cross a page boundary
 			// (i.e. the high byte of an address changes)
-			PgBoundCrossed = 64,
+			PgBoundCrossed = 32,
 			// When the operation is completely finished
-			Done = 128
+			Done = 64
 		};
 
 	private:

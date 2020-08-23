@@ -43,11 +43,6 @@ void CPU::step() {
 		if (op.status & Op::Done) {
 			++totalInst;
 		}
-		// If the operation is done and didn't write to memory in its last
-		// cycle, the next op can be fetched in the same cycle
-		if ((op.status & Op::Done) && !(op.status & Op::WroteToMem)) {
-			continue;
-		}
 		++totalCycles;
 		break;
 	}
