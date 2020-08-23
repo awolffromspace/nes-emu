@@ -748,7 +748,9 @@ void CPU::LSR() {
 }
 
 void CPU::NOP() {
-
+	if (op.status & Op::Modify) {
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::ORA() {
