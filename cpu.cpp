@@ -754,7 +754,20 @@ void CPU::NOP() {
 }
 
 void CPU::ORA() {
-
+	if (op.status & Op::Modify) {
+		A |= op.val;
+		if (A == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::PHA() {
