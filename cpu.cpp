@@ -480,7 +480,9 @@ void CPU::ARR() {
 }
 
 void CPU::ASL() {
-	if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::Reread) {
+		mem.read(op.tempAddr);
+	} else if (op.status & Op::WriteUnmodified) {
 		mem.write(op.val);
 		if (op.val & 0x80) {
 			P |= 1;
