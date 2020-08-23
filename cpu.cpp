@@ -958,11 +958,7 @@ void CPU::updateZeroFlag(uint8_t result) {
 }
 
 void CPU::updateNegativeFlag(uint8_t result) {
-	if (result & 0x80) {
-		P |= 0x80;
-	} else {
-		P &= 0x7f;
-	}
+	P |= result & 0x80;
 }
 
 // Miscellaneous
