@@ -595,7 +595,12 @@ void CPU::DEY() {
 }
 
 void CPU::EOR() {
-
+	if (op.status & Op::Modify) {
+		A ^= op.val;
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::INC() {
