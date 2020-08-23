@@ -204,6 +204,7 @@ void CPU::IMP() {
 			break;
 		case 1:
 			op.status |= Op::Modify;
+			op.status |= Op::Write;
 	}
 }
 
@@ -823,19 +824,35 @@ void CPU::ORA() {
 }
 
 void CPU::PHA() {
-
+	if (op.cycles == 2) {
+		mem.push(SP, A);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::PHP() {
-
+	if (op.cycles == 2) {
+		mem.push(SP, P);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::PLA() {
-
+	if (op.cycles == 2) {
+		op.val = mem.pull(SP);
+	} else if (op.cycles == 3) {
+		A = op.val;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::PLP() {
-
+	if (op.cycles == 2) {
+		op.val = mem.pull(SP);
+	} else if (op.cycles == 3) {
+		P = op.val;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::RLA() {
@@ -1022,7 +1039,20 @@ void CPU::TAY() {
 }
 
 void CPU::TSX() {
-
+	if (op.status & Op::Modify) {
+		X = SP;
+		if (X == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (X & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TXA() {
@@ -1043,7 +1073,10 @@ void CPU::TXA() {
 }
 
 void CPU::TXS() {
-
+	if (op.status & Op::Modify) {
+		SP = X;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TYA() {
