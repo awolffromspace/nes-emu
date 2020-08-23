@@ -608,11 +608,37 @@ void CPU::DEC() {
 }
 
 void CPU::DEX() {
-
+	if (op.status & Op::Modify) {
+		--X;
+		if (X == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (X & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::DEY() {
-
+	if (op.status & Op::Modify) {
+		--Y;
+		if (Y == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (Y & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::EOR() {
@@ -642,11 +668,37 @@ void CPU::INC() {
 }
 
 void CPU::INX() {
-
+	if (op.status & Op::Modify) {
+		++X;
+		if (X == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (X & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::INY() {
-
+	if (op.status & Op::Modify) {
+		++Y;
+		if (Y == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (Y & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::ISC() {
@@ -936,11 +988,37 @@ void CPU::TAS() {
 }
 
 void CPU::TAX() {
-
+	if (op.status & Op::Modify) {
+		X = A;
+		if (X == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (X & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TAY() {
-
+	if (op.status & Op::Modify) {
+		Y = A;
+		if (Y == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (Y & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TSX() {
@@ -948,7 +1026,20 @@ void CPU::TSX() {
 }
 
 void CPU::TXA() {
-
+	if (op.status & Op::Modify) {
+		A = X;
+		if (A == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::TXS() {
@@ -956,7 +1047,20 @@ void CPU::TXS() {
 }
 
 void CPU::TYA() {
-
+	if (op.status & Op::Modify) {
+		A = Y;
+		if (A == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::XAA() {
