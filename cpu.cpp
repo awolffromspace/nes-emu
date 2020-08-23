@@ -500,7 +500,17 @@ void CPU::BEQ() {
 }
 
 void CPU::BIT() {
-
+	if (op.status & Op::Modify) {
+		uint8_t temp = A & op.val;
+		if (op.val & 0x40) {
+			P |= 0x40;
+		} else {
+			P &= 0xbf;
+		}
+		updateZeroFlag(temp);
+		updateNegativeFlag(op.val);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::BMI() {
