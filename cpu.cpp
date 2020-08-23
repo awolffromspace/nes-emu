@@ -2,7 +2,7 @@
 
 CPU::CPU()
 	: PC(0),
-	  SP(0),
+	  SP(0xff),
 	  A(0),
 	  X(0),
 	  Y(0),
@@ -14,7 +14,7 @@ CPU::CPU()
 
 CPU::CPU(uint8_t data[])
 	: PC(0x8000),
-	  SP(0),
+	  SP(0xff),
 	  A(0),
 	  X(0),
 	  Y(0),
