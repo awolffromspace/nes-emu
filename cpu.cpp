@@ -685,7 +685,30 @@ void CPU::LDY() {
 }
 
 void CPU::LSR() {
-
+	if (op.status & Op::Reread) {
+		mem.read(op.tempAddr);
+	} else if (op.status & Op::WriteUnmodified) {
+		mem.write(op.tempAddr, op.val);
+		if (op.val & 1) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		op.val = op.val >> 1;
+		if (op.val == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (op.val & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+	} else if (op.status & Op::WriteModified) {
+		mem.write(op.tempAddr, op.val);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::NOP() {
