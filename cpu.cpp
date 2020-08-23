@@ -201,6 +201,9 @@ void CPU::IMP() {
 		case 0:
 			op.addrMode = Op::Implied;
 			++PC;
+			break;
+		case 1:
+			op.status |= Op::Modify;
 	}
 }
 
@@ -430,10 +433,14 @@ void CPU::AND() {
 	if (op.status & Op::Modify) {
 		A &= op.val;
 		if (A == 0) {
-			P |= 0x2;
+			P |= 2;
+		} else {
+			P &= 0xfd;
 		}
 		if (A & 0x80) {
 			P |= 0x80;
+		} else {
+			P &= 0x7f;
 		}
 		op.status |= Op::Done;
 	}
@@ -579,10 +586,14 @@ void CPU::LDA() {
 	if (op.status & Op::Modify) {
 		A = op.val;
 		if (A == 0) {
-			P |= 0x2;
+			P |= 2;
+		} else {
+			P &= 0xfd;
 		}
 		if (A & 0x80) {
 			P |= 0x80;
+		} else {
+			P &= 0x7f;
 		}
 		op.status |= Op::Done;
 	}
@@ -592,10 +603,14 @@ void CPU::LDX() {
 	if (op.status & Op::Modify) {
 		X = op.val;
 		if (X == 0) {
-			P |= 0x2;
+			P |= 2;
+		} else {
+			P &= 0xfd;
 		}
 		if (X & 0x80) {
 			P |= 0x80;
+		} else {
+			P &= 0x7f;
 		}
 		op.status |= Op::Done;
 	}
@@ -605,10 +620,14 @@ void CPU::LDY() {
 	if (op.status & Op::Modify) {
 		Y = op.val;
 		if (Y == 0) {
-			P |= 0x2;
+			P |= 2;
+		} else {
+			P &= 0xfd;
 		}
 		if (Y & 0x80) {
 			P |= 0x80;
+		} else {
+			P &= 0x7f;
 		}
 		op.status |= Op::Done;
 	}
