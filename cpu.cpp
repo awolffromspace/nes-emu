@@ -733,7 +733,7 @@ void CPU::SBC() {
 		} else {
 			P &= 0xfd;
 		}
-		if ((pastA ^ A) & (op.val ^ A) & 0x80) {
+		if ((pastA ^ A) & (onesComp ^ A) & 0x80) {
 			P |= 0x40;
 		} else {
 			P &= 0xbf;
