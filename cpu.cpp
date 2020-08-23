@@ -428,21 +428,13 @@ void CPU::ADC() {
 		} else {
 			P &= 0xfe;
 		}
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
 		if ((pastA ^ A) & (op.val ^ A) & 0x80) {
 			P |= 0x40;
 		} else {
 			P &= 0xbf;
 		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
@@ -458,16 +450,8 @@ void CPU::ALR() {
 void CPU::AND() {
 	if (op.status & Op::Modify) {
 		A &= op.val;
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
@@ -491,16 +475,8 @@ void CPU::ASL() {
 			P &= 0xfe;
 		}
 		op.val = op.val << 1;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -592,16 +568,8 @@ void CPU::DEC() {
 	} else if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		--op.val;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -611,16 +579,8 @@ void CPU::DEC() {
 void CPU::DEX() {
 	if (op.status & Op::Modify) {
 		--X;
-		if (X == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (X & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(X);
+		updateNegativeFlag(X);
 		op.status |= Op::Done;
 	}
 }
@@ -628,16 +588,8 @@ void CPU::DEX() {
 void CPU::DEY() {
 	if (op.status & Op::Modify) {
 		--Y;
-		if (Y == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (Y & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(Y);
+		updateNegativeFlag(Y);
 		op.status |= Op::Done;
 	}
 }
@@ -652,16 +604,8 @@ void CPU::INC() {
 	} else if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		++op.val;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -671,16 +615,8 @@ void CPU::INC() {
 void CPU::INX() {
 	if (op.status & Op::Modify) {
 		++X;
-		if (X == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (X & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(X);
+		updateNegativeFlag(X);
 		op.status |= Op::Done;
 	}
 }
@@ -688,16 +624,8 @@ void CPU::INX() {
 void CPU::INY() {
 	if (op.status & Op::Modify) {
 		++Y;
-		if (Y == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (Y & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(Y);
+		updateNegativeFlag(Y);
 		op.status |= Op::Done;
 	}
 }
@@ -725,16 +653,8 @@ void CPU::LAX() {
 void CPU::LDA() {
 	if (op.status & Op::Modify) {
 		A = op.val;
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
@@ -742,16 +662,8 @@ void CPU::LDA() {
 void CPU::LDX() {
 	if (op.status & Op::Modify) {
 		X = op.val;
-		if (X == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (X & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(X);
+		updateNegativeFlag(X);
 		op.status |= Op::Done;
 	}
 }
@@ -759,16 +671,8 @@ void CPU::LDX() {
 void CPU::LDY() {
 	if (op.status & Op::Modify) {
 		Y = op.val;
-		if (Y == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (Y & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(Y);
+		updateNegativeFlag(Y);
 		op.status |= Op::Done;
 	}
 }
@@ -784,16 +688,8 @@ void CPU::LSR() {
 			P &= 0xfe;
 		}
 		op.val = op.val >> 1;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -809,16 +705,8 @@ void CPU::NOP() {
 void CPU::ORA() {
 	if (op.status & Op::Modify) {
 		A |= op.val;
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
@@ -874,16 +762,8 @@ void CPU::ROL() {
 			P &= 0xfe;
 		}
 		op.val = temp;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -905,16 +785,8 @@ void CPU::ROR() {
 			P &= 0xfe;
 		}
 		op.val = temp;
-		if (op.val == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (op.val & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(op.val);
+		updateNegativeFlag(op.val);
 	} else if (op.status & Op::WriteModified) {
 		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
@@ -940,7 +812,7 @@ void CPU::SAX() {
 void CPU::SBC() {
 	if (op.status & Op::Modify) {
 		op.val = 0xff - op.val;
-		CPU::ADC();
+		ADC();
 	}
 }
 
@@ -1007,16 +879,8 @@ void CPU::TAS() {
 void CPU::TAX() {
 	if (op.status & Op::Modify) {
 		X = A;
-		if (X == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (X & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(X);
+		updateNegativeFlag(X);
 		op.status |= Op::Done;
 	}
 }
@@ -1024,16 +888,8 @@ void CPU::TAX() {
 void CPU::TAY() {
 	if (op.status & Op::Modify) {
 		Y = A;
-		if (Y == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (Y & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(Y);
+		updateNegativeFlag(Y);
 		op.status |= Op::Done;
 	}
 }
@@ -1041,16 +897,8 @@ void CPU::TAY() {
 void CPU::TSX() {
 	if (op.status & Op::Modify) {
 		X = SP;
-		if (X == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (X & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(X);
+		updateNegativeFlag(X);
 		op.status |= Op::Done;
 	}
 }
@@ -1058,16 +906,8 @@ void CPU::TSX() {
 void CPU::TXA() {
 	if (op.status & Op::Modify) {
 		A = X;
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
@@ -1082,22 +922,30 @@ void CPU::TXS() {
 void CPU::TYA() {
 	if (op.status & Op::Modify) {
 		A = Y;
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
+		updateZeroFlag(A);
+		updateNegativeFlag(A);
 		op.status |= Op::Done;
 	}
 }
 
 void CPU::XAA() {
 
+}
+
+void CPU::updateZeroFlag(uint8_t result) {
+	if (result == 0) {
+		P |= 2;
+	} else {
+		P &= 0xfd;
+	}
+}
+
+void CPU::updateNegativeFlag(uint8_t result) {
+	if (result & 0x80) {
+		P |= 0x80;
+	} else {
+		P &= 0x7f;
+	}
 }
 
 uint8_t CPU::BCD2binary(uint8_t BCDNum) {
