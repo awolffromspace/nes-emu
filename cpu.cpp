@@ -937,6 +937,8 @@ void CPU::XAA() {
 
 }
 
+// Processor status updates
+
 void CPU::updateZeroFlag(uint8_t result) {
 	if (result == 0) {
 		P |= 2;
@@ -952,6 +954,8 @@ void CPU::updateNegativeFlag(uint8_t result) {
 		P &= 0x7f;
 	}
 }
+
+// Miscellaneous
 
 uint8_t CPU::BCD2binary(uint8_t BCDNum) {
 	uint8_t binaryNum = 0;
