@@ -1,7 +1,5 @@
 #include "memory.h"
 
-#include <iostream>
-
 Memory::Memory() {
 
 }
@@ -40,7 +38,6 @@ void Memory::write(uint16_t addr, uint8_t val) {
 void Memory::push(uint8_t &pointer, uint8_t val) {
 	uint16_t index = 0x100 + pointer;
 	data[index] = val;
-	std::cout << std::hex << "PUSH: " << (unsigned int) val << "\n";
 	--pointer;
 }
 
@@ -48,6 +45,5 @@ uint8_t Memory::pull(uint8_t &pointer) {
 	++pointer;
 	uint16_t index = 0x100 + pointer;
 	uint8_t val = data[index];
-	std::cout << std::hex << "PULL: " << (unsigned int) val << "\n";
 	return val;
 }
