@@ -483,7 +483,7 @@ void CPU::ASL() {
 	if (op.status & Op::Reread) {
 		mem.read(op.tempAddr);
 	} else if (op.status & Op::WriteUnmodified) {
-		mem.write(op.val);
+		mem.write(op.tempAddr, op.val);
 		if (op.val & 0x80) {
 			P |= 1;
 		} else {
@@ -501,7 +501,7 @@ void CPU::ASL() {
 			P &= 0x7f;
 		}
 	} else if (op.status & Op::WriteModified) {
-		mem.write(op.val);
+		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
 	}
 }
@@ -720,7 +720,7 @@ void CPU::ROL() {
 	if (op.status & Op::Reread) {
 		mem.read(op.tempAddr);
 	} else if (op.status & Op::WriteUnmodified) {
-		mem.write(op.val);
+		mem.write(op.tempAddr, op.val);
 		uint8_t temp = op.val << 1;
 		if (P & 1) {
 			temp |= 1;
@@ -742,7 +742,7 @@ void CPU::ROL() {
 			P &= 0x7f;
 		}
 	} else if (op.status & Op::WriteModified) {
-		mem.write(op.val);
+		mem.write(op.tempAddr, op.val);
 		op.status |= Op::Done;
 	}
 }
