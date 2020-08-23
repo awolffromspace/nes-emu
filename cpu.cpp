@@ -545,15 +545,24 @@ void CPU::CLC() {
 }
 
 void CPU::CLD() {
-
+	if (op.status & Op::Modify) {
+		P &= 0xf7;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CLI() {
-
+	if (op.status & Op::Modify) {
+		P &= 0xfb;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CLV() {
-
+	if (op.status & Op::Modify) {
+		P &= 0xbf;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CMP() {
@@ -839,11 +848,17 @@ void CPU::SEC() {
 }
 
 void CPU::SED() {
-
+	if (op.status & Op::Modify) {
+		P |= 8;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::SEI() {
-
+	if (op.status & Op::Modify) {
+		P |= 4;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::SHX() {
