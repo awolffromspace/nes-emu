@@ -480,7 +480,28 @@ void CPU::ARR() {
 }
 
 void CPU::ASL() {
-
+	if (op.status & Op::WriteUnmodified) {
+		mem.write(op.val);
+		if (op.val & 0x80) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		op.val = op.val << 1;
+		if (op.val == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if (op.val & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+	} else if (op.status & Op::WriteModified) {
+		mem.write(op.val);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::AXS() {
@@ -719,31 +740,8 @@ void CPU::SAX() {
 
 void CPU::SBC() {
 	if (op.status & Op::Modify) {
-		uint8_t onesComp = 0xff - op.val;
-		uint16_t temp = A + onesComp + (P & 1);
-		uint8_t pastA = A;
-		A += onesComp + (P & 1);
-		if (temp > 0xff) {
-			P |= 1;
-		} else {
-			P &= 0xfe;
-		}
-		if (A == 0) {
-			P |= 2;
-		} else {
-			P &= 0xfd;
-		}
-		if ((pastA ^ A) & (onesComp ^ A) & 0x80) {
-			P |= 0x40;
-		} else {
-			P &= 0xbf;
-		}
-		if (A & 0x80) {
-			P |= 0x80;
-		} else {
-			P &= 0x7f;
-		}
-		op.status |= Op::Done;
+		uint8_t op.val = 0xff - op.val;
+		CPU::ADC();
 	}
 }
 
