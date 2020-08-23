@@ -418,7 +418,32 @@ void CPU::ZPY() {
 // done in the addressing mode functions
 
 void CPU::ADC() {
-
+	if (op.status & Op::Modify) {
+		uint16_t temp = A + op.val + (P & 1);
+		uint8_t pastA = A;
+		A += op.val + (P & 1);
+		if (temp > 0xff) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		if (A == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if ((pastA ^ A) & (op.val ^ A) & 0x80) {
+			P |= 0x40;
+		} else {
+			P &= 0xbf;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::AHX() {
@@ -503,7 +528,10 @@ void CPU::BVS() {
 }
 
 void CPU::CLC() {
-
+	if (op.status & Op::Modify) {
+		P &= 0xfe;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CLD() {
@@ -690,11 +718,40 @@ void CPU::SAX() {
 }
 
 void CPU::SBC() {
-
+	if (op.status & Op::Modify) {
+		uint8_t onesComp = 0xff - op.val;
+		uint16_t temp = A + onesComp + (P & 1);
+		uint8_t pastA = A;
+		A += onesComp + (P & 1);
+		if (temp > 0xff) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		if (A == 0) {
+			P |= 2;
+		} else {
+			P &= 0xfd;
+		}
+		if ((pastA ^ A) & (op.val ^ A) & 0x80) {
+			P |= 0x40;
+		} else {
+			P &= 0xbf;
+		}
+		if (A & 0x80) {
+			P |= 0x80;
+		} else {
+			P &= 0x7f;
+		}
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::SEC() {
-
+	if (op.status & Op::Modify) {
+		P |= 1;
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::SED() {
