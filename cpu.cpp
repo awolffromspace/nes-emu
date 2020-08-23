@@ -566,15 +566,45 @@ void CPU::CLV() {
 }
 
 void CPU::CMP() {
-
+	if (op.status & Op::Modify) {
+		uint8_t temp = A - op.val;
+		if (A >= op.val) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		updateZeroFlag(temp);
+		updateNegativeFlag(temp);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CPX() {
-
+	if (op.status & Op::Modify) {
+		uint8_t temp = X - op.val;
+		if (X >= op.val) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		updateZeroFlag(temp);
+		updateNegativeFlag(temp);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::CPY() {
-
+	if (op.status & Op::Modify) {
+		uint8_t temp = Y - op.val;
+		if (Y >= op.val) {
+			P |= 1;
+		} else {
+			P &= 0xfe;
+		}
+		updateZeroFlag(temp);
+		updateNegativeFlag(temp);
+		op.status |= Op::Done;
+	}
 }
 
 void CPU::DCP() {
