@@ -1085,11 +1085,11 @@ void CPU::print(bool isCycleDone) {
 	} else {
 		time = "Before";
 		++inc;
-		std::cout << "-------------------------\n";
+		std::cout << "--------------------------------------------------\n";
 	}
 	std::cout << "Cycle " << totalCycles + inc << ": " << time
-		<< std::hex << "\n----------------\n"
-		"CPU Fields\n----------------\n"
+		<< std::hex << "\n----------------------\n"
+		"CPU Fields\n----------------------\n"
 		"PC          = 0x" << (unsigned int) PC << "\n"
 		"SP          = 0x" << (unsigned int) SP << "\n"
 		"A           = 0x" << (unsigned int) A << "\n"
@@ -1097,8 +1097,8 @@ void CPU::print(bool isCycleDone) {
 		"Y           = 0x" << (unsigned int) Y << "\n"
 		"P           = " << binaryP << "\n"
 		"totalCycles = " << std::dec << (unsigned int) totalCycles <<
-		"\n----------------\n" << std::hex <<
-		"Operation Fields\n----------------\n"
+		"\n----------------------\n" << std::hex <<
+		"Operation Fields\n----------------------\n"
 		"inst        = 0x" << (unsigned int) op.inst << "\n"
 		"PC          = 0x" << (unsigned int) op.PC << "\n"
 		"opcode      = 0x" << (unsigned int) op.opcode << "\n"
@@ -1110,14 +1110,15 @@ void CPU::print(bool isCycleDone) {
 		"addrMode    = " << (unsigned int) op.addrMode << "\n"
 		"cycles      = " << (unsigned int) op.cycles << "\n"
 		"status      = " << binaryStatus <<
-		"\n-------------------------\n";
+		"\n--------------------------------------------------\n";
 }
 
 void CPU::printUnknownOp() {
 	if (op.cycles == 2) {
 		op.status |= Op::Done;
 		std::cout << std::hex << "NOTE: Opcode 0x" << (unsigned int) op.opcode
-			<< " has not been implemented yet\n-------------------------\n" <<
+			<< " has not been implemented yet"
+			"\n--------------------------------------------------\n" <<
 			std::dec;
 	}
 }
