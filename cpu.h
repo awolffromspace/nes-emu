@@ -115,6 +115,7 @@ class CPU {
 		uint8_t BCD2binary(uint8_t BCDNum);
 		uint8_t binary2BCD(uint8_t binaryNum);
 		void print(bool isCycleDone);
+		void printUnknownOp();
 
 	private:
 		// Program Counter

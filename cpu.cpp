@@ -428,11 +428,11 @@ void CPU::ADC() {
 }
 
 void CPU::AHX() {
-
+	printUnknownOp();
 }
 
 void CPU::ALR() {
-
+	printUnknownOp();
 }
 
 void CPU::AND() {
@@ -445,11 +445,11 @@ void CPU::AND() {
 }
 
 void CPU::ANC() {
-
+	printUnknownOp();
 }
 
 void CPU::ARR() {
-
+	printUnknownOp();
 }
 
 void CPU::ASL() {
@@ -472,7 +472,7 @@ void CPU::ASL() {
 }
 
 void CPU::AXS() {
-
+	printUnknownOp();
 }
 
 void CPU::BCC() {
@@ -553,6 +553,7 @@ void CPU::BRK() {
 	// Since the emulator is currently designed to run a list of machine 
 	// language instructions rather than a ROM file, there needs to be a way to
 	// halt the program. BRK is the most suitable instruction for this purpose
+	std::cout << "End of the program" << std::endl;
 	exit(0);
 }
 
@@ -647,7 +648,7 @@ void CPU::CPY() {
 }
 
 void CPU::DCP() {
-
+	printUnknownOp();
 }
 
 void CPU::DEC() {
@@ -724,7 +725,7 @@ void CPU::INY() {
 }
 
 void CPU::ISC() {
-
+	printUnknownOp();
 }
 
 void CPU::JMP() {
@@ -751,11 +752,11 @@ void CPU::JSR() {
 }
 
 void CPU::LAS() {
-
+	printUnknownOp();
 }
 
 void CPU::LAX() {
-
+	printUnknownOp();
 }
 
 void CPU::LDA() {
@@ -852,7 +853,7 @@ void CPU::PLP() {
 }
 
 void CPU::RLA() {
-
+	printUnknownOp();
 }
 
 void CPU::ROL() {
@@ -902,11 +903,11 @@ void CPU::ROR() {
 }
 
 void CPU::RRA() {
-
+	printUnknownOp();
 }
 
 void CPU::RTI() {
-
+	printUnknownOp();
 }
 
 void CPU::RTS() {
@@ -921,7 +922,7 @@ void CPU::RTS() {
 }
 
 void CPU::SAX() {
-
+	printUnknownOp();
 }
 
 void CPU::SBC() {
@@ -953,19 +954,19 @@ void CPU::SEI() {
 }
 
 void CPU::SHX() {
-
+	printUnknownOp();
 }
 
 void CPU::SHY() {
-
+	printUnknownOp();
 }
 
 void CPU::SLO() {
-
+	printUnknownOp();
 }
 
 void CPU::SRE() {
-
+	printUnknownOp();
 }
 
 void CPU::STA() {
@@ -976,7 +977,7 @@ void CPU::STA() {
 }
 
 void CPU::STP() {
-
+	printUnknownOp();
 }
 
 void CPU::STX() {
@@ -994,7 +995,7 @@ void CPU::STY() {
 }
 
 void CPU::TAS() {
-
+	printUnknownOp();
 }
 
 void CPU::TAX() {
@@ -1050,7 +1051,7 @@ void CPU::TYA() {
 }
 
 void CPU::XAA() {
-
+	printUnknownOp();
 }
 
 // Processor status updates
@@ -1124,4 +1125,12 @@ void CPU::print(bool isCycleDone) {
 		"cycles      = " << (unsigned int) op.cycles << "\n"
 		"status      = " << binaryStatus <<
 		"\n-------------------------\n";
+}
+
+void CPU::printUnknownOp() {
+	if (op.cycles == 2) {
+		op.status |= Op::Done;
+		std::cout << std::hex << "NOTE: Opcode 0x" << (unsigned int) op.opcode
+			<< " has not been implemented yet\n-------------------------\n";
+	}
 }
