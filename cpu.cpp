@@ -103,7 +103,6 @@ void CPU::ABX() {
 				op.status |= Op::Modify;
 			} else {
 				op.tempAddr = fixedAddr;
-				op.status |= Op::PgBoundCrossed;
 			}
 			break;
 		case 4:
@@ -147,7 +146,6 @@ void CPU::ABY() {
 				op.status |= Op::Modify;
 			} else {
 				op.tempAddr = fixedAddr;
-				op.status |= Op::PgBoundCrossed;
 			}
 			break;
 		case 4:
@@ -284,7 +282,6 @@ void CPU::IDY() {
 				op.status |= Op::Modify;
 			} else {
 				op.tempAddr = fixedAddr;
-				op.status |= Op::PgBoundCrossed;
 			}
 			break;
 		case 5:
@@ -322,7 +319,6 @@ void CPU::REL() {
 				op.status |= Op::Done;
 			} else {
 				op.tempAddr = fixedAddr;
-				op.status |= Op::PgBoundCrossed;
 			}
 			break;
 		case 3:

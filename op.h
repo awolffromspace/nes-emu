@@ -37,11 +37,8 @@ class Op {
 			// When read-modify-write operations can write modified data to
 			// memory
 			WriteModified = 16,
-			// When certain operations cross a page boundary
-			// (i.e. the high byte of an address changes)
-			PgBoundCrossed = 32,
 			// When the operation is completely finished
-			Done = 64
+			Done = 32
 		};
 
 	private:

@@ -1,1 +1,7 @@
-40
+a208 // LDX #$08
+// decrement:
+ca
+8e0002 // STX $0200
+e003 // CPX #$03
+d0f8 // BNE decrement
+8e0102 // STX $0201
