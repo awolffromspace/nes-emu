@@ -1117,6 +1117,7 @@ void CPU::printUnknownOp() {
 	if (op.cycles == 2) {
 		op.status |= Op::Done;
 		std::cout << std::hex << "NOTE: Opcode 0x" << (unsigned int) op.opcode
-			<< " has not been implemented yet\n-------------------------\n";
+			<< " has not been implemented yet\n-------------------------\n" <<
+			std::dec;
 	}
 }

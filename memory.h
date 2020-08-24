@@ -2,6 +2,7 @@
 #define MEMORY_H
 
 #include <cstdint>
+#include <iostream>
 
 class Memory {
 	public:
