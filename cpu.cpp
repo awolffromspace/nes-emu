@@ -7,8 +7,7 @@ CPU::CPU()
 	  X(0),
 	  Y(0),
 	  P(32),
-	  totalCycles(0),
-	  totalInst(0) {
+	  totalCycles(0) {
 
 }
 
@@ -20,14 +19,14 @@ CPU::CPU(uint8_t data[])
 	  Y(0),
 	  P(32),
 	  mem(data),
-	  totalCycles(0),
-	  totalInst(0) {
+	  totalCycles(0) {
 
 }
 
 // Executes exactly one CPU cycle
 
 void CPU::step() {
+	print(false);
 	// Fetch
 	if ((op.status & Op::Done) || (totalCycles == 0)) {
 		op.reset();
@@ -39,10 +38,8 @@ void CPU::step() {
 	(*this.*addrModeArr[op.opcode])();
 	(*this.*opcodeArr[op.opcode])();
 	++op.cycles;
-	if (op.status & Op::Done) {
-		++totalInst;
-	}
 	++totalCycles;
+	print(true);
 }
 
 // Addressing Modes
@@ -518,7 +515,10 @@ void CPU::BPL() {
 }
 
 void CPU::BRK() {
-
+	// Since the emulator is currently designed to run a list of machine 
+	// language instructions rather than a ROM file, there needs to be a way to
+	// halt the program. BRK is the most suitable instruction for this purpose
+	exit(0);
 }
 
 void CPU::BVC() {
@@ -1077,8 +1077,4 @@ void CPU::print(bool isCycleDone) {
 		"cycles      = " << (unsigned int) op.cycles << "\n"
 		"status      = " << binaryStatus <<
 		"\n-------------------------\n";
-}
-
-unsigned int CPU::getTotalInst() {
-	return totalInst;
 }

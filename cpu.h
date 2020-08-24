@@ -115,7 +115,6 @@ class CPU {
 		uint8_t BCD2binary(uint8_t BCDNum);
 		uint8_t binary2BCD(uint8_t binaryNum);
 		void print(bool isCycleDone);
-		unsigned int getTotalInst();
 
 	private:
 		// Program Counter
@@ -135,8 +134,6 @@ class CPU {
 		Memory mem;
 		// Total number of cycles since initialization
 		unsigned int totalCycles;
-		// Total number of instructions since initialization
-		unsigned int totalInst;
 
 		// These arrays map machine language opcodes to addressing mode and
 		// operation function calls that are associated with said opcodes
