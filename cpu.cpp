@@ -1,7 +1,7 @@
 #include "cpu.h"
 
 CPU::CPU()
-	: PC(0),
+	: PC(0x8000),
 	  SP(0xff),
 	  A(0),
 	  X(0),
