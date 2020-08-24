@@ -1,9 +1,9 @@
 # NES Emulator (WIP)
 ## Introduction
-This is a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, the CPU is implemented with opcode-specific execution remaining.
+This is a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, all aspects of the CPU are finished except for interrupts and unofficial opcodes.
 ## Installation
 The emulator is written in C++ and compiled with Clang.
-## Usage
+## Usage (Linux)
 ```
 make
 ./a.out inst
