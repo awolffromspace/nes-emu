@@ -6,7 +6,7 @@ CPU::CPU()
 	  A(0),
 	  X(0),
 	  Y(0),
-	  P(32),
+	  P(0x20),
 	  totalCycles(0) {
 
 }
@@ -17,7 +17,7 @@ CPU::CPU(uint8_t data[])
 	  A(0),
 	  X(0),
 	  Y(0),
-	  P(32),
+	  P(0x20),
 	  mem(data),
 	  totalCycles(0) {
 
