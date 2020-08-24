@@ -110,12 +110,11 @@ void CPU::ABX() {
 			}
 			break;
 		case 4:
+			op.val = mem.read(op.tempAddr);
 			if (!(op.status & Op::Modify)) {
-				op.val = mem.read(op.tempAddr);
 				op.status |= Op::Modify;
 			}
 			op.status |= Op::Write;
-			op.status |= Op::Reread;
 			break;
 		case 5:
 			op.status |= Op::WriteUnmodified;
@@ -160,8 +159,8 @@ void CPU::ABY() {
 			}
 			break;
 		case 4:
+			op.val = mem.read(op.tempAddr);
 			if (!(op.status & Op::Modify)) {
-				op.val = mem.read(op.tempAddr);
 				op.status |= Op::Modify;
 			}
 			op.status |= Op::Write;
@@ -255,9 +254,9 @@ void CPU::IDX() {
 			op.tempAddr |= mem.read(temp) << 8;
 			break;
 		case 5:
+			op.val = mem.read(op.tempAddr);
 			op.status |= Op::Modify;
 			op.status |= Op::Write;
-			op.status |= Op::Reread;
 			break;
 		case 6:
 			op.status |= Op::WriteUnmodified;
@@ -303,12 +302,11 @@ void CPU::IDY() {
 			}
 			break;
 		case 5:
+			op.val = mem.read(op.tempAddr);
 			if (!(op.status & Op::Modify)) {
-				op.val = mem.read(op.tempAddr);
 				op.status |= Op::Modify;
 			}
 			op.status |= Op::Write;
-			op.status |= Op::Reread;
 			break;
 		case 6:
 			op.status |= Op::WriteUnmodified;
@@ -472,9 +470,7 @@ void CPU::ARR() {
 }
 
 void CPU::ASL() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		if (op.val & 0x80) {
 			P |= 1;
@@ -671,9 +667,7 @@ void CPU::DCP() {
 }
 
 void CPU::DEC() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		--op.val;
 		updateZeroFlag(op.val);
@@ -712,9 +706,7 @@ void CPU::EOR() {
 }
 
 void CPU::INC() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		++op.val;
 		updateZeroFlag(op.val);
@@ -806,9 +798,7 @@ void CPU::LDY() {
 }
 
 void CPU::LSR() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		if (op.val & 1) {
 			P |= 1;
@@ -876,9 +866,7 @@ void CPU::RLA() {
 }
 
 void CPU::ROL() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		uint8_t temp = op.val << 1;
 		if (P & 1) {
@@ -899,9 +887,7 @@ void CPU::ROL() {
 }
 
 void CPU::ROR() {
-	if (op.status & Op::Reread) {
-		mem.read(op.tempAddr);
-	} else if (op.status & Op::WriteUnmodified) {
+	if (op.status & Op::WriteUnmodified) {
 		mem.write(op.tempAddr, op.val);
 		uint8_t temp = op.val >> 1;
 		if (P & 1) {

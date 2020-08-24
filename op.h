@@ -29,16 +29,14 @@ class Op {
 			Modify = 1,
 			// When write operations can write to memory
 			Write = 2,
-			// When read-modify-write operations can re-read from memory
-			Reread = 4,
 			// When read-modify-write operations can write unmodified data to
 			// memory
-			WriteUnmodified = 8,
+			WriteUnmodified = 4,
 			// When read-modify-write operations can write modified data to
 			// memory
-			WriteModified = 16,
+			WriteModified = 8,
 			// When the operation is completely finished
-			Done = 32
+			Done = 16
 		};
 
 	private:
