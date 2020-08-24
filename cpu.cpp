@@ -312,14 +312,14 @@ void CPU::REL() {
 			break;
 		case 1:
 			op.operandLo = mem.read(PC);
-			op.inst = (op.inst << 8) + op.operandLo;
+			op.inst = (op.inst << 8) | op.operandLo;
 			++PC;
 			break;
 		case 2:
 			temp = (PC & 0xff) + op.operandLo;
 			op.tempAddr = (PC & 0xff00) | temp;
-			PC = op.tempAddr;
 			fixedAddr = PC + op.operandLo;
+			op.status |= Op::Modify;
 			if (op.tempAddr == fixedAddr) {
 				op.status |= Op::Done;
 			} else {
@@ -328,7 +328,6 @@ void CPU::REL() {
 			}
 			break;
 		case 3:
-			PC = op.tempAddr;
 			op.status |= Op::Done;
 	}
 }
@@ -477,15 +476,33 @@ void CPU::AXS() {
 }
 
 void CPU::BCC() {
-
+	if (op.status & Op::Modify) {
+		if (!(P & 1)) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BCS() {
-
+	if (op.status & Op::Modify) {
+		if (P & 1) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BEQ() {
-
+	if (op.status & Op::Modify) {
+		if (P & 2) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BIT() {
@@ -503,15 +520,33 @@ void CPU::BIT() {
 }
 
 void CPU::BMI() {
-
+	if (op.status & Op::Modify) {
+		if (P & 0x80) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BNE() {
-
+	if (op.status & Op::Modify) {
+		if (!(P & 2)) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BPL() {
-
+	if (op.status & Op::Modify) {
+		if (!(P & 0x80)) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BRK() {
@@ -522,11 +557,23 @@ void CPU::BRK() {
 }
 
 void CPU::BVC() {
-
+	if (op.status & Op::Modify) {
+		if (!(P & 0x40)) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::BVS() {
-
+	if (op.status & Op::Modify) {
+		if (P & 0x40) {
+			PC = op.tempAddr;
+		} else {
+			op.status |= Op::Done;
+		}
+	}
 }
 
 void CPU::CLC() {
