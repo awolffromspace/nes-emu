@@ -106,14 +106,13 @@ class CPU {
 		void TYA(); // Transfer Y to A
 		void XAA();
 
-		// Functions that update the processor status
+		// Processor Status Updates
 		// Only the zero and negative flags have dedicated functions because
 		// many operations set or clear them using the exact same conditions
 		void updateZeroFlag(uint8_t result);
 		void updateNegativeFlag(uint8_t result);
 
-		uint8_t BCD2binary(uint8_t BCDNum);
-		uint8_t binary2BCD(uint8_t binaryNum);
+		// Print Functions
 		void print(bool isCycleDone);
 		void printUnknownOp();
 

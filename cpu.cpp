@@ -23,8 +23,6 @@ CPU::CPU(uint8_t data[])
 
 }
 
-// Executes exactly one CPU cycle
-
 void CPU::step() {
 	print(false);
 	// Fetch
@@ -1054,7 +1052,7 @@ void CPU::XAA() {
 	printUnknownOp();
 }
 
-// Processor status updates
+// Processor Status Updates
 
 void CPU::updateZeroFlag(uint8_t result) {
 	if (result == 0) {
@@ -1068,26 +1066,7 @@ void CPU::updateNegativeFlag(uint8_t result) {
 	P |= result & 0x80;
 }
 
-// Miscellaneous
-
-uint8_t CPU::BCD2binary(uint8_t BCDNum) {
-	uint8_t binaryNum = 0;
-	unsigned int powOfTen = 1;
-	for (int i = 0; i < 2; ++i) {
-		binaryNum += ((BCDNum & (0xf << (4 * i))) >> (4 * i)) * powOfTen;
-		powOfTen *= 10;
-	}
-	return binaryNum;
-}
-
-uint8_t CPU::binary2BCD(uint8_t binaryNum) {
-	uint8_t BCDNum = 0;
-	for (int i = 0; i < 2; ++i) {
-		BCDNum = BCDNum | ((binaryNum % 10) << (4 * i));
-		binaryNum /= 10;
-	}
-	return BCDNum;
-}
+// Print Functions
 
 void CPU::print(bool isCycleDone) {
 	unsigned int inc = 0;
