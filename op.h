@@ -64,9 +64,7 @@ class Op {
 		uint16_t tempAddr;
 		// Addressing mode that the operation uses
 		int addrMode;
-		// How many cycles the operation has taken thus far. This field ignores
-		// any fetch pipelining to be consistent with how many cycles a given
-		// operation performs out of context
+		// How many cycles the operation has taken thus far
 		unsigned int cycles;
 		// Indicates any cycle-relevant info about the operation
 		int status;

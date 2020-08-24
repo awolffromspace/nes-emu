@@ -28,24 +28,21 @@ CPU::CPU(uint8_t data[])
 // Executes exactly one CPU cycle
 
 void CPU::step() {
-	while (true) {
-		// Fetch
-		if ((op.status & Op::Done) || (totalCycles == 0)) {
-			op.reset();
-			op.PC = PC;
-			op.inst = mem.read(PC);
-			op.opcode = op.inst;
-		}
-		// Decode and execute
-		(*this.*addrModeArr[op.opcode])();
-		(*this.*opcodeArr[op.opcode])();
-		++op.cycles;
-		if (op.status & Op::Done) {
-			++totalInst;
-		}
-		++totalCycles;
-		break;
+	// Fetch
+	if ((op.status & Op::Done) || (totalCycles == 0)) {
+		op.reset();
+		op.PC = PC;
+		op.inst = mem.read(PC);
+		op.opcode = op.inst;
 	}
+	// Decode and execute
+	(*this.*addrModeArr[op.opcode])();
+	(*this.*opcodeArr[op.opcode])();
+	++op.cycles;
+	if (op.status & Op::Done) {
+		++totalInst;
+	}
+	++totalCycles;
 }
 
 // Addressing Modes
