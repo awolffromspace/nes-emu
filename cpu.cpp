@@ -98,7 +98,11 @@ void CPU::ABX() {
 			break;
 		case 3:
 			op.val = mem.read(op.tempAddr);
-			fixedAddr = (op.operandHi << 8) + op.operandLo + X;
+			fixedAddr = X;
+			if (fixedAddr & 0x80) {
+				fixedAddr |= 0xff00;
+			}
+			fixedAddr += (op.operandHi << 8) + op.operandLo;
 			if (op.tempAddr == fixedAddr) {
 				op.status |= Op::Modify;
 			} else {
@@ -106,7 +110,10 @@ void CPU::ABX() {
 			}
 			break;
 		case 4:
-			op.status |= Op::Modify;
+			if (!(op.status & Op::Modify)) {
+				op.val = mem.read(op.tempAddr);
+				op.status |= Op::Modify;
+			}
 			op.status |= Op::Write;
 			op.status |= Op::Reread;
 			break;
@@ -141,7 +148,11 @@ void CPU::ABY() {
 			break;
 		case 3:
 			op.val = mem.read(op.tempAddr);
-			fixedAddr = (op.operandHi << 8) + op.operandLo + Y;
+			fixedAddr = Y;
+			if (fixedAddr & 0x80) {
+				fixedAddr |= 0xff00;
+			}
+			fixedAddr += (op.operandHi << 8) + op.operandLo;
 			if (op.tempAddr == fixedAddr) {
 				op.status |= Op::Modify;
 			} else {
@@ -149,7 +160,10 @@ void CPU::ABY() {
 			}
 			break;
 		case 4:
-			op.status |= Op::Modify;
+			if (!(op.status & Op::Modify)) {
+				op.val = mem.read(op.tempAddr);
+				op.status |= Op::Modify;
+			}
 			op.status |= Op::Write;
 	}
 }
@@ -277,7 +291,11 @@ void CPU::IDY() {
 		case 4:
 			op.val = mem.read(op.tempAddr);
 			temp = op.operandLo + 1;
-			fixedAddr = (mem.read(temp) << 8) + mem.read(op.operandLo) + Y;
+			fixedAddr = Y;
+			if (fixedAddr & 0x80) {
+				fixedAddr |= 0xff00;
+			}
+			fixedAddr += (mem.read(temp) << 8) + mem.read(op.operandLo);
 			if (op.tempAddr == fixedAddr) {
 				op.status |= Op::Modify;
 			} else {
@@ -285,7 +303,10 @@ void CPU::IDY() {
 			}
 			break;
 		case 5:
-			op.status |= Op::Modify;
+			if (!(op.status & Op::Modify)) {
+				op.val = mem.read(op.tempAddr);
+				op.status |= Op::Modify;
+			}
 			op.status |= Op::Write;
 			op.status |= Op::Reread;
 			break;
@@ -313,7 +334,11 @@ void CPU::REL() {
 		case 2:
 			temp = (PC & 0xff) + op.operandLo;
 			op.tempAddr = (PC & 0xff00) | temp;
-			fixedAddr = PC + op.operandLo;
+			fixedAddr = op.operandLo;
+			if (fixedAddr & 0x80) {
+				fixedAddr |= 0xff00;
+			}
+			fixedAddr += PC;
 			op.status |= Op::Modify;
 			if (op.tempAddr == fixedAddr) {
 				op.status |= Op::Done;
