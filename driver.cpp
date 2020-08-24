@@ -41,6 +41,9 @@ bool readInInst(std::string filename, uint8_t data[]) {
 		getline(file, line);
 		std::string substring = "";
 		for (int i = 0; i < line.size(); ++i) {
+			if (line.at(i) == '/') {
+				break;
+			}
 			substring += line.at(i);
 			if (i % 2 == 1) {
 				data[dataIndex] = std::stoul(substring, nullptr, 16);
