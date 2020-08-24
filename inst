@@ -1,6 +1,6 @@
 a208 // LDX #$08
 // decrement:
-ca
+ca // DEX
 8e0002 // STX $0200
 e003 // CPX #$03
 d0f8 // BNE decrement
