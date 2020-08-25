@@ -741,7 +741,7 @@ void CPU::ISC() {
 
 void CPU::JMP() {
 	if (((op.addrMode == Op::Absolute) && (op.cycles == 2)) ||
-		((op.addrMode == Op::Indirect) && (op.cycles == 4))) {
+	    ((op.addrMode == Op::Indirect) && (op.cycles == 4))) {
 		PC = op.tempAddr;
 		op.status |= Op::Done;
 	}
