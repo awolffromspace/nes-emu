@@ -18,7 +18,7 @@ Edit the `inst` file to change the instructions that are to be executed. The ins
 
 Enter `s` to step over the next cycle, `c` to continue until the end of the provided instructions, and `q` or any other character to exit.
 
-##Screenshots
+## Screenshots
 
 ![Screenshot1](/screenshot1.png)
 ![Screenshot2](/screenshot2.png)
