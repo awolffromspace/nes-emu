@@ -1,25 +1,25 @@
 #include "cpu.h"
 
 CPU::CPU()
-	: PC(0x8000),
-	  SP(0xff),
-	  A(0),
-	  X(0),
-	  Y(0),
-	  P(0x20),
-	  totalCycles(0) {
+	: PC(0x8000)
+	, SP(0xff)
+	, A(0)
+	, X(0)
+	, Y(0)
+	, P(0x20)
+	, totalCycles(0) {
 
 }
 
 CPU::CPU(uint8_t data[])
-	: PC(0x8000),
-	  SP(0xff),
-	  A(0),
-	  X(0),
-	  Y(0),
-	  P(0x20),
-	  mem(data),
-	  totalCycles(0) {
+	: PC(0x8000)
+	, SP(0xff)
+	, A(0)
+	, X(0)
+	, Y(0)
+	, P(0x20)
+	, mem(data)
+	, totalCycles(0) {
 
 }
 
@@ -740,10 +740,18 @@ void CPU::ISC() {
 }
 
 void CPU::JMP() {
-	if (((op.addrMode == Op::Absolute) && (op.cycles == 2)) ||
-	    ((op.addrMode == Op::Indirect) && (op.cycles == 4))) {
-		PC = op.tempAddr;
-		op.status |= Op::Done;
+	switch (op.cycles) {
+		case 2:
+			if (op.addrMode == Op::Absolute) {
+				PC = op.tempAddr;
+				op.status |= Op::Done;
+			}
+			break;
+		case 4:
+			if (op.addrMode == Op::Indirect) {
+				PC = op.tempAddr;
+				op.status |= Op::Done;
+			}
 	}
 }
 
