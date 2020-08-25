@@ -748,17 +748,22 @@ void CPU::JMP() {
 }
 
 void CPU::JSR() {
-	if (op.cycles == 2) {
-		--PC;
-	} else if (op.cycles == 3) {
-		uint8_t PCH = (PC & 0xff00) >> 8;
-		mem.push(SP, PCH);
-	} else if (op.cycles == 4) {
-		uint8_t PCL = PC & 0xff;
-		mem.push(SP, PCL);
-	} else if (op.cycles == 5) {
-		PC = op.tempAddr;
-		op.status |= Op::Done;
+	uint8_t temp = 0;
+	switch (op.cycles) {
+		case 2:
+			--PC;
+			break;
+		case 3:
+			temp = (PC & 0xff00) >> 8;
+			mem.push(SP, temp);
+			break;
+		case 4:
+			temp = PC & 0xff;
+			mem.push(SP, temp);
+			break;
+		case 5:
+			PC = op.tempAddr;
+			op.status |= Op::Done;
 	}
 }
 
@@ -844,20 +849,24 @@ void CPU::PHP() {
 }
 
 void CPU::PLA() {
-	if (op.cycles == 2) {
-		op.val = mem.pull(SP);
-	} else if (op.cycles == 3) {
-		A = op.val;
-		op.status |= Op::Done;
+	switch (op.cycles) {
+		case 2:
+			op.val = mem.pull(SP);
+			break;
+		case 3:
+			A = op.val;
+			op.status |= Op::Done;
 	}
 }
 
 void CPU::PLP() {
-	if (op.cycles == 2) {
-		op.val = mem.pull(SP);
-	} else if (op.cycles == 3) {
-		P = op.val;
-		op.status |= Op::Done;
+	switch (op.cycles) {
+		case 2:
+			op.val = mem.pull(SP);
+			break;
+		case 3:
+			P = op.val;
+			op.status |= Op::Done;
 	}
 }
 
@@ -916,13 +925,16 @@ void CPU::RTI() {
 }
 
 void CPU::RTS() {
-	if (op.cycles == 3) {
-		op.tempAddr = mem.pull(SP);
-	} else if (op.cycles == 4) {
-		op.tempAddr |= mem.pull(SP) << 8;
-	} else if (op.cycles == 5) {
-		PC = op.tempAddr + 1;
-		op.status |= Op::Done;
+	switch (op.cycles) {
+		case 3:
+			op.tempAddr = mem.pull(SP);
+			break;
+		case 4:
+			op.tempAddr |= mem.pull(SP) << 8;
+			break;
+		case 5:
+			PC = op.tempAddr + 1;
+			op.status |= Op::Done;
 	}
 }
 
