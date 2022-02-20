@@ -33,8 +33,8 @@ void CPU::step() {
         op.opcode = op.inst;
     }
     // Decode and execute
-    (*this.*addrModeArr[op.opcode])();
-    (*this.*opcodeArr[op.opcode])();
+    (this->*addrModeArr[op.opcode])();
+    (this->*opcodeArr[op.opcode])();
     ++op.cycles;
     ++totalCycles;
     print(true);
