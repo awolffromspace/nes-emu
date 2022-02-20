@@ -1,8 +1,5 @@
 #include "cpu.h"
 
-#include <fstream>
-#include <string>
-
 int main(int argc, char* argv[]) {
     CPU cpu(argv[1]);
     std::string input;
