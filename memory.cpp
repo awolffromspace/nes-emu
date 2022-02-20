@@ -68,7 +68,7 @@ void Memory::write(uint16_t addr, uint8_t val) {
         std::dec;
 }
 
-void Memory::push(uint8_t &pointer, uint8_t val) {
+void Memory::push(uint8_t& pointer, uint8_t val) {
     uint16_t index = 0x100 + pointer;
     data[index] = val;
     std::cout << std::hex << "0x" << (unsigned int) val <<
@@ -77,7 +77,7 @@ void Memory::push(uint8_t &pointer, uint8_t val) {
     --pointer;
 }
 
-uint8_t Memory::pull(uint8_t &pointer) {
+uint8_t Memory::pull(uint8_t& pointer) {
     ++pointer;
     uint16_t index = 0x100 + pointer;
     uint8_t val = data[index];
