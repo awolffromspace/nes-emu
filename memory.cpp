@@ -4,6 +4,31 @@ Memory::Memory() {
 
 }
 
+Memory::Memory(std::string filename) {
+	std::string line;
+	std::ifstream file(filename.c_str());
+	if (!file.is_open()) {
+		std::cout << "Error reading in file" << std::endl;
+		exit(1);
+	}
+	int dataIndex = 0x8000;
+	while (file.good()) {
+		getline(file, line);
+		std::string substring = "";
+		for (int i = 0; i < line.size(); ++i) {
+			if (line.at(i) == '/' || line.at(i) == ' ') {
+				break;
+			}
+			substring += line.at(i);
+			if (i % 2 == 1) {
+				data[dataIndex] = std::stoul(substring, nullptr, 16);
+				dataIndex++;
+				substring = "";
+			}
+		}
+	}
+}
+
 Memory::Memory(uint8_t d[]) {
 	for (int i = 0; i < 65536; ++i) {
 		data[i] = d[i];

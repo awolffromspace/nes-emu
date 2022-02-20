@@ -2,7 +2,6 @@
 #define CPU_H
 
 #include <bitset>
-#include <iostream>
 
 #include "memory.h"
 #include "op.h"
@@ -10,7 +9,7 @@
 class CPU {
 	public:
 		CPU();
-		CPU(uint8_t data[]);
+		CPU(std::string filename);
 		void step();
 
 		// Addressing Modes

@@ -1,25 +1,25 @@
 #include "cpu.h"
 
 CPU::CPU()
-	: PC(0x8000)
-	, SP(0xff)
-	, A(0)
-	, X(0)
-	, Y(0)
-	, P(0x20)
-	, totalCycles(0) {
+		: PC(0x8000)
+		, SP(0xff)
+		, A(0)
+		, X(0)
+		, Y(0)
+		, P(0x20)
+		, totalCycles(0) {
 
 }
 
-CPU::CPU(uint8_t data[])
-	: PC(0x8000)
-	, SP(0xff)
-	, A(0)
-	, X(0)
-	, Y(0)
-	, P(0x20)
-	, mem(data)
-	, totalCycles(0) {
+CPU::CPU(std::string filename)
+		: PC(0x8000)
+		, SP(0xff)
+		, A(0)
+		, X(0)
+		, Y(0)
+		, P(0x20)
+		, mem(filename)
+		, totalCycles(0) {
 
 }
 
