@@ -43,7 +43,7 @@ class Op {
         // Instruction
         uint32_t inst;
         // Address for the beginning of the instruction (i.e. opcode)
-        uint16_t PC;
+        uint16_t pc;
         // Operation code
         uint8_t opcode;
         // Operand with the least significant byte

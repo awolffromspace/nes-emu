@@ -2,7 +2,7 @@
 
 Op::Op()
         : inst(0)
-        , PC(0)
+        , pc(0)
         , opcode(0)
         , operandLo(0)
         , operandHi(0)
@@ -16,7 +16,7 @@ Op::Op()
 
 void Op::reset() {
     inst = 0;
-    PC = 0;
+    pc = 0;
     opcode = 0;
     operandLo = 0;
     operandHi = 0;

@@ -13,97 +13,97 @@ class CPU {
         void step();
 
         // Addressing Modes
-        void ABS(); // Absolute
-        void ABX(); // Absolute, X
-        void ABY(); // Absolute, Y
-        void ACC(); // Accumulator
-        void IMM(); // Immediate
-        void IMP(); // Implied
-        void IDR(); // Indirect
-        void IDX(); // Indirect, X (AKA Indexed Indirect)
-        void IDY(); // Indirect, Y (AKA Indirect Indexed)
-        void REL(); // Relative
-        void ZPG(); // Zero Page
-        void ZPX(); // Zero Page, X
-        void ZPY(); // Zero Page, Y
+        void abs(); // Absolute
+        void abx(); // Absolute, X
+        void aby(); // Absolute, Y
+        void acc(); // Accumulator
+        void imm(); // Immediate
+        void imp(); // Implied
+        void idr(); // Indirect
+        void idx(); // Indirect, X (AKA Indexed Indirect)
+        void idy(); // Indirect, Y (AKA Indirect Indexed)
+        void rel(); // Relative
+        void zpg(); // Zero Page
+        void zpx(); // Zero Page, X
+        void zpy(); // Zero Page, Y
 
         // Operations
         // Functions without comments next to them are unofficial opcodes
-        void ADC(); // ADd with Carry
-        void AHX();
-        void ALR();
-        void AND(); // bitwise AND with accumulator
-        void ANC();
-        void ARR();
-        void ASL(); // Arithmetic Shift Left
-        void AXS();
-        void BCC(); // Branch on Carry Clear
-        void BCS(); // Branch on Carry Set
-        void BEQ(); // Branch on EQual
-        void BIT(); // test BITs
-        void BMI(); // Branch on MInus
-        void BNE(); // Branch on Not Equal
-        void BPL(); // Branch on PLus
-        void BRK(); // BReaK
-        void BVC(); // Branch on oVerflow Clear
-        void BVS(); // Branch on oVerflow Set
-        void CLC(); // CLear Carry
-        void CLD(); // CLear Decimal
-        void CLI(); // CLear Interrupt
-        void CLV(); // CLear oVerflow
-        void CMP(); // CoMPare accumulator
-        void CPX(); // ComPare X register
-        void CPY(); // ComPare Y register
-        void DCP();
-        void DEC(); // DECrement memory
-        void DEX(); // DEcrement X
-        void DEY(); // DEcrement Y
-        void EOR(); // bitwise Exclusive OR
-        void INC(); // INCrement memory
-        void INX(); // INcrement X
-        void INY(); // INcrement Y
-        void ISC();
-        void JMP(); // JuMP
-        void JSR(); // Jump to SubRoutine
-        void LAS();
-        void LAX();
-        void LDA(); // LoaD Accumulator
-        void LDX(); // LoaD X register
-        void LDY(); // LoaD Y register
-        void LSR(); // Logical Shift Right
-        void NOP(); // No OPeration
-        void ORA(); // bitwise OR with Accumulator
-        void PHA(); // PusH Accumulator
-        void PHP(); // PusH Processor status
-        void PLA(); // PuLl Accumulator
-        void PLP(); // PuLl Processor status
-        void RLA();
-        void ROL(); // ROtate Left
-        void ROR(); // ROtate Right
-        void RRA();
-        void RTI(); // ReTurn from Interrupt
-        void RTS(); // ReTurn from Subroutine
-        void SAX();
-        void SBC(); // SuBtract with Carry
-        void SEC(); // SEt Carry
-        void SED(); // SEt Decimal
-        void SEI(); // SEt Interrupt
-        void SHX();
-        void SHY();
-        void SLO();
-        void SRE();
-        void STA(); // STore Accumulator
-        void STP(); // STop the Processor
-        void STX(); // STore X register
-        void STY(); // STore Y register
-        void TAS();
-        void TAX(); // Transfer A to X
-        void TAY(); // Transfer A to Y
-        void TSX(); // Transfer Stack pointer to X
-        void TXA(); // Transfer X to A
-        void TXS(); // Transfer X to Stack pointer
-        void TYA(); // Transfer Y to A
-        void XAA();
+        void adc(); // ADd with Carry
+        void ahx();
+        void alr();
+        void andOp(); // bitwise AND with accumulator
+        void anc();
+        void arr();
+        void asl(); // Arithmetic Shift Left
+        void axs();
+        void bcc(); // Branch on Carry Clear
+        void bcs(); // Branch on Carry Set
+        void beq(); // Branch on EQual
+        void bit(); // test BITs
+        void bmi(); // Branch on MInus
+        void bne(); // Branch on Not Equal
+        void bpl(); // Branch on PLus
+        void brk(); // BReaK
+        void bvc(); // Branch on oVerflow Clear
+        void bvs(); // Branch on oVerflow Set
+        void clc(); // CLear Carry
+        void cld(); // CLear Decimal
+        void cli(); // CLear Interrupt
+        void clv(); // CLear oVerflow
+        void cmp(); // CoMPare accumulator
+        void cpx(); // ComPare X register
+        void cpy(); // ComPare Y register
+        void dcp();
+        void dec(); // DECrement memory
+        void dex(); // DEcrement X
+        void dey(); // DEcrement Y
+        void eor(); // bitwise Exclusive OR
+        void inc(); // INCrement memory
+        void inx(); // INcrement X
+        void iny(); // INcrement Y
+        void isc();
+        void jmp(); // JuMP
+        void jsr(); // Jump to SubRoutine
+        void las();
+        void lax();
+        void lda(); // LoaD Accumulator
+        void ldx(); // LoaD X register
+        void ldy(); // LoaD Y register
+        void lsr(); // Logical Shift Right
+        void nop(); // No OPeration
+        void ora(); // bitwise OR with Accumulator
+        void pha(); // PusH Accumulator
+        void php(); // PusH Processor status
+        void pla(); // PuLl Accumulator
+        void plp(); // PuLl Processor status
+        void rla();
+        void rol(); // ROtate Left
+        void ror(); // ROtate Right
+        void rra();
+        void rti(); // ReTurn from Interrupt
+        void rts(); // ReTurn from Subroutine
+        void sax();
+        void sbc(); // SuBtract with Carry
+        void sec(); // SEt Carry
+        void sed(); // SEt Decimal
+        void sei(); // SEt Interrupt
+        void shx();
+        void shy();
+        void slo();
+        void sre();
+        void sta(); // STore Accumulator
+        void stp(); // STop the Processor
+        void stx(); // STore X register
+        void sty(); // STore Y register
+        void tas();
+        void tax(); // Transfer A to X
+        void tay(); // Transfer A to Y
+        void tsx(); // Transfer Stack pointer to X
+        void txa(); // Transfer X to A
+        void txs(); // Transfer X to Stack pointer
+        void tya(); // Transfer Y to A
+        void xaa();
 
         // Processor Status Updates
         // Only the zero and negative flags have dedicated functions because
@@ -117,17 +117,17 @@ class CPU {
 
     private:
         // Program Counter
-        uint16_t PC;
+        uint16_t pc;
         // Stack Pointer
-        uint8_t SP;
+        uint8_t sp;
         // Accumulator
-        uint8_t A;
+        uint8_t a;
         // Index register X
-        uint8_t X;
+        uint8_t x;
         // Index register Y
-        uint8_t Y;
+        uint8_t y;
         // Processor status
-        uint8_t P;
+        uint8_t p;
         // Current operation
         Op op;
         Memory mem;
@@ -138,94 +138,103 @@ class CPU {
         // operation function calls that are associated with said opcodes
         typedef void (CPU::*funcPtr)();
         funcPtr addrModeArr[256] = {
-            &CPU::IMP, &CPU::IDX, &CPU::IMP, &CPU::IDX, &CPU::ZPG, &CPU::ZPG,
-            &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM, &CPU::ACC, &CPU::IMM,
-            &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::REL, &CPU::IDY,
-            &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX,
-            &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY, &CPU::ABX, &CPU::ABX,
-            &CPU::ABX, &CPU::ABX, &CPU::ABS, &CPU::IDX, &CPU::IMP, &CPU::IDX,
-            &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM,
-            &CPU::ACC, &CPU::IMM, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::ABS,
-            &CPU::REL, &CPU::IDY, &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX,
-            &CPU::ZPX, &CPU::ZPX, &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY,
-            &CPU::ABX, &CPU::ABX, &CPU::ABX, &CPU::ABX, &CPU::IMP, &CPU::IDX,
-            &CPU::IMP, &CPU::IDX, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG,
-            &CPU::IMP, &CPU::IMM, &CPU::ACC, &CPU::IMM, &CPU::ABS, &CPU::ABS,
-            &CPU::ABS, &CPU::ABS, &CPU::REL, &CPU::IDY, &CPU::IMP, &CPU::IDY,
-            &CPU::ZPX, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX, &CPU::IMP, &CPU::ABY,
-            &CPU::IMP, &CPU::ABY, &CPU::ABX, &CPU::ABX, &CPU::ABX, &CPU::ABX,
-            &CPU::IMP, &CPU::IDX, &CPU::IMP, &CPU::IDX, &CPU::ZPG, &CPU::ZPG,
-            &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM, &CPU::ACC, &CPU::IMM,
-            &CPU::IDR, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::REL, &CPU::IDY,
-            &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX,
-            &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY, &CPU::ABX, &CPU::ABX,
-            &CPU::ABX, &CPU::ABX, &CPU::IMM, &CPU::IDX, &CPU::IMM, &CPU::IDX,
-            &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM,
-            &CPU::IMP, &CPU::IMM, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::ABS,
-            &CPU::REL, &CPU::IDY, &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX,
-            &CPU::ZPY, &CPU::ZPY, &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY,
-            &CPU::ABX, &CPU::ABX, &CPU::ABY, &CPU::ABY, &CPU::IMM, &CPU::IDX,
-            &CPU::IMM, &CPU::IDX, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG,
-            &CPU::IMP, &CPU::IMM, &CPU::IMP, &CPU::IMM, &CPU::ABS, &CPU::ABS,
-            &CPU::ABS, &CPU::ABS, &CPU::REL, &CPU::IDY, &CPU::IMP, &CPU::IDY,
-            &CPU::ZPX, &CPU::ZPX, &CPU::ZPY, &CPU::ZPY, &CPU::IMP, &CPU::ABY,
-            &CPU::IMP, &CPU::ABY, &CPU::ABX, &CPU::ABX, &CPU::ABY, &CPU::ABY,
-            &CPU::IMM, &CPU::IDX, &CPU::IMM, &CPU::IDX, &CPU::ZPG, &CPU::ZPG,
-            &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM, &CPU::IMP, &CPU::IMM,
-            &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::REL, &CPU::IDY,
-            &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX, &CPU::ZPX,
-            &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY, &CPU::ABX, &CPU::ABX,
-            &CPU::ABX, &CPU::ABX, &CPU::IMM, &CPU::IDX, &CPU::IMM, &CPU::IDX,
-            &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::ZPG, &CPU::IMP, &CPU::IMM,
-            &CPU::IMP, &CPU::IMM, &CPU::ABS, &CPU::ABS, &CPU::ABS, &CPU::ABS,
-            &CPU::REL, &CPU::IDY, &CPU::IMP, &CPU::IDY, &CPU::ZPX, &CPU::ZPX,
-            &CPU::ZPX, &CPU::ZPX, &CPU::IMP, &CPU::ABY, &CPU::IMP, &CPU::ABY,
-            &CPU::ABX, &CPU::ABX, &CPU::ABX, &CPU::ABX
+            &CPU::imp, &CPU::idx, &CPU::imp, &CPU::idx, &CPU::zpg, &CPU::zpg,
+            &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm, &CPU::acc, &CPU::imm,
+            &CPU::abs, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::rel, &CPU::idy,
+            &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx, &CPU::zpx, &CPU::zpx,
+            &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby, &CPU::abx, &CPU::abx,
+            &CPU::abx, &CPU::abx, &CPU::abs, &CPU::idx, &CPU::imp, &CPU::idx,
+            &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm,
+            &CPU::acc, &CPU::imm, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::abs,
+            &CPU::rel, &CPU::idy, &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx,
+            &CPU::zpx, &CPU::zpx, &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby,
+            &CPU::abx, &CPU::abx, &CPU::abx, &CPU::abx, &CPU::imp, &CPU::idx,
+            &CPU::imp, &CPU::idx, &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::zpg,
+            &CPU::imp, &CPU::imm, &CPU::acc, &CPU::imm, &CPU::abs, &CPU::abs,
+            &CPU::abs, &CPU::abs, &CPU::rel, &CPU::idy, &CPU::imp, &CPU::idy,
+            &CPU::zpx, &CPU::zpx, &CPU::zpx, &CPU::zpx, &CPU::imp, &CPU::aby,
+            &CPU::imp, &CPU::aby, &CPU::abx, &CPU::abx, &CPU::abx, &CPU::abx,
+            &CPU::imp, &CPU::idx, &CPU::imp, &CPU::idx, &CPU::zpg, &CPU::zpg,
+            &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm, &CPU::acc, &CPU::imm,
+            &CPU::idr, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::rel, &CPU::idy,
+            &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx, &CPU::zpx, &CPU::zpx,
+            &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby, &CPU::abx, &CPU::abx,
+            &CPU::abx, &CPU::abx, &CPU::imm, &CPU::idx, &CPU::imm, &CPU::idx,
+            &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm,
+            &CPU::imp, &CPU::imm, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::abs,
+            &CPU::rel, &CPU::idy, &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx,
+            &CPU::zpy, &CPU::zpy, &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby,
+            &CPU::abx, &CPU::abx, &CPU::aby, &CPU::aby, &CPU::imm, &CPU::idx,
+            &CPU::imm, &CPU::idx, &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::zpg,
+            &CPU::imp, &CPU::imm, &CPU::imp, &CPU::imm, &CPU::abs, &CPU::abs,
+            &CPU::abs, &CPU::abs, &CPU::rel, &CPU::idy, &CPU::imp, &CPU::idy,
+            &CPU::zpx, &CPU::zpx, &CPU::zpy, &CPU::zpy, &CPU::imp, &CPU::aby,
+            &CPU::imp, &CPU::aby, &CPU::abx, &CPU::abx, &CPU::aby, &CPU::aby,
+            &CPU::imm, &CPU::idx, &CPU::imm, &CPU::idx, &CPU::zpg, &CPU::zpg,
+            &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm, &CPU::imp, &CPU::imm,
+            &CPU::abs, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::rel, &CPU::idy,
+            &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx, &CPU::zpx, &CPU::zpx,
+            &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby, &CPU::abx, &CPU::abx,
+            &CPU::abx, &CPU::abx, &CPU::imm, &CPU::idx, &CPU::imm, &CPU::idx,
+            &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::zpg, &CPU::imp, &CPU::imm,
+            &CPU::imp, &CPU::imm, &CPU::abs, &CPU::abs, &CPU::abs, &CPU::abs,
+            &CPU::rel, &CPU::idy, &CPU::imp, &CPU::idy, &CPU::zpx, &CPU::zpx,
+            &CPU::zpx, &CPU::zpx, &CPU::imp, &CPU::aby, &CPU::imp, &CPU::aby,
+            &CPU::abx, &CPU::abx, &CPU::abx, &CPU::abx
         };
         funcPtr opcodeArr[256] = {
-            &CPU::BRK, &CPU::ORA, &CPU::STP, &CPU::SLO, &CPU::NOP, &CPU::ORA,
-            &CPU::ASL, &CPU::SLO, &CPU::PHP, &CPU::ORA, &CPU::ASL, &CPU::ANC,
-            &CPU::NOP, &CPU::ORA, &CPU::ASL, &CPU::SLO, &CPU::BPL, &CPU::ORA,
-            &CPU::STP, &CPU::SLO, &CPU::NOP, &CPU::ORA, &CPU::ASL, &CPU::SLO,
-            &CPU::CLC, &CPU::ORA, &CPU::NOP, &CPU::SLO, &CPU::NOP, &CPU::ORA,
-            &CPU::ASL, &CPU::SLO, &CPU::JSR, &CPU::AND, &CPU::STP, &CPU::RLA,
-            &CPU::BIT, &CPU::AND, &CPU::ROL, &CPU::RLA, &CPU::PLP, &CPU::AND,
-            &CPU::ROL, &CPU::ANC, &CPU::BIT, &CPU::AND, &CPU::ROL, &CPU::RLA,
-            &CPU::BMI, &CPU::AND, &CPU::STP, &CPU::RLA, &CPU::NOP, &CPU::AND,
-            &CPU::ROL, &CPU::RLA, &CPU::SEC, &CPU::AND, &CPU::NOP, &CPU::RLA,
-            &CPU::NOP, &CPU::AND, &CPU::ROL, &CPU::RLA, &CPU::RTI, &CPU::EOR,
-            &CPU::STP, &CPU::SRE, &CPU::NOP, &CPU::EOR, &CPU::LSR, &CPU::SRE,
-            &CPU::PHA, &CPU::EOR, &CPU::LSR, &CPU::ALR, &CPU::JMP, &CPU::EOR,
-            &CPU::LSR, &CPU::SRE, &CPU::BVC, &CPU::EOR, &CPU::STP, &CPU::SRE,
-            &CPU::NOP, &CPU::EOR, &CPU::LSR, &CPU::SRE, &CPU::CLI, &CPU::EOR,
-            &CPU::NOP, &CPU::SRE, &CPU::NOP, &CPU::EOR, &CPU::LSR, &CPU::SRE,
-            &CPU::RTS, &CPU::ADC, &CPU::STP, &CPU::RRA, &CPU::NOP, &CPU::ADC,
-            &CPU::ROR, &CPU::RRA, &CPU::PLA, &CPU::ADC, &CPU::ROR, &CPU::ARR,
-            &CPU::JMP, &CPU::ADC, &CPU::ROR, &CPU::RRA, &CPU::BVS, &CPU::ADC,
-            &CPU::STP, &CPU::RRA, &CPU::NOP, &CPU::ADC, &CPU::ROR, &CPU::RRA,
-            &CPU::SEI, &CPU::ADC, &CPU::NOP, &CPU::RRA, &CPU::NOP, &CPU::ADC,
-            &CPU::ROR, &CPU::RRA, &CPU::NOP, &CPU::STA, &CPU::NOP, &CPU::SAX,
-            &CPU::STY, &CPU::STA, &CPU::STX, &CPU::SAX, &CPU::DEY, &CPU::NOP,
-            &CPU::TXA, &CPU::XAA, &CPU::STY, &CPU::STA, &CPU::STX, &CPU::SAX,
-            &CPU::BCC, &CPU::STA, &CPU::STP, &CPU::AHX, &CPU::STY, &CPU::STA,
-            &CPU::STX, &CPU::SAX, &CPU::TYA, &CPU::STA, &CPU::TXS, &CPU::TAS,
-            &CPU::SHY, &CPU::STA, &CPU::SHX, &CPU::AHX, &CPU::LDY, &CPU::LDA,
-            &CPU::LDX, &CPU::LAX, &CPU::LDY, &CPU::LDA, &CPU::LDX, &CPU::LAX,
-            &CPU::TAY, &CPU::LDA, &CPU::TAX, &CPU::LAX, &CPU::LDY, &CPU::LDA,
-            &CPU::LDX, &CPU::LAX, &CPU::BCS, &CPU::LDA, &CPU::STP, &CPU::LAX,
-            &CPU::LDY, &CPU::LDA, &CPU::LDX, &CPU::LAX, &CPU::CLV, &CPU::LDA,
-            &CPU::TSX, &CPU::LAS, &CPU::LDY, &CPU::LDA, &CPU::LDX, &CPU::LAX,
-            &CPU::CPY, &CPU::CMP, &CPU::NOP, &CPU::DCP, &CPU::CPY, &CPU::CMP,
-            &CPU::DEC, &CPU::DCP, &CPU::INY, &CPU::CMP, &CPU::DEX, &CPU::AXS,
-            &CPU::CPY, &CPU::CMP, &CPU::DEC, &CPU::DCP, &CPU::BNE, &CPU::CMP,
-            &CPU::STP, &CPU::DCP, &CPU::NOP, &CPU::CMP, &CPU::DEC, &CPU::DCP,
-            &CPU::CLD, &CPU::CMP, &CPU::NOP, &CPU::DCP, &CPU::NOP, &CPU::CMP,
-            &CPU::DEC, &CPU::DCP, &CPU::CPX, &CPU::SBC, &CPU::NOP, &CPU::ISC,
-            &CPU::CPX, &CPU::SBC, &CPU::INC, &CPU::ISC, &CPU::INX, &CPU::SBC,
-            &CPU::NOP, &CPU::SBC, &CPU::CPX, &CPU::SBC, &CPU::INC, &CPU::ISC,
-            &CPU::BEQ, &CPU::SBC, &CPU::STP, &CPU::ISC, &CPU::NOP, &CPU::SBC,
-            &CPU::INC, &CPU::ISC, &CPU::SED, &CPU::SBC, &CPU::NOP, &CPU::ISC,
-            &CPU::NOP, &CPU::SBC, &CPU::INC, &CPU::ISC
+            &CPU::brk,   &CPU::ora,   &CPU::stp,   &CPU::slo,   &CPU::nop,
+            &CPU::ora,   &CPU::asl,   &CPU::slo,   &CPU::php,   &CPU::ora,
+            &CPU::asl,   &CPU::anc,   &CPU::nop,   &CPU::ora,   &CPU::asl,
+            &CPU::slo,   &CPU::bpl,   &CPU::ora,   &CPU::stp,   &CPU::slo,
+            &CPU::nop,   &CPU::ora,   &CPU::asl,   &CPU::slo,   &CPU::clc,
+            &CPU::ora,   &CPU::nop,   &CPU::slo,   &CPU::nop,   &CPU::ora,
+            &CPU::asl,   &CPU::slo,   &CPU::jsr,   &CPU::andOp, &CPU::stp,
+            &CPU::rla,   &CPU::bit,   &CPU::andOp, &CPU::rol,   &CPU::rla,
+            &CPU::plp,   &CPU::andOp, &CPU::rol,   &CPU::anc,   &CPU::bit,
+            &CPU::andOp, &CPU::rol,   &CPU::rla,   &CPU::bmi,   &CPU::andOp,
+            &CPU::stp,   &CPU::rla,   &CPU::nop,   &CPU::andOp, &CPU::rol,
+            &CPU::rla,   &CPU::sec,   &CPU::andOp, &CPU::nop,   &CPU::rla,
+            &CPU::nop,   &CPU::andOp, &CPU::rol,   &CPU::rla,   &CPU::rti,
+            &CPU::eor,   &CPU::stp,   &CPU::sre,   &CPU::nop,   &CPU::eor,
+            &CPU::lsr,   &CPU::sre,   &CPU::pha,   &CPU::eor,   &CPU::lsr,
+            &CPU::alr,   &CPU::jmp,   &CPU::eor,   &CPU::lsr,   &CPU::sre,
+            &CPU::bvc,   &CPU::eor,   &CPU::stp,   &CPU::sre,   &CPU::nop,
+            &CPU::eor,   &CPU::lsr,   &CPU::sre,   &CPU::cli,   &CPU::eor,
+            &CPU::nop,   &CPU::sre,   &CPU::nop,   &CPU::eor,   &CPU::lsr,
+            &CPU::sre,   &CPU::rts,   &CPU::adc,   &CPU::stp,   &CPU::rra,
+            &CPU::nop,   &CPU::adc,   &CPU::ror,   &CPU::rra,   &CPU::pla,
+            &CPU::adc,   &CPU::ror,   &CPU::arr,   &CPU::jmp,   &CPU::adc,
+            &CPU::ror,   &CPU::rra,   &CPU::bvs,   &CPU::adc,   &CPU::stp,
+            &CPU::rra,   &CPU::nop,   &CPU::adc,   &CPU::ror,   &CPU::rra,
+            &CPU::sei,   &CPU::adc,   &CPU::nop,   &CPU::rra,   &CPU::nop,
+            &CPU::adc,   &CPU::ror,   &CPU::rra,   &CPU::nop,   &CPU::sta,
+            &CPU::nop,   &CPU::sax,   &CPU::sty,   &CPU::sta,   &CPU::stx,
+            &CPU::sax,   &CPU::dey,   &CPU::nop,   &CPU::txa,   &CPU::xaa,
+            &CPU::sty,   &CPU::sta,   &CPU::stx,   &CPU::sax,   &CPU::bcc,
+            &CPU::sta,   &CPU::stp,   &CPU::ahx,   &CPU::sty,   &CPU::sta,
+            &CPU::stx,   &CPU::sax,   &CPU::tya,   &CPU::sta,   &CPU::txs,
+            &CPU::tas,   &CPU::shy,   &CPU::sta,   &CPU::shx,   &CPU::ahx,
+            &CPU::ldy,   &CPU::lda,   &CPU::ldx,   &CPU::lax,   &CPU::ldy,
+            &CPU::lda,   &CPU::ldx,   &CPU::lax,   &CPU::tay,   &CPU::lda,
+            &CPU::tax,   &CPU::lax,   &CPU::ldy,   &CPU::lda,   &CPU::ldx,
+            &CPU::lax,   &CPU::bcs,   &CPU::lda,   &CPU::stp,   &CPU::lax,
+            &CPU::ldy,   &CPU::lda,   &CPU::ldx,   &CPU::lax,   &CPU::clv,
+            &CPU::lda,   &CPU::tsx,   &CPU::las,   &CPU::ldy,   &CPU::lda,
+            &CPU::ldx,   &CPU::lax,   &CPU::cpy,   &CPU::cmp,   &CPU::nop,
+            &CPU::dcp,   &CPU::cpy,   &CPU::cmp,   &CPU::dec,   &CPU::dcp,
+            &CPU::iny,   &CPU::cmp,   &CPU::dex,   &CPU::axs,   &CPU::cpy,
+            &CPU::cmp,   &CPU::dec,   &CPU::dcp,   &CPU::bne,   &CPU::cmp,
+            &CPU::stp,   &CPU::dcp,   &CPU::nop,   &CPU::cmp,   &CPU::dec,
+            &CPU::dcp,   &CPU::cld,   &CPU::cmp,   &CPU::nop,   &CPU::dcp,
+            &CPU::nop,   &CPU::cmp,   &CPU::dec,   &CPU::dcp,   &CPU::cpx,
+            &CPU::sbc,   &CPU::nop,   &CPU::isc,   &CPU::cpx,   &CPU::sbc,
+            &CPU::inc,   &CPU::isc,   &CPU::inx,   &CPU::sbc,   &CPU::nop,
+            &CPU::sbc,   &CPU::cpx,   &CPU::sbc,   &CPU::inc,   &CPU::isc,
+            &CPU::beq,   &CPU::sbc,   &CPU::stp,   &CPU::isc,   &CPU::nop,
+            &CPU::sbc,   &CPU::inc,   &CPU::isc,   &CPU::sed,   &CPU::sbc,
+            &CPU::nop,   &CPU::isc,   &CPU::nop,   &CPU::sbc,   &CPU::inc,
+            &CPU::isc
         };
 };
 
