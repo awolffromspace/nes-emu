@@ -426,14 +426,14 @@ void CPU::zpy() {
 void CPU::adc() {
     if (op.status & Op::Modify) {
         uint16_t temp = a + op.val + (p & 1);
-        uint8_t pasta = a;
+        uint8_t pastA = a;
         a += op.val + (p & 1);
         if (temp > 0xff) {
             p |= 1;
         } else {
             p &= 0xfe;
         }
-        if ((pasta ^ a) & (op.val ^ a) & 0x80) {
+        if ((pastA ^ a) & (op.val ^ a) & 0x80) {
             p |= 0x40;
         } else {
             p &= 0xbf;
