@@ -9,8 +9,10 @@
 class CPU {
     public:
         CPU();
-        CPU(std::string filename);
+        void reset();
         void step();
+        void readInInst(std::string filename);
+        bool isEndOfProgram();
 
         // Addressing Modes
         void abs(); // Absolute
@@ -133,6 +135,7 @@ class CPU {
         Memory mem;
         // Total number of cycles since initialization
         unsigned int totalCycles;
+        bool endOfProgram;
 
         // These arrays map machine language opcodes to addressing mode and
         // operation function calls that are associated with said opcodes

@@ -7,20 +7,24 @@ CPU::CPU() :
         x(0),
         y(0),
         p(0x20),
-        totalCycles(0) {
+        totalCycles(0),
+        endOfProgram(false) {
 
 }
 
-CPU::CPU(std::string filename) :
-        pc(0x8000),
-        sp(0xff),
-        a(0),
-        x(0),
-        y(0),
-        p(0x20),
-        mem(filename),
-        totalCycles(0) {
+void CPU::reset() {
+    pc = 0x8000;
+    sp = 0xff;
+    a = 0;
+    x = 0;
+    y = 0;
+    p = 0x20;
+    op.reset();
+    mem.reset();
+    totalCycles = 0;
+    endOfProgram = false;
 
+    std::cout << "CPU was reset\n";
 }
 
 void CPU::step() {
@@ -38,6 +42,14 @@ void CPU::step() {
     ++op.cycles;
     ++totalCycles;
     print(true);
+}
+
+void CPU::readInInst(std::string filename) {
+    mem.readInInst(filename);
+}
+
+bool CPU::isEndOfProgram() {
+    return endOfProgram;
 }
 
 // Addressing Modes
@@ -568,8 +580,7 @@ void CPU::brk() {
     // Since the emulator is currently designed to run a list of machine 
     // language instructions rather than a ROM file, there needs to be a way to
     // halt the program. BRK is the most suitable instruction for this purpose
-    std::cout << "End of the program" << std::endl;
-    exit(0);
+    endOfProgram = true;
 }
 
 void CPU::bvc() {
