@@ -1,15 +1,13 @@
-#include <vector>
-
 #include "cpu.h"
 
 int main(int argc, char* argv[]) {
     CPU cpu;
-    std::vector<std::string> filenames{"test/adc-imm"};
+    std::string filenames[] = {"test/adc-imm"};
     int totalPrograms = 1;
     bool testMode = false;
     if (argc == 1) {
         testMode = true;
-        totalPrograms = filenames.size();
+        totalPrograms = 1; // Size of filenames
     } else if (argc == 2) {
         std::string filename(argv[1]);
         cpu.readInInst(filename);
