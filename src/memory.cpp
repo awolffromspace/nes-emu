@@ -66,7 +66,7 @@ void Memory::readInInst(std::string& filename) {
     std::string line;
     std::ifstream file(filename.c_str());
     if (!file.is_open()) {
-        std::cout << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file" << std::endl;
         exit(1);
     }
     int dataIndex = 0x8000;

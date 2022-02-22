@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
         std::string filename(argv[1]);
         runProgram(cpu, filename);
     } else {
-        std::cout << "Unexpected number of arguments" << std::endl;
+        std::cerr << "Unexpected number of arguments" << std::endl;
         exit(1);
     }
     return 0;
@@ -31,7 +31,7 @@ struct CPUState readInState(std::string& filename) {
     std::string stateFilename = filename + ".state";
     std::ifstream file(stateFilename.c_str());
     if (!file.is_open()) {
-        std::cout << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file" << std::endl;
         exit(1);
     }
     while (file.good()) {
@@ -54,7 +54,7 @@ struct CPUState readInState(std::string& filename) {
         substring = "";
     }
     if (dataIndex < 7) {
-        std::cout << "Unexpected number of state fields" << std::endl;
+        std::cerr << "Unexpected number of state fields" << std::endl;
         exit(1);
     }
     state.pc = data[0];
