@@ -62,7 +62,7 @@ uint8_t Memory::pull(uint8_t& pointer) {
     return val;
 }
 
-void Memory::readInInst(std::string filename) {
+void Memory::readInInst(std::string& filename) {
     std::string line;
     std::ifstream file(filename.c_str());
     if (!file.is_open()) {

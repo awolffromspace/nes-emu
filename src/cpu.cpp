@@ -50,7 +50,7 @@ bool CPU::isEndOfProgram() {
     return endOfProgram;
 }
 
-bool CPU::compareState(struct CPUState state) {
+bool CPU::compareState(struct CPUState& state) {
     if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
             state.y != y || state.p != p || state.totalCycles != totalCycles) {
         return false;

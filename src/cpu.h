@@ -23,7 +23,7 @@ class CPU {
         void step();
         void readInInst(std::string filename);
         bool isEndOfProgram();
-        bool compareState(struct CPUState state);
+        bool compareState(struct CPUState& state);
 
         // Addressing Modes
         void abs(); // Absolute
@@ -146,6 +146,7 @@ class CPU {
         Memory mem;
         // Total number of cycles since initialization
         unsigned int totalCycles;
+        // Set to true when the break operation is ran
         bool endOfProgram;
 
         // These arrays map machine language opcodes to addressing mode and
