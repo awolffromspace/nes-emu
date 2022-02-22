@@ -80,7 +80,7 @@ void Memory::readInInst(std::string filename) {
             substring += line.at(i);
             if (i % 2 == 1) {
                 data[dataIndex] = std::stoul(substring, nullptr, 16);
-                dataIndex++;
+                ++dataIndex;
                 substring = "";
             }
         }

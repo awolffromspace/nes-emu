@@ -6,6 +6,16 @@
 #include "memory.h"
 #include "op.h"
 
+struct CPUState {
+    uint16_t pc;
+    uint8_t sp;
+    uint8_t a;
+    uint8_t x;
+    uint8_t y;
+    uint8_t p;
+    unsigned int totalCycles;
+};
+
 class CPU {
     public:
         CPU();
@@ -13,6 +23,7 @@ class CPU {
         void step();
         void readInInst(std::string filename);
         bool isEndOfProgram();
+        bool compareState(struct CPUState state);
 
         // Addressing Modes
         void abs(); // Absolute

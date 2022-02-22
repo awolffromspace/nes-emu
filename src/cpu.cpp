@@ -28,7 +28,6 @@ void CPU::reset() {
 }
 
 void CPU::step() {
-    print(false);
     // Fetch
     if ((op.status & Op::Done) || (totalCycles == 0)) {
         op.reset();
@@ -41,7 +40,6 @@ void CPU::step() {
     (this->*opcodeArr[op.opcode])();
     ++op.cycles;
     ++totalCycles;
-    print(true);
 }
 
 void CPU::readInInst(std::string filename) {
@@ -50,6 +48,14 @@ void CPU::readInInst(std::string filename) {
 
 bool CPU::isEndOfProgram() {
     return endOfProgram;
+}
+
+bool CPU::compareState(struct CPUState state) {
+    if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
+            state.y != y || state.p != p || state.totalCycles != totalCycles) {
+        return false;
+    }
+    return true;
 }
 
 // Addressing Modes
