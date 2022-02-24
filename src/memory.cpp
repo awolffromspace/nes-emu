@@ -4,10 +4,12 @@ Memory::Memory() {
 
 }
 
-void Memory::reset() {
+void Memory::reset(bool mute) {
     memset(data, 0, 65536);
 
-    std::cout << "Memory was reset\n";
+    if (!mute) {
+        std::cout << "Memory was reset\n";
+    }
 }
 
 uint8_t Memory::read(uint16_t addr) {
@@ -85,4 +87,5 @@ void Memory::readInInst(std::string& filename) {
             }
         }
     }
+    file.close();
 }

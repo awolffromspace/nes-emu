@@ -12,7 +12,7 @@ CPU::CPU() :
 
 }
 
-void CPU::reset() {
+void CPU::reset(bool mute) {
     pc = 0x8000;
     sp = 0xff;
     a = 0;
@@ -20,11 +20,13 @@ void CPU::reset() {
     y = 0;
     p = 0x20;
     op.reset();
-    mem.reset();
+    mem.reset(mute);
     totalCycles = 0;
     endOfProgram = false;
 
-    std::cout << "CPU was reset\n";
+    if (!mute) {
+        std::cout << "CPU was reset\n";
+    }
 }
 
 void CPU::step() {
@@ -586,6 +588,7 @@ void CPU::brk() {
     // Since the emulator is currently designed to run a list of machine 
     // language instructions rather than a ROM file, there needs to be a way to
     // halt the program. BRK is the most suitable instruction for this purpose
+    p |= 0x10;
     endOfProgram = true;
 }
 
@@ -1107,6 +1110,7 @@ void CPU::updateZeroFlag(uint8_t result) {
 }
 
 void CPU::updateNegativeFlag(uint8_t result) {
+    p &= 0x7f;
     p |= result & 0x80;
 }
 

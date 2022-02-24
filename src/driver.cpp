@@ -2,6 +2,8 @@
 
 #include "cpu.h"
 
+void readInFilenames(std::vector<std::string>& filenames);
+
 struct CPUState readInState(std::string& filename);
 
 void runProgram(CPU& cpu, std::string& filename);
@@ -10,8 +12,9 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
 int main(int argc, char* argv[]) {
     CPU cpu;
-    std::vector<std::string> filenames = {"test/adc-imm"};
     if (argc == 1) {
+        std::vector<std::string> filenames;
+        readInFilenames(filenames);
         runTests(cpu, filenames);
     } else if (argc == 2) {
         std::string filename(argv[1]);
@@ -21,6 +24,25 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
     return 0;
+}
+
+void readInFilenames(std::vector<std::string>& filenames) {
+    std::string filenameList = "test/filenames";
+    std::string line;
+    std::ifstream file(filenameList.c_str());
+    if (!file.is_open()) {
+        std::cerr << "Error reading in file" << std::endl;
+        exit(1);
+    }
+    while (file.good()) {
+        getline(file, line);
+        if (line.at(line.size() - 1) == '\n') {
+            filenames.push_back("test/" + line.substr(0, line.size() - 1));
+        } else {
+            filenames.push_back("test/" + line);
+        }
+    }
+    file.close();
 }
 
 struct CPUState readInState(std::string& filename) {
@@ -53,6 +75,7 @@ struct CPUState readInState(std::string& filename) {
         ++dataIndex;
         substring = "";
     }
+    file.close();
     if (dataIndex < 7) {
         std::cerr << "Unexpected number of state fields" << std::endl;
         exit(1);
@@ -95,7 +118,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     for (int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
         if (testNum > 0) {
-            cpu.reset();
+            cpu.reset(true);
         }
 
         cpu.readInInst(currentFilename);

@@ -10,7 +10,7 @@
 class Memory {
     public:
         Memory();
-        void reset();
+        void reset(bool mute);
         uint8_t read(uint16_t addr);
         void write(uint16_t addr, uint8_t val);
         void push(uint8_t& pointer, uint8_t val);

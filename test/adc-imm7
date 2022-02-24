@@ -1,0 +1,2 @@
+a9ff // LDA #$ff
+69ff // ADC #$ff

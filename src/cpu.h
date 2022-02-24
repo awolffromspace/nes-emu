@@ -19,7 +19,7 @@ struct CPUState {
 class CPU {
     public:
         CPU();
-        void reset();
+        void reset(bool mute);
         void step();
         void readInInst(std::string filename);
         bool isEndOfProgram();
