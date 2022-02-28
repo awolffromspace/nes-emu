@@ -149,7 +149,7 @@ class CPU {
         unsigned int totalCycles;
         // Set to true when the break operation is ran
         bool endOfProgram;
-        // Set to hide debug info
+        // Set to true to hide debug info
         bool mute;
 
         // These arrays map machine language opcodes to addressing mode and
