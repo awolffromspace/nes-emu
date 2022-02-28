@@ -30,10 +30,12 @@ void readInFilenames(std::vector<std::string>& filenames) {
     std::string filenameList = "test/filenames";
     std::string line;
     std::ifstream file(filenameList.c_str());
+
     if (!file.is_open()) {
         std::cerr << "Error reading in file" << std::endl;
         exit(1);
     }
+
     while (file.good()) {
         getline(file, line);
         if (line.at(line.size() - 1) == '\n') {
@@ -42,6 +44,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
             filenames.push_back("test/" + line);
         }
     }
+
     file.close();
 }
 
@@ -52,19 +55,23 @@ struct CPUState readInState(std::string& filename) {
     std::string line;
     std::string stateFilename = filename + ".state";
     std::ifstream file(stateFilename.c_str());
+
     if (!file.is_open()) {
         std::cerr << "Error reading in file" << std::endl;
         exit(1);
     }
+
     while (file.good()) {
         getline(file, line);
         std::string substring = "";
+
         for (int i = 0; i < line.size(); ++i) {
             if (line.at(i) == '/' || line.at(i) == ' ') {
                 break;
             }
             substring += line.at(i);
         }
+
         if (dataIndex == 5) {
             state.p = std::stoul(substring, nullptr, 2);
         } else if (dataIndex == 6) {
@@ -72,26 +79,33 @@ struct CPUState readInState(std::string& filename) {
         } else {
             data[dataIndex] = std::stoul(substring, nullptr, 16);
         }
+
         ++dataIndex;
         substring = "";
     }
+
     file.close();
+
     if (dataIndex < 7) {
         std::cerr << "Unexpected number of state fields" << std::endl;
         exit(1);
     }
+
     state.pc = data[0];
     state.sp = data[1];
     state.a = data[2];
     state.x = data[3];
     state.y = data[4];
+
     return state;
 }
 
 void runProgram(CPU& cpu, std::string& filename) {
     cpu.readInInst(filename);
+
     std::string input;
     std::cin >> input;
+
     while (!cpu.isEndOfProgram()) {
         if (input == "c" || input == "continue") {
             cpu.print(false);
@@ -110,6 +124,7 @@ void runProgram(CPU& cpu, std::string& filename) {
             exit(0);
         }
     }
+
     std::cout << "End of the program" << std::endl;
 }
 
@@ -117,11 +132,13 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
     for (int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
+
         if (testNum > 0) {
             cpu.reset(true);
         }
 
         cpu.readInInst(currentFilename);
+
         while (!cpu.isEndOfProgram()) {
             cpu.step();
         }

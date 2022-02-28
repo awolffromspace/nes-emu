@@ -21,6 +21,7 @@ void Memory::write(uint16_t addr, uint8_t val) {
     std::cout << std::hex << "0x" << (unsigned int) val <<
         " has been written to the memory address(es)\n0x" <<
         (unsigned int) addr;
+
     if (addr < 0x2000) { // Zero Page mirroring
         for (int i = 1; i <= 3; ++i) {
             uint16_t index = addr + 0x800 * i;
@@ -41,6 +42,7 @@ void Memory::write(uint16_t addr, uint8_t val) {
             // addresses
         }
     }
+
     std::cout << "\n--------------------------------------------------\n" <<
         std::dec;
 }
@@ -67,19 +69,24 @@ uint8_t Memory::pull(uint8_t& pointer) {
 void Memory::readInInst(std::string& filename) {
     std::string line;
     std::ifstream file(filename.c_str());
+
     if (!file.is_open()) {
         std::cerr << "Error reading in file" << std::endl;
         exit(1);
     }
+
     int dataIndex = 0x8000;
     while (file.good()) {
         getline(file, line);
         std::string substring = "";
+
         for (int i = 0; i < line.size(); ++i) {
             if (line.at(i) == '/' || line.at(i) == ' ') {
                 break;
             }
+
             substring += line.at(i);
+
             if (i % 2 == 1) {
                 data[dataIndex] = std::stoul(substring, nullptr, 16);
                 ++dataIndex;
@@ -87,5 +94,6 @@ void Memory::readInInst(std::string& filename) {
             }
         }
     }
+
     file.close();
 }
