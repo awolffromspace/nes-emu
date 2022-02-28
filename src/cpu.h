@@ -19,11 +19,12 @@ struct CPUState {
 class CPU {
     public:
         CPU();
-        void reset(bool mute);
+        void reset();
         void step();
         void readInInst(std::string filename);
         bool isEndOfProgram();
         bool compareState(struct CPUState& state);
+        void setMute(bool m);
 
         // Addressing Modes
         void abs(); // Absolute
@@ -148,6 +149,8 @@ class CPU {
         unsigned int totalCycles;
         // Set to true when the break operation is ran
         bool endOfProgram;
+        // Set to hide debug info
+        bool mute;
 
         // These arrays map machine language opcodes to addressing mode and
         // operation function calls that are associated with said opcodes

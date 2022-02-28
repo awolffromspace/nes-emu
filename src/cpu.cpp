@@ -8,11 +8,12 @@ CPU::CPU() :
         y(0),
         p(0x20),
         totalCycles(0),
-        endOfProgram(false) {
+        endOfProgram(false),
+        mute(true) {
 
 }
 
-void CPU::reset(bool mute) {
+void CPU::reset() {
     pc = 0x8000;
     sp = 0xff;
     a = 0;
@@ -58,6 +59,10 @@ bool CPU::compareState(struct CPUState& state) {
         return false;
     }
     return true;
+}
+
+void CPU::setMute(bool m) {
+    mute = m;
 }
 
 // Addressing Modes
@@ -491,7 +496,7 @@ void CPU::arr() {
 
 void CPU::asl() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         if (op.val & 0x80) {
             p |= 1;
         } else {
@@ -501,7 +506,7 @@ void CPU::asl() {
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
@@ -588,8 +593,16 @@ void CPU::brk() {
     // Since the emulator is currently designed to run a list of machine 
     // language instructions rather than a ROM file, there needs to be a way to
     // halt the program. BRK is the most suitable instruction for this purpose
-    p |= 0x10;
-    endOfProgram = true;
+    switch (op.cycles) {
+        case 4:
+            p |= 0x10;
+            break;
+        case 5:
+            p |= 0x4;
+            break;
+        case 6:
+            endOfProgram = true;
+    }
 }
 
 void CPU::bvc() {
@@ -688,12 +701,12 @@ void CPU::dcp() {
 
 void CPU::dec() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         --op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
@@ -727,12 +740,12 @@ void CPU::eor() {
 
 void CPU::inc() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         ++op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
@@ -783,11 +796,11 @@ void CPU::jsr() {
             break;
         case 3:
             temp = (pc & 0xff00) >> 8;
-            mem.push(sp, temp);
+            mem.push(sp, temp, mute);
             break;
         case 4:
             temp = pc & 0xff;
-            mem.push(sp, temp);
+            mem.push(sp, temp, mute);
             break;
         case 5:
             pc = op.tempAddr;
@@ -832,7 +845,7 @@ void CPU::ldy() {
 
 void CPU::lsr() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         if (op.val & 1) {
             p |= 1;
         } else {
@@ -842,7 +855,7 @@ void CPU::lsr() {
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
@@ -864,14 +877,14 @@ void CPU::ora() {
 
 void CPU::pha() {
     if (op.cycles == 2) {
-        mem.push(sp, a);
+        mem.push(sp, a, mute);
         op.status |= Op::Done;
     }
 }
 
 void CPU::php() {
     if (op.cycles == 2) {
-        mem.push(sp, p);
+        mem.push(sp, p, mute);
         op.status |= Op::Done;
     }
 }
@@ -879,7 +892,7 @@ void CPU::php() {
 void CPU::pla() {
     switch (op.cycles) {
         case 2:
-            op.val = mem.pull(sp);
+            op.val = mem.pull(sp, mute);
             break;
         case 3:
             a = op.val;
@@ -890,7 +903,7 @@ void CPU::pla() {
 void CPU::plp() {
     switch (op.cycles) {
         case 2:
-            op.val = mem.pull(sp);
+            op.val = mem.pull(sp, mute);
             break;
         case 3:
             p = op.val;
@@ -904,7 +917,7 @@ void CPU::rla() {
 
 void CPU::rol() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
         if (p & 1) {
             temp |= 1;
@@ -918,14 +931,14 @@ void CPU::rol() {
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
 
 void CPU::ror() {
     if (op.status & Op::WriteUnmodified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
         if (p & 1) {
             temp |= 0x80;
@@ -939,7 +952,7 @@ void CPU::ror() {
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
     } else if (op.status & Op::WriteModified) {
-        mem.write(op.tempAddr, op.val);
+        mem.write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     }
 }
@@ -955,10 +968,10 @@ void CPU::rti() {
 void CPU::rts() {
     switch (op.cycles) {
         case 3:
-            op.tempAddr = mem.pull(sp);
+            op.tempAddr = mem.pull(sp, mute);
             break;
         case 4:
-            op.tempAddr |= mem.pull(sp) << 8;
+            op.tempAddr |= mem.pull(sp, mute) << 8;
             break;
         case 5:
             pc = op.tempAddr + 1;
@@ -1016,7 +1029,7 @@ void CPU::sre() {
 
 void CPU::sta() {
     if (op.status & Op::Write) {
-        mem.write(op.tempAddr, a);
+        mem.write(op.tempAddr, a, mute);
         op.status |= Op::Done;
     }
 }
@@ -1027,14 +1040,14 @@ void CPU::stp() {
 
 void CPU::stx() {
     if (op.status & Op::Write) {
-        mem.write(op.tempAddr, x);
+        mem.write(op.tempAddr, x, mute);
         op.status |= Op::Done;
     }
 }
 
 void CPU::sty() {
     if (op.status & Op::Write) {
-        mem.write(op.tempAddr, y);
+        mem.write(op.tempAddr, y, mute);
         op.status |= Op::Done;
     }
 }

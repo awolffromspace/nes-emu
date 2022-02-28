@@ -17,6 +17,8 @@ int main(int argc, char* argv[]) {
         readInFilenames(filenames);
         runTests(cpu, filenames);
     } else if (argc == 2) {
+        cpu.setMute(false);
+
         std::string filename(argv[1]);
         runProgram(cpu, filename);
     } else {
@@ -134,7 +136,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         std::string& currentFilename = filenames[testNum];
 
         if (testNum > 0) {
-            cpu.reset(true);
+            cpu.reset();
         }
 
         cpu.readInInst(currentFilename);

@@ -16,11 +16,14 @@ uint8_t Memory::read(uint16_t addr) {
     return data[addr];
 }
 
-void Memory::write(uint16_t addr, uint8_t val) {
+void Memory::write(uint16_t addr, uint8_t val, bool mute) {
     data[addr] = val;
-    std::cout << std::hex << "0x" << (unsigned int) val <<
-        " has been written to the memory address(es)\n0x" <<
-        (unsigned int) addr;
+
+    if (!mute) {
+        std::cout << std::hex << "0x" << (unsigned int) val <<
+            " has been written to the memory address(es)\n0x" <<
+            (unsigned int) addr;
+    }
 
     if (addr < 0x2000) { // Zero Page mirroring
         for (int i = 1; i <= 3; ++i) {
@@ -29,7 +32,10 @@ void Memory::write(uint16_t addr, uint8_t val) {
                 index -= 0x2000;
             }
             data[index] = val;
-            std::cout << ", 0x" << (unsigned int) index;
+
+            if (!mute) {
+                std::cout << ", 0x" << (unsigned int) index;
+            }
         }
     } else if (addr < 0x4000) { // I/O register mirroring
         for (int i = 1; i <= 400; ++i) {
@@ -43,26 +49,38 @@ void Memory::write(uint16_t addr, uint8_t val) {
         }
     }
 
-    std::cout << "\n--------------------------------------------------\n" <<
-        std::dec;
+    if (!mute) {
+        std::cout << "\n--------------------------------------------------\n" <<
+            std::dec;
+    }
 }
 
-void Memory::push(uint8_t& pointer, uint8_t val) {
+void Memory::push(uint8_t& pointer, uint8_t val, bool mute) {
     uint16_t index = 0x100 + pointer;
     data[index] = val;
-    std::cout << std::hex << "0x" << (unsigned int) val <<
-        " has been pushed to the stack address 0x" << (unsigned int) index <<
-        "\n--------------------------------------------------\n" << std::dec;
+
+    if (!mute) {
+        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
+            "been pushed to the stack address 0x" << (unsigned int) index <<
+            "\n--------------------------------------------------\n" <<
+            std::dec;
+    }
+
     --pointer;
 }
 
-uint8_t Memory::pull(uint8_t& pointer) {
+uint8_t Memory::pull(uint8_t& pointer, bool mute) {
     ++pointer;
     uint16_t index = 0x100 + pointer;
     uint8_t val = data[index];
-    std::cout << std::hex << "0x" << (unsigned int) val <<
-        " has been pulled from the stack address 0x" << (unsigned int) index <<
-        "\n--------------------------------------------------\n" << std::dec;
+
+    if (!mute) {
+        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
+            "been pulled from the stack address 0x" << (unsigned int) index <<
+            "\n--------------------------------------------------\n" <<
+            std::dec;
+    }
+
     return val;
 }
 
