@@ -13,6 +13,7 @@ CPU::CPU() :
     // Set the reset vector to 0x8000, the beginning of the PRG-ROM lower bank
     // This is where test programs will start at
     mem.write(0xfffd, 0x80, true);
+
     // Initialize PC to the reset vector
     pc = (mem.read(0xfffd) << 8) | mem.read(0xfffc);
 }
