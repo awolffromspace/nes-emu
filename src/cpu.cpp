@@ -41,7 +41,7 @@ void CPU::step() {
         // Polling for interrupts
         // If any interrupts are flagged, start the interrupt prologue
         // Ignore IRQ if the Interrupt Disable flag is set
-        if (((op.status & Op::IRQ) && !(p & 0x4)) ||
+        if (((op.status & Op::IRQ) && !(p & InterruptDisable)) ||
                 (op.status & Op::NMI) || (op.status & Op::Reset)) {
             op.status |= Op::InterruptPrologue;
         }
@@ -455,12 +455,12 @@ void CPU::adc() {
         if (temp > 0xff) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         if ((pastA ^ a) & (op.val ^ a) & Negative) {
             p |= Overflow;
         } else {
-            p &= 0xbf;
+            p &= ~Overflow;
         }
         updateZeroFlag(a);
         updateNegativeFlag(a);
@@ -499,7 +499,7 @@ void CPU::asl() {
         if (op.val & Negative) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         op.val = op.val << 1;
         updateZeroFlag(op.val);
@@ -550,7 +550,7 @@ void CPU::bit() {
         if (op.val & Overflow) {
             p |= Overflow;
         } else {
-            p &= 0xbf;
+            p &= ~Overflow;
         }
         updateZeroFlag(temp);
         updateNegativeFlag(op.val);
@@ -592,8 +592,6 @@ void CPU::brk() {
     p |= Break;
     if (haltAtBrk) {
         endOfProgram = true;
-        --op.cycles;
-        --totalCycles;
     } else {
         op.status |= Op::IRQ;
         op.status |= Op::InterruptPrologue;
@@ -623,28 +621,28 @@ void CPU::bvs() {
 
 void CPU::clc() {
     if (op.status & Op::Modify) {
-        p &= 0xfe;
+        p &= ~Carry;
         op.status |= Op::Done;
     }
 }
 
 void CPU::cld() {
     if (op.status & Op::Modify) {
-        p &= 0xf7;
+        p &= ~DecimalMode;
         op.status |= Op::Done;
     }
 }
 
 void CPU::cli() {
     if (op.status & Op::Modify) {
-        p &= 0xfb;
+        p &= ~InterruptDisable;
         op.status |= Op::Done;
     }
 }
 
 void CPU::clv() {
     if (op.status & Op::Modify) {
-        p &= 0xbf;
+        p &= ~Overflow;
         op.status |= Op::Done;
     }
 }
@@ -655,7 +653,7 @@ void CPU::cmp() {
         if (a >= op.val) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
@@ -669,7 +667,7 @@ void CPU::cpx() {
         if (x >= op.val) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
@@ -683,7 +681,7 @@ void CPU::cpy() {
         if (y >= op.val) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
@@ -845,7 +843,7 @@ void CPU::lsr() {
         if (op.val & Carry) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         op.val = op.val >> 1;
         updateZeroFlag(op.val);
@@ -921,7 +919,7 @@ void CPU::rol() {
         if (op.val & Negative) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         op.val = temp;
         updateZeroFlag(op.val);
@@ -942,7 +940,7 @@ void CPU::ror() {
         if (op.val & Carry) {
             p |= Carry;
         } else {
-            p &= 0xfe;
+            p &= ~Carry;
         }
         op.val = temp;
         updateZeroFlag(op.val);
@@ -1174,13 +1172,13 @@ void CPU::updateZeroFlag(uint8_t result) {
     if (result == 0) {
         p |= Zero;
     } else {
-        p &= 0xfd;
+        p &= ~Zero;
     }
 }
 
 void CPU::updateNegativeFlag(uint8_t result) {
-    p &= 0x7f;
-    p |= result & 0x80;
+    p &= ~Negative;
+    p |= result & Negative;
 }
 
 // Miscellaneous Functions
@@ -1214,8 +1212,8 @@ void CPU::setMute(bool m) {
 void CPU::print(bool isCycleDone) {
     unsigned int inc = 0;
     std::string time;
-    std::bitset<8> binaryP(p);
-    std::bitset<8> binaryStatus(op.status);
+    std::bitset<9> binaryP(p);
+    std::bitset<9> binaryStatus(op.status);
     if (isCycleDone) {
         time = "After";
     } else {
