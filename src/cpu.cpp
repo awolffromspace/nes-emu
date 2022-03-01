@@ -956,7 +956,17 @@ void CPU::rra() {
 }
 
 void CPU::rti() {
-    printUnknownOp();
+    switch (op.cycles) {
+        case 3:
+            p = mem.pull(sp, mute);
+            break;
+        case 4:
+            op.tempAddr |= mem.pull(sp, mute);
+            break;
+        case 5:
+            op.tempAddr |= mem.pull(sp, mute) << 8;
+            pc = op.tempAddr;
+    }
 }
 
 void CPU::rts() {
