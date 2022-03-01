@@ -55,7 +55,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
 
 struct CPUState readInState(std::string& filename) {
     struct CPUState state;
-    uint16_t data[7];
+    uint16_t data[5];
     int dataIndex = 0;
     std::string line;
     std::string stateFilename = filename + ".state";
