@@ -45,6 +45,8 @@ void CPU::step() {
         // doing it here right after the instruction ended seems to accomplish
         // the same result without having to hard code when each instruction's
         // second-to-last cycle is
+        // TODO: When other devices (e.g., PPU) are added to the emulator, need
+        // to add interrupt latency
         if (((op.status & Op::IRQ) && !(p & InterruptDisable)) ||
                 (op.status & Op::NMI) || (op.status & Op::Reset)) {
             op.status |= Op::InterruptPrologue;
