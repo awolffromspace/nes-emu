@@ -18,7 +18,6 @@ CPU::CPU() :
 }
 
 void CPU::reset() {
-    pc = 0x8000;
     sp = 0xff;
     a = 0;
     x = 0;
@@ -26,6 +25,7 @@ void CPU::reset() {
     p = 0x20;
     op.reset();
     mem.reset(mute);
+    pc = (mem.read(0xfffd) << 8) | mem.read(0xfffc);
     totalCycles = 0;
     endOfProgram = false;
 
@@ -41,6 +41,10 @@ void CPU::step() {
         // Polling for interrupts
         // If any interrupts are flagged, start the interrupt prologue
         // Ignore IRQ if the Interrupt Disable flag is set
+        // This technically should be performed on the second-to-last cycle, but
+        // doing it here right after the instruction ended seems to accomplish
+        // the same result without having to hard code when each instruction's
+        // second-to-last cycle is
         if (((op.status & Op::IRQ) && !(p & InterruptDisable)) ||
                 (op.status & Op::NMI) || (op.status & Op::Reset)) {
             op.status |= Op::InterruptPrologue;
@@ -52,8 +56,12 @@ void CPU::step() {
         op.opcode = op.inst;
     }
 
-    if (op.status & Op::InterruptPrologue) {
-        prepareInterrupt();
+    if ((op.status & Op::InterruptPrologue) && (op.status & Op::Reset)) {
+        prepareReset();
+    } else if ((op.status & Op::InterruptPrologue) && (op.status & Op::NMI)) {
+        prepareNMI();
+    } else if ((op.status & Op::InterruptPrologue) && (op.status & Op::IRQ)) {
+        prepareIRQ();
     } else {
         // Decode and execute
         (this->*addrModeArr[op.opcode])();
@@ -595,7 +603,7 @@ void CPU::brk() {
     } else {
         op.status |= Op::IRQ;
         op.status |= Op::InterruptPrologue;
-        prepareInterrupt();
+        prepareIRQ();
     }
 }
 
@@ -1116,9 +1124,36 @@ void CPU::xaa() {
     printUnknownOp();
 }
 
-// Interrupt Prologue Function
+// Interrupt Prologue Functions
 
-void CPU::prepareInterrupt() {
+void CPU::prepareReset() {
+    switch (op.cycles) {
+        case 0:
+            op.inst = 0;
+            op.opcode = 0;
+            break;
+        case 2:
+            --sp;
+            break;
+        case 3:
+            --sp;
+            break;
+        case 4:
+            op.status &= 0xc0;
+            --sp;
+            break;
+        case 5:
+            op.tempAddr = mem.read(0xfffc);
+            p |= InterruptDisable;
+            break;
+        case 6:
+            op.tempAddr |= mem.read(0xfffd) << 8;
+            pc = op.tempAddr;
+            op.status |= Op::Done;
+    }
+}
+
+void CPU::prepareNMI() {
     uint8_t temp = 0;
     switch (op.cycles) {
         case 0:
@@ -1126,51 +1161,53 @@ void CPU::prepareInterrupt() {
             op.opcode = 0;
             break;
         case 2:
-            if (op.status & Op::Reset) {
-                --sp;
-            } else {
-                temp = (pc & 0xff00) >> 8;
-                mem.push(sp, temp, mute);
-            }
+            temp = (pc & 0xff00) >> 8;
+            mem.push(sp, temp, mute);
             break;
         case 3:
-            if (op.status & Op::Reset) {
-                --sp;
-            } else {
-                temp = pc & 0xff;
-                mem.push(sp, temp, mute);
-            }
+            temp = pc & 0xff;
+            mem.push(sp, temp, mute);
             break;
         case 4:
-            if (op.status & Op::Reset) {
-                op.status &= 0xc0;
-                --sp;
-            } else if (op.status & Op::NMI) {
-                op.status &= 0xa0;
-                mem.push(sp, p, mute);
-            } else if (op.status & Op::IRQ) {
-                op.status &= 0x90;
-                mem.push(sp, p, mute);
-            }
+            op.status &= 0xa0;
+            mem.push(sp, p, mute);
             break;
         case 5:
-            if (op.status & Op::Reset) {
-                op.tempAddr = mem.read(0xfffc);
-            } else if (op.status & Op::NMI) {
-                op.tempAddr = mem.read(0xfffa);
-            } else if (op.status & Op::IRQ) {
-                op.tempAddr = mem.read(0xfffe);
-            }
+            op.tempAddr = mem.read(0xfffa);
             p |= InterruptDisable;
             break;
         case 6:
-            if (op.status & Op::Reset) {
-                op.tempAddr |= mem.read(0xfffd) << 8;
-            } else if (op.status & Op::NMI) {
-                op.tempAddr |= mem.read(0xfffb) << 8;
-            } else if (op.status & Op::IRQ) {
-                op.tempAddr |= mem.read(0xffff) << 8;
-            }
+            op.tempAddr |= mem.read(0xfffb) << 8;
+            pc = op.tempAddr;
+            op.status |= Op::Done;
+    }
+}
+
+void CPU::prepareIRQ() {
+    uint8_t temp = 0;
+    switch (op.cycles) {
+        case 0:
+            op.inst = 0;
+            op.opcode = 0;
+            break;
+        case 2:
+            temp = (pc & 0xff00) >> 8;
+            mem.push(sp, temp, mute);
+            break;
+        case 3:
+            temp = pc & 0xff;
+            mem.push(sp, temp, mute);
+            break;
+        case 4:
+            op.status &= 0x90;
+            mem.push(sp, p, mute);
+            break;
+        case 5:
+            op.tempAddr = mem.read(0xfffe);
+            p |= InterruptDisable;
+            break;
+        case 6:
+            op.tempAddr |= mem.read(0xffff) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1222,7 +1259,7 @@ void CPU::setMute(bool m) {
 void CPU::print(bool isCycleDone) {
     unsigned int inc = 0;
     std::string time;
-    std::bitset<9> binaryP(p);
+    std::bitset<8> binaryP(p);
     std::bitset<9> binaryStatus(op.status);
     if (isCycleDone) {
         time = "After";
@@ -1232,8 +1269,8 @@ void CPU::print(bool isCycleDone) {
         std::cout << "--------------------------------------------------\n";
     }
     std::cout << "Cycle " << totalCycles + inc << ": " << time
-        << std::hex << "\n----------------------\n"
-        "CPU Fields\n----------------------\n"
+        << std::hex << "\n-----------------------\n"
+        "CPU Fields\n-----------------------\n"
         "pc          = 0x" << (unsigned int) pc << "\n"
         "sp          = 0x" << (unsigned int) sp << "\n"
         "a           = 0x" << (unsigned int) a << "\n"
@@ -1241,8 +1278,8 @@ void CPU::print(bool isCycleDone) {
         "y           = 0x" << (unsigned int) y << "\n"
         "p           = " << binaryP << "\n"
         "totalCycles = " << std::dec << (unsigned int) totalCycles <<
-        "\n----------------------\n" << std::hex <<
-        "Operation Fields\n----------------------\n"
+        "\n-----------------------\n" << std::hex <<
+        "Operation Fields\n-----------------------\n"
         "inst        = 0x" << (unsigned int) op.inst << "\n"
         "pc          = 0x" << (unsigned int) op.pc << "\n"
         "opcode      = 0x" << (unsigned int) op.opcode << "\n"

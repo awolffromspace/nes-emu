@@ -115,8 +115,10 @@ class CPU {
         void tya(); // Transfer Y to A
         void xaa();
 
-        // Interrupt Prologue Function
-        void prepareInterrupt();
+        // Interrupt Prologue Functions
+        void prepareReset();
+        void prepareNMI();
+        void prepareIRQ();
 
         // Processor Status Updates
         // Only the zero and negative flags have dedicated functions because
@@ -134,31 +136,6 @@ class CPU {
         // Print Functions
         void print(bool isCycleDone);
         void printUnknownOp();
-
-        // Processor Status Flags
-        // Used for setting bits in the P register
-        enum ProcessorStatus {
-            // Set if last instruction resulted in overflow from bit 7 or
-            // underflow from bit 0
-            Carry = 1,
-            // Set if result of last instruction was zero
-            Zero = 2,
-            // Set to prevent IRQ interrupts
-            // Set by SEI and cleared by CLI
-            InterruptDisable = 4,
-            // Set to switch to BCD mode
-            // NES CPU, 2A03, ignores this flag and doesn't support BCD
-            DecimalMode = 8,
-            // Set if BRK has been executed
-            Break = 16,
-            // Set if an invalid two's complement result was obtained by last
-            // instruction
-            // e.g., Adding two positive numbers and getting a negative
-            Overflow = 64,
-            // Set if result of last instruction was negative
-            // i.e., bit 7 is 1
-            Negative = 128
-        };
 
     private:
         // Program Counter
@@ -287,6 +264,31 @@ class CPU {
             &CPU::sbc,   &CPU::inc,   &CPU::isc,   &CPU::sed,   &CPU::sbc,
             &CPU::nop,   &CPU::isc,   &CPU::nop,   &CPU::sbc,   &CPU::inc,
             &CPU::isc
+        };
+
+        // Processor Status Flags
+        // Used for setting bits in the P register
+        enum ProcessorStatus {
+            // Set if last instruction resulted in overflow from bit 7 or
+            // underflow from bit 0
+            Carry = 1,
+            // Set if result of last instruction was zero
+            Zero = 2,
+            // Set to prevent IRQ interrupts
+            // Set by SEI and cleared by CLI
+            InterruptDisable = 4,
+            // Set to switch to BCD mode
+            // NES CPU, 2A03, ignores this flag and doesn't support BCD
+            DecimalMode = 8,
+            // Set if BRK has been executed
+            Break = 16,
+            // Set if an invalid two's complement result was obtained by last
+            // instruction
+            // e.g., Adding two positive numbers and getting a negative
+            Overflow = 64,
+            // Set if result of last instruction was negative
+            // i.e., bit 7 is 1
+            Negative = 128
         };
 };
 

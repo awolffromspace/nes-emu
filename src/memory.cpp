@@ -6,6 +6,7 @@ Memory::Memory() {
 
 void Memory::reset(bool mute) {
     memset(data, 0, 65536);
+    write(0xfffd, 0x80, mute);
 
     if (!mute) {
         std::cout << "Memory was reset\n";
