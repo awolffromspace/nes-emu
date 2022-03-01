@@ -24,7 +24,7 @@ class Op {
             ZeroPageY = 13
         };
         // Powers of two are used, so this enum can be used as a bitmask
-        enum Status {
+        enum OpStatus {
             // When read operations can modify a register
             Modify = 1,
             // When write operations can write to memory
@@ -57,8 +57,8 @@ class Op {
         // Operand with the least significant byte
         uint8_t operandLo;
         // Operand with the most significant byte
-        // OperandLo and OperandHi combine to form one expression.
-        // e.g. AND $xxyy retrieves val from memory location yyxx
+        // OperandLo and OperandHi combine to form one expression
+        // e.g., AND $xxyy retrieves val from memory location yyxx
         // where xx is operandLo and yy is operandHi
         uint8_t operandHi;
         // Value to operate on

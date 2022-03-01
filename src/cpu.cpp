@@ -38,9 +38,11 @@ void CPU::step() {
     if ((op.status & Op::Done) || (totalCycles == 0)) {
         op.reset();
 
-        if ((op.status & Op::IRQ) && !(p & 0x4)) {
-            op.status |= Op::InterruptPrologue;
-        } else if ((op.status & Op::NMI) || (op.status & Op::Reset)) {
+        // Polling for interrupts
+        // If any interrupts are flagged, start the interrupt prologue
+        // Ignore IRQ if the Interrupt Disable flag is set
+        if (((op.status & Op::IRQ) && !(p & 0x4)) ||
+                (op.status & Op::NMI) || (op.status & Op::Reset)) {
             op.status |= Op::InterruptPrologue;
         }
 
@@ -60,30 +62,6 @@ void CPU::step() {
 
     ++op.cycles;
     ++totalCycles;
-}
-
-void CPU::readInInst(std::string filename) {
-    mem.readInInst(filename);
-}
-
-bool CPU::isEndOfProgram() {
-    return endOfProgram;
-}
-
-bool CPU::compareState(struct CPUState& state) {
-    if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
-            state.y != y || state.p != p || state.totalCycles != totalCycles) {
-        return false;
-    }
-    return true;
-}
-
-void CPU::setHaltAtBrk(bool h) {
-    haltAtBrk = h;
-}
-
-void CPU::setMute(bool m) {
-    mute = m;
 }
 
 // Addressing Modes
@@ -145,7 +123,7 @@ void CPU::abx() {
         case 3:
             op.val = mem.read(op.tempAddr);
             fixedAddr = x;
-            if (fixedAddr & 0x80) {
+            if (fixedAddr & Negative) {
                 fixedAddr |= 0xff00;
             }
             fixedAddr += (op.operandHi << 8) + op.operandLo;
@@ -194,7 +172,7 @@ void CPU::aby() {
         case 3:
             op.val = mem.read(op.tempAddr);
             fixedAddr = y;
-            if (fixedAddr & 0x80) {
+            if (fixedAddr & Negative) {
                 fixedAddr |= 0xff00;
             }
             fixedAddr += (op.operandHi << 8) + op.operandLo;
@@ -337,7 +315,7 @@ void CPU::idy() {
             op.val = mem.read(op.tempAddr);
             temp = op.operandLo + 1;
             fixedAddr = y;
-            if (fixedAddr & 0x80) {
+            if (fixedAddr & Negative) {
                 fixedAddr |= 0xff00;
             }
             fixedAddr += (mem.read(temp) << 8) + mem.read(op.operandLo);
@@ -379,7 +357,7 @@ void CPU::rel() {
             temp = (pc & 0xff) + op.operandLo;
             op.tempAddr = (pc & 0xff00) | temp;
             fixedAddr = op.operandLo;
-            if (fixedAddr & 0x80) {
+            if (fixedAddr & Negative) {
                 fixedAddr |= 0xff00;
             }
             fixedAddr += pc;
@@ -471,16 +449,16 @@ void CPU::zpy() {
 
 void CPU::adc() {
     if (op.status & Op::Modify) {
-        uint16_t temp = a + op.val + (p & 1);
+        uint16_t temp = a + op.val + (p & Carry);
         uint8_t pastA = a;
-        a += op.val + (p & 1);
+        a += op.val + (p & Carry);
         if (temp > 0xff) {
-            p |= 1;
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
-        if ((pastA ^ a) & (op.val ^ a) & 0x80) {
-            p |= 0x40;
+        if ((pastA ^ a) & (op.val ^ a) & Negative) {
+            p |= Overflow;
         } else {
             p &= 0xbf;
         }
@@ -518,8 +496,8 @@ void CPU::arr() {
 void CPU::asl() {
     if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
-        if (op.val & 0x80) {
-            p |= 1;
+        if (op.val & Negative) {
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -538,7 +516,7 @@ void CPU::axs() {
 
 void CPU::bcc() {
     if (op.status & Op::Modify) {
-        if (!(p & 1)) {
+        if (!(p & Carry)) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -548,7 +526,7 @@ void CPU::bcc() {
 
 void CPU::bcs() {
     if (op.status & Op::Modify) {
-        if (p & 1) {
+        if (p & Carry) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -558,7 +536,7 @@ void CPU::bcs() {
 
 void CPU::beq() {
     if (op.status & Op::Modify) {
-        if (p & 2) {
+        if (p & Zero) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -569,8 +547,8 @@ void CPU::beq() {
 void CPU::bit() {
     if (op.status & Op::Modify) {
         uint8_t temp = a & op.val;
-        if (op.val & 0x40) {
-            p |= 0x40;
+        if (op.val & Overflow) {
+            p |= Overflow;
         } else {
             p &= 0xbf;
         }
@@ -582,7 +560,7 @@ void CPU::bit() {
 
 void CPU::bmi() {
     if (op.status & Op::Modify) {
-        if (p & 0x80) {
+        if (p & Negative) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -592,7 +570,7 @@ void CPU::bmi() {
 
 void CPU::bne() {
     if (op.status & Op::Modify) {
-        if (!(p & 2)) {
+        if (!(p & Zero)) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -602,7 +580,7 @@ void CPU::bne() {
 
 void CPU::bpl() {
     if (op.status & Op::Modify) {
-        if (!(p & 0x80)) {
+        if (!(p & Negative)) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -611,7 +589,7 @@ void CPU::bpl() {
 }
 
 void CPU::brk() {
-    p |= 0x10;
+    p |= Break;
     if (haltAtBrk) {
         endOfProgram = true;
         --op.cycles;
@@ -625,7 +603,7 @@ void CPU::brk() {
 
 void CPU::bvc() {
     if (op.status & Op::Modify) {
-        if (!(p & 0x40)) {
+        if (!(p & Overflow)) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -635,7 +613,7 @@ void CPU::bvc() {
 
 void CPU::bvs() {
     if (op.status & Op::Modify) {
-        if (p & 0x40) {
+        if (p & Overflow) {
             pc = op.tempAddr;
         } else {
             op.status |= Op::Done;
@@ -675,7 +653,7 @@ void CPU::cmp() {
     if (op.status & Op::Modify) {
         uint8_t temp = a - op.val;
         if (a >= op.val) {
-            p |= 1;
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -689,7 +667,7 @@ void CPU::cpx() {
     if (op.status & Op::Modify) {
         uint8_t temp = x - op.val;
         if (x >= op.val) {
-            p |= 1;
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -703,7 +681,7 @@ void CPU::cpy() {
     if (op.status & Op::Modify) {
         uint8_t temp = y - op.val;
         if (y >= op.val) {
-            p |= 1;
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -864,8 +842,8 @@ void CPU::ldy() {
 void CPU::lsr() {
     if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
-        if (op.val & 1) {
-            p |= 1;
+        if (op.val & Carry) {
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -937,11 +915,11 @@ void CPU::rol() {
     if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
-        if (p & 1) {
-            temp |= 1;
+        if (p & Carry) {
+            temp |= Carry;
         }
-        if (op.val & 0x80) {
-            p |= 1;
+        if (op.val & Negative) {
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -958,11 +936,11 @@ void CPU::ror() {
     if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
-        if (p & 1) {
-            temp |= 0x80;
+        if (p & Carry) {
+            temp |= Negative;
         }
-        if (op.val & 1) {
-            p |= 1;
+        if (op.val & Carry) {
+            p |= Carry;
         } else {
             p &= 0xfe;
         }
@@ -1010,21 +988,21 @@ void CPU::sbc() {
 
 void CPU::sec() {
     if (op.status & Op::Modify) {
-        p |= 1;
+        p |= Carry;
         op.status |= Op::Done;
     }
 }
 
 void CPU::sed() {
     if (op.status & Op::Modify) {
-        p |= 8;
+        p |= DecimalMode;
         op.status |= Op::Done;
     }
 }
 
 void CPU::sei() {
     if (op.status & Op::Modify) {
-        p |= 4;
+        p |= InterruptDisable;
         op.status |= Op::Done;
     }
 }
@@ -1130,6 +1108,8 @@ void CPU::xaa() {
     printUnknownOp();
 }
 
+// Interrupt Prologue Function
+
 void CPU::prepareInterrupt() {
     uint8_t temp = 0;
     switch (op.cycles) {
@@ -1173,7 +1153,7 @@ void CPU::prepareInterrupt() {
             } else if (op.status & Op::IRQ) {
                 op.tempAddr = mem.read(0xfffe);
             }
-            p |= 0x4;
+            p |= InterruptDisable;
             break;
         case 6:
             if (op.status & Op::Reset) {
@@ -1192,7 +1172,7 @@ void CPU::prepareInterrupt() {
 
 void CPU::updateZeroFlag(uint8_t result) {
     if (result == 0) {
-        p |= 2;
+        p |= Zero;
     } else {
         p &= 0xfd;
     }
@@ -1201,6 +1181,32 @@ void CPU::updateZeroFlag(uint8_t result) {
 void CPU::updateNegativeFlag(uint8_t result) {
     p &= 0x7f;
     p |= result & 0x80;
+}
+
+// Miscellaneous Functions
+
+void CPU::readInInst(std::string filename) {
+    mem.readInInst(filename);
+}
+
+bool CPU::compareState(struct CPUState& state) {
+    if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
+            state.y != y || state.p != p || state.totalCycles != totalCycles) {
+        return false;
+    }
+    return true;
+}
+
+bool CPU::isEndOfProgram() {
+    return endOfProgram;
+}
+
+void CPU::setHaltAtBrk(bool h) {
+    haltAtBrk = h;
+}
+
+void CPU::setMute(bool m) {
+    mute = m;
 }
 
 // Print Functions

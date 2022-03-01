@@ -21,11 +21,6 @@ class CPU {
         CPU();
         void reset();
         void step();
-        void readInInst(std::string filename);
-        bool isEndOfProgram();
-        bool compareState(struct CPUState& state);
-        void setHaltAtBrk(bool h);
-        void setMute(bool m);
 
         // Addressing Modes
         void abs(); // Absolute
@@ -120,6 +115,7 @@ class CPU {
         void tya(); // Transfer Y to A
         void xaa();
 
+        // Interrupt Prologue Function
         void prepareInterrupt();
 
         // Processor Status Updates
@@ -128,9 +124,41 @@ class CPU {
         void updateZeroFlag(uint8_t result);
         void updateNegativeFlag(uint8_t result);
 
+        // Miscellaneous Functions
+        void readInInst(std::string filename);
+        bool compareState(struct CPUState& state);
+        bool isEndOfProgram();
+        void setHaltAtBrk(bool h);
+        void setMute(bool m);
+
         // Print Functions
         void print(bool isCycleDone);
         void printUnknownOp();
+
+        // Processor Status Flags
+        // Used for setting bits in the P register
+        enum ProcessorStatus {
+            // Set if last instruction resulted in overflow from bit 7 or
+            // underflow from bit 0
+            Carry = 1,
+            // Set if result of last instruction was zero
+            Zero = 2,
+            // Set to prevent IRQ interrupts
+            // Set by SEI and cleared by CLI
+            InterruptDisable = 4,
+            // Set to switch to BCD mode
+            // NES CPU, 2A03, ignores this flag and doesn't support BCD
+            DecimalMode = 8,
+            // Set if BRK has been executed
+            Break = 16,
+            // Set if an invalid two's complement result was obtained by last
+            // instruction
+            // e.g., Adding two positive numbers and getting a negative
+            Overflow = 64,
+            // Set if result of last instruction was negative
+            // i.e., bit 7 is 1
+            Negative = 128
+        };
 
     private:
         // Program Counter
