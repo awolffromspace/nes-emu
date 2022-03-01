@@ -116,9 +116,9 @@ class CPU {
         void xaa();
 
         // Interrupt Prologue Functions
-        void prepareReset();
-        void prepareNMI();
         void prepareIRQ();
+        void prepareNMI();
+        void prepareReset();
 
         // Processor Status Updates
         // Only the zero and negative flags have dedicated functions because

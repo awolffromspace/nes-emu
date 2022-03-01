@@ -1126,28 +1126,31 @@ void CPU::xaa() {
 
 // Interrupt Prologue Functions
 
-void CPU::prepareReset() {
+void CPU::prepareIRQ() {
+    uint8_t temp = 0;
     switch (op.cycles) {
         case 0:
             op.inst = 0;
             op.opcode = 0;
             break;
         case 2:
-            --sp;
+            temp = (pc & 0xff00) >> 8;
+            mem.push(sp, temp, mute);
             break;
         case 3:
-            --sp;
+            temp = pc & 0xff;
+            mem.push(sp, temp, mute);
             break;
         case 4:
-            op.status &= 0xc0;
-            --sp;
+            op.status &= 0x90;
+            mem.push(sp, p, mute);
             break;
         case 5:
-            op.tempAddr = mem.read(0xfffc);
+            op.tempAddr = mem.read(0xfffe);
             p |= InterruptDisable;
             break;
         case 6:
-            op.tempAddr |= mem.read(0xfffd) << 8;
+            op.tempAddr |= mem.read(0xffff) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1183,31 +1186,28 @@ void CPU::prepareNMI() {
     }
 }
 
-void CPU::prepareIRQ() {
-    uint8_t temp = 0;
+void CPU::prepareReset() {
     switch (op.cycles) {
         case 0:
             op.inst = 0;
             op.opcode = 0;
             break;
         case 2:
-            temp = (pc & 0xff00) >> 8;
-            mem.push(sp, temp, mute);
+            --sp;
             break;
         case 3:
-            temp = pc & 0xff;
-            mem.push(sp, temp, mute);
+            --sp;
             break;
         case 4:
-            op.status &= 0x90;
-            mem.push(sp, p, mute);
+            op.status &= 0xc0;
+            --sp;
             break;
         case 5:
-            op.tempAddr = mem.read(0xfffe);
+            op.tempAddr = mem.read(0xfffc);
             p |= InterruptDisable;
             break;
         case 6:
-            op.tempAddr |= mem.read(0xffff) << 8;
+            op.tempAddr |= mem.read(0xfffd) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
