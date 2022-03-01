@@ -24,6 +24,7 @@ class CPU {
         void readInInst(std::string filename);
         bool isEndOfProgram();
         bool compareState(struct CPUState& state);
+        void setHaltAtBrk(bool h);
         void setMute(bool m);
 
         // Addressing Modes
@@ -119,6 +120,8 @@ class CPU {
         void tya(); // Transfer Y to A
         void xaa();
 
+        void prepareInterrupt();
+
         // Processor Status Updates
         // Only the zero and negative flags have dedicated functions because
         // many operations set or clear them using the exact same conditions
@@ -147,8 +150,11 @@ class CPU {
         Memory mem;
         // Total number of cycles since initialization
         unsigned int totalCycles;
-        // Set to true when the break operation is ran
+        // Set to true if haltAtBrk is true and break operation is ran
         bool endOfProgram;
+        // Set to true if the program should halt when the break operation is
+        // ran
+        bool haltAtBrk;
         // Set to true to hide debug info
         bool mute;
 

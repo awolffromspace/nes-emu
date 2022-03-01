@@ -13,10 +13,13 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames);
 int main(int argc, char* argv[]) {
     CPU cpu;
     if (argc == 1) {
+        cpu.setHaltAtBrk(true);
+
         std::vector<std::string> filenames;
         readInFilenames(filenames);
         runTests(cpu, filenames);
     } else if (argc == 2) {
+        cpu.setHaltAtBrk(true);
         cpu.setMute(false);
 
         std::string filename(argv[1]);

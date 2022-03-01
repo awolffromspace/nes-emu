@@ -3,5 +3,5 @@ ff // SP
 fe // A
 00 // X
 00 // Y
-10110101 // P
-11 // total cycles
+10110001 // P
+4 // total cycles

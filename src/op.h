@@ -35,8 +35,16 @@ class Op {
             // When read-modify-write operations can write modified data to
             // memory
             WriteModified = 8,
+            // When an IRQ or maskable interrupt is triggered
+            IRQ = 16,
+            // When an NMI or non-maskable interrupt is triggered
+            NMI = 32,
+            // When a reset interrupt is triggered
+            Reset = 64,
+            // When currently handling an interrupt
+            InterruptPrologue = 128,
             // When the operation is completely finished
-            Done = 16
+            Done = 256
         };
 
     private:
@@ -62,6 +70,7 @@ class Op {
         // How many cycles the operation has taken thus far
         unsigned int cycles;
         // Indicates any cycle-relevant info about the operation
+        // Depends on the enum Status
         int status;
         friend class CPU;
 };

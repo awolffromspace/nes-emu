@@ -1,7 +1,6 @@
 #include "cpu.h"
 
 CPU::CPU() :
-        pc(0x8000),
         sp(0xff),
         a(0),
         x(0),
@@ -9,8 +8,13 @@ CPU::CPU() :
         p(0x20),
         totalCycles(0),
         endOfProgram(false),
+        haltAtBrk(false),
         mute(true) {
-
+    // Set the reset vector to 0x8000, the beginning of the PRG-ROM lower bank
+    // This is where test programs will start at
+    mem.write(0xfffd, 0x80, true);
+    // Initialize PC to the reset vector
+    pc = (mem.read(0xfffd) << 8) | mem.read(0xfffc);
 }
 
 void CPU::reset() {
@@ -31,16 +35,29 @@ void CPU::reset() {
 }
 
 void CPU::step() {
-    // Fetch
     if ((op.status & Op::Done) || (totalCycles == 0)) {
         op.reset();
+
+        if ((op.status & Op::IRQ) && !(p & 0x4)) {
+            op.status |= Op::InterruptPrologue;
+        } else if ((op.status & Op::NMI) || (op.status & Op::Reset)) {
+            op.status |= Op::InterruptPrologue;
+        }
+
+        // Fetch
         op.pc = pc;
         op.inst = mem.read(pc);
         op.opcode = op.inst;
     }
-    // Decode and execute
-    (this->*addrModeArr[op.opcode])();
-    (this->*opcodeArr[op.opcode])();
+
+    if (op.status & Op::InterruptPrologue) {
+        prepareInterrupt();
+    } else {
+        // Decode and execute
+        (this->*addrModeArr[op.opcode])();
+        (this->*opcodeArr[op.opcode])();
+    }
+
     ++op.cycles;
     ++totalCycles;
 }
@@ -59,6 +76,10 @@ bool CPU::compareState(struct CPUState& state) {
         return false;
     }
     return true;
+}
+
+void CPU::setHaltAtBrk(bool h) {
+    haltAtBrk = h;
 }
 
 void CPU::setMute(bool m) {
@@ -590,18 +611,15 @@ void CPU::bpl() {
 }
 
 void CPU::brk() {
-    // Since the emulator is currently designed to run a list of machine 
-    // language instructions rather than a ROM file, there needs to be a way to
-    // halt the program. BRK is the most suitable instruction for this purpose
-    switch (op.cycles) {
-        case 4:
-            p |= 0x10;
-            break;
-        case 5:
-            p |= 0x4;
-            break;
-        case 6:
-            endOfProgram = true;
+    p |= 0x10;
+    if (haltAtBrk) {
+        endOfProgram = true;
+        --op.cycles;
+        --totalCycles;
+    } else {
+        op.status |= Op::IRQ;
+        op.status |= Op::InterruptPrologue;
+        prepareInterrupt();
     }
 }
 
@@ -1110,6 +1128,64 @@ void CPU::tya() {
 
 void CPU::xaa() {
     printUnknownOp();
+}
+
+void CPU::prepareInterrupt() {
+    uint8_t temp = 0;
+    switch (op.cycles) {
+        case 0:
+            op.inst = 0;
+            op.opcode = 0;
+            break;
+        case 2:
+            if (op.status & Op::Reset) {
+                --sp;
+            } else {
+                temp = (pc & 0xff00) >> 8;
+                mem.push(sp, temp, mute);
+            }
+            break;
+        case 3:
+            if (op.status & Op::Reset) {
+                --sp;
+            } else {
+                temp = pc & 0xff;
+                mem.push(sp, temp, mute);
+            }
+            break;
+        case 4:
+            if (op.status & Op::Reset) {
+                op.status &= 0xc0;
+                --sp;
+            } else if (op.status & Op::NMI) {
+                op.status &= 0xa0;
+                mem.push(sp, p, mute);
+            } else if (op.status & Op::IRQ) {
+                op.status &= 0x90;
+                mem.push(sp, p, mute);
+            }
+            break;
+        case 5:
+            if (op.status & Op::Reset) {
+                op.tempAddr = mem.read(0xfffc);
+            } else if (op.status & Op::NMI) {
+                op.tempAddr = mem.read(0xfffa);
+            } else if (op.status & Op::IRQ) {
+                op.tempAddr = mem.read(0xfffe);
+            }
+            p |= 0x4;
+            break;
+        case 6:
+            if (op.status & Op::Reset) {
+                op.tempAddr |= mem.read(0xfffd) << 8;
+            } else if (op.status & Op::NMI) {
+                op.tempAddr |= mem.read(0xfffb) << 8;
+            } else if (op.status & Op::IRQ) {
+                op.tempAddr |= mem.read(0xffff) << 8;
+            }
+            pc = op.tempAddr;
+            op.status |= Op::Done;
+    }
 }
 
 // Processor Status Updates
