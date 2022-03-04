@@ -28,6 +28,9 @@ adc-abx13
 adc-abx14
 adc-abx15
 adc-abx16
+adc-abx17
+adc-abx18
+adc-abx19
 adc-aby1
 adc-aby2
 adc-aby3
@@ -94,3 +97,4 @@ adc-zpx12
 adc-zpx13
 adc-zpx14
 adc-zpx15
+adc-zpx16

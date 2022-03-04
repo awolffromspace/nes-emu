@@ -1,0 +1,5 @@
+a901 // LDA #$01
+8d01ff // STA $ff01
+a901 // LDA #$01
+a201 // LDX #$01
+7d00ff // ADC $ff00,X
