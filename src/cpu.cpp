@@ -134,9 +134,6 @@ void CPU::abx() {
         case 3:
             op.val = mem.read(op.tempAddr);
             fixedAddr = x;
-            if (fixedAddr & Negative) {
-                fixedAddr |= 0xff00;
-            }
             fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.tempAddr == fixedAddr) {
                 op.status |= Op::Modify;
@@ -183,9 +180,6 @@ void CPU::aby() {
         case 3:
             op.val = mem.read(op.tempAddr);
             fixedAddr = y;
-            if (fixedAddr & Negative) {
-                fixedAddr |= 0xff00;
-            }
             fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.tempAddr == fixedAddr) {
                 op.status |= Op::Modify;
@@ -326,9 +320,6 @@ void CPU::idy() {
             op.val = mem.read(op.tempAddr);
             temp = op.operandLo + 1;
             fixedAddr = y;
-            if (fixedAddr & Negative) {
-                fixedAddr |= 0xff00;
-            }
             fixedAddr += (mem.read(temp) << 8) + mem.read(op.operandLo);
             if (op.tempAddr == fixedAddr) {
                 op.status |= Op::Modify;
@@ -368,9 +359,6 @@ void CPU::rel() {
             temp = (pc & 0xff) + op.operandLo;
             op.tempAddr = (pc & 0xff00) | temp;
             fixedAddr = op.operandLo;
-            if (fixedAddr & Negative) {
-                fixedAddr |= 0xff00;
-            }
             fixedAddr += pc;
             op.status |= Op::Modify;
             if (op.tempAddr == fixedAddr) {

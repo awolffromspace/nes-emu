@@ -8,6 +8,10 @@ adc-abs7
 adc-abs8
 adc-abs9
 adc-abs10
+adc-abs11
+adc-abs12
+adc-abs13
+adc-abs14
 adc-abx1
 adc-abx2
 adc-abx3
@@ -18,6 +22,12 @@ adc-abx7
 adc-abx8
 adc-abx9
 adc-abx10
+adc-abx11
+adc-abx12
+adc-abx13
+adc-abx14
+adc-abx15
+adc-abx16
 adc-aby1
 adc-aby2
 adc-aby3
@@ -68,6 +78,7 @@ adc-zpg7
 adc-zpg8
 adc-zpg9
 adc-zpg10
+adc-zpg11
 adc-zpx1
 adc-zpx2
 adc-zpx3
@@ -78,3 +89,8 @@ adc-zpx7
 adc-zpx8
 adc-zpx9
 adc-zpx10
+adc-zpx11
+adc-zpx12
+adc-zpx13
+adc-zpx14
+adc-zpx15
