@@ -23,17 +23,17 @@ class CPU {
         void step();
 
         // Addressing Modes
-        void abs(); // Absolute
-        void abx(); // Absolute, X
-        void aby(); // Absolute, Y
-        void acc(); // Accumulator
-        void imm(); // Immediate
-        void imp(); // Implied
-        void idr(); // Indirect
-        void idx(); // Indirect, X (AKA Indexed Indirect)
-        void idy(); // Indirect, Y (AKA Indirect Indexed)
-        void rel(); // Relative
-        void zpg(); // Zero Page
+        void abs(); // ABSolute
+        void abx(); // ABsolute, X
+        void aby(); // ABsolute, Y
+        void acc(); // ACCumulator
+        void imm(); // IMMediate
+        void imp(); // IMPlied
+        void idr(); // InDiRect
+        void idx(); // InDirect, X (AKA Indexed Indirect)
+        void idy(); // InDirect, Y (AKA Indirect Indexed)
+        void rel(); // RELative
+        void zpg(); // Zero PaGe
         void zpx(); // Zero Page, X
         void zpy(); // Zero Page, Y
 
