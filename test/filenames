@@ -41,6 +41,15 @@ adc-aby7
 adc-aby8
 adc-aby9
 adc-aby10
+adc-aby11
+adc-aby12
+adc-aby13
+adc-aby14
+adc-aby15
+adc-aby16
+adc-aby17
+adc-aby18
+adc-aby19
 adc-idx1
 adc-idx2
 adc-idx3
@@ -51,6 +60,14 @@ adc-idx7
 adc-idx8
 adc-idx9
 adc-idx10
+adc-idx11
+adc-idx12
+adc-idx13
+adc-idx14
+adc-idx15
+adc-idx16
+adc-idx17
+adc-idx18
 adc-idy1
 adc-idy2
 adc-idy3
@@ -98,3 +115,4 @@ adc-zpx13
 adc-zpx14
 adc-zpx15
 adc-zpx16
+jmp-idr1
