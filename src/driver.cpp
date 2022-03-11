@@ -154,8 +154,9 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         }
     }
 
-    if (failedTests.size() == 0) {
-        std::cout << "Passed all tests" << std::endl;
+    if (failedTests.size() != filenames.size()) {
+        int numPassedTests = filenames.size() - failedTests.size();
+        std::cout << "Passed " << numPassedTests << " tests" << std::endl;
     }
 
     for (int i = 0; i < failedTests.size(); ++i) {
