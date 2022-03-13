@@ -123,6 +123,14 @@ adc-zpx13
 adc-zpx14
 adc-zpx15
 adc-zpx16
+asl-acc1
+asl-acc2
+asl-acc3
+asl-acc4
+clc1
+cld1
+cli1
+clv1
 jmp-idr1
 jmp-idr2
 jmp-idr3
@@ -130,3 +138,10 @@ jmp-idr4
 jmp-idr5
 jmp-idr6
 jmp-idr7
+lsr-acc1
+lsr-acc2
+lsr-acc3
+lsr-acc4
+sec1
+sed1
+sei1

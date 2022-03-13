@@ -1,0 +1,2 @@
+a9aa // LDA #$aa
+0a // ASL A

@@ -493,7 +493,19 @@ void CPU::arr() {
 }
 
 void CPU::asl() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::Modify) {
+        if (a & Negative) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        a = a << 1;
+        updateZeroFlag(a);
+        updateNegativeFlag(a);
+        if (op.addrMode == Op::Accumulator) {
+            op.status |= Op::Done;
+        }
+    } else if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         if (op.val & Negative) {
             p |= Carry;
@@ -837,7 +849,19 @@ void CPU::ldy() {
 }
 
 void CPU::lsr() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::Modify) {
+        if (a & Carry) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        a = a >> 1;
+        updateZeroFlag(a);
+        updateNegativeFlag(a);
+        if (op.addrMode == Op::Accumulator) {
+            op.status |= Op::Done;
+        }
+    } else if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         if (op.val & Carry) {
             p |= Carry;
@@ -909,7 +933,23 @@ void CPU::rla() {
 }
 
 void CPU::rol() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::Modify) {
+        uint8_t temp = a << 1;
+        if (p & Carry) {
+            temp |= Carry;
+        }
+        if (a & Negative) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        a = temp;
+        updateZeroFlag(a);
+        updateNegativeFlag(a);
+        if (op.addrMode == Op::Accumulator) {
+            op.status |= Op::Done;
+        }
+    } else if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
         if (p & Carry) {
@@ -930,7 +970,23 @@ void CPU::rol() {
 }
 
 void CPU::ror() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::Modify) {
+        uint8_t temp = a >> 1;
+        if (p & Carry) {
+            temp |= Negative;
+        }
+        if (a & Carry) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        a = temp;
+        updateZeroFlag(a);
+        updateNegativeFlag(a);
+        if (op.addrMode == Op::Accumulator) {
+            op.status |= Op::Done;
+        }
+    } else if (op.status & Op::WriteUnmodified) {
         mem.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
         if (p & Carry) {
