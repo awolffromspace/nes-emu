@@ -359,6 +359,9 @@ void CPU::rel() {
             temp = (pc & 0xff) + op.operandLo;
             op.tempAddr = (pc & 0xff00) | temp;
             fixedAddr = op.operandLo;
+            if (fixedAddr & Negative) {
+                fixedAddr |= 0xff00;
+            }
             fixedAddr += pc;
             op.status |= Op::Modify;
             if (op.tempAddr == fixedAddr) {
@@ -524,32 +527,26 @@ void CPU::axs() {
 }
 
 void CPU::bcc() {
-    if (op.status & Op::Modify) {
-        if (!(p & Carry)) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && (p & Carry)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && !(p & Carry)) {
+        pc = op.tempAddr;
     }
 }
 
 void CPU::bcs() {
-    if (op.status & Op::Modify) {
-        if (p & Carry) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && !(p & Carry)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && (p & Carry)) {
+        pc = op.tempAddr;
     }
 }
 
 void CPU::beq() {
-    if (op.status & Op::Modify) {
-        if (p & Zero) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && !(p & Zero)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && (p & Zero)) {
+        pc = op.tempAddr;
     }
 }
 
@@ -568,32 +565,26 @@ void CPU::bit() {
 }
 
 void CPU::bmi() {
-    if (op.status & Op::Modify) {
-        if (p & Negative) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && !(p & Negative)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && (p & Negative)) {
+        pc = op.tempAddr;
     }
 }
 
 void CPU::bne() {
-    if (op.status & Op::Modify) {
-        if (!(p & Zero)) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && (p & Zero)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && !(p & Zero)) {
+        pc = op.tempAddr;
     }
 }
 
 void CPU::bpl() {
-    if (op.status & Op::Modify) {
-        if (!(p & Negative)) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && (p & Negative)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && !(p & Negative)) {
+        pc = op.tempAddr;
     }
 }
 
@@ -609,22 +600,18 @@ void CPU::brk() {
 }
 
 void CPU::bvc() {
-    if (op.status & Op::Modify) {
-        if (!(p & Overflow)) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && (p & Overflow)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && !(p & Overflow)) {
+        pc = op.tempAddr;
     }
 }
 
 void CPU::bvs() {
-    if (op.status & Op::Modify) {
-        if (p & Overflow) {
-            pc = op.tempAddr;
-        } else {
-            op.status |= Op::Done;
-        }
+    if ((op.cycles == 1) && !(p & Overflow)) {
+        op.status |= Op::Done;
+    } else if ((op.status & Op::Modify) && (p & Overflow)) {
+        pc = op.tempAddr;
     }
 }
 
