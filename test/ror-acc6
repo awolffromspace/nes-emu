@@ -1,0 +1,3 @@
+a9ff // LDA #$ff
+38 // SEC
+6a // ROR A

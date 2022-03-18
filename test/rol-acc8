@@ -1,0 +1,3 @@
+a9aa // LDA #$aa
+38 // SEC
+2a // ROL A

@@ -1,0 +1,2 @@
+a9aa // LDA #$aa
+2a // ROL A
