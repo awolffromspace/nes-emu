@@ -50,7 +50,7 @@ class Op {
     private:
         // Instruction
         uint32_t inst;
-        // Address for the beginning of the instruction (i.e. opcode)
+        // Address for the beginning of the instruction (i.e., opcode)
         uint16_t pc;
         // Operation code
         uint8_t opcode;

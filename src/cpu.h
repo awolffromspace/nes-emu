@@ -3,7 +3,7 @@
 
 #include <bitset>
 
-#include "memory.h"
+#include "ram.h"
 #include "op.h"
 
 struct CPUState {
@@ -152,7 +152,7 @@ class CPU {
         uint8_t p;
         // Current operation
         Op op;
-        Memory mem;
+        RAM ram;
         // Total number of cycles since initialization
         unsigned int totalCycles;
         // Set to true if haltAtBrk is true and break operation is ran

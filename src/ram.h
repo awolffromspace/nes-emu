@@ -1,5 +1,5 @@
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef RAM_H
+#define RAM_H
 
 #include <cstdint>
 #include <fstream>
@@ -7,9 +7,9 @@
 #include <string>
 #include <string.h>
 
-class Memory {
+class RAM {
     public:
-        Memory();
+        RAM();
         void reset(bool mute);
         uint8_t read(uint16_t addr);
         void write(uint16_t addr, uint8_t val, bool mute);

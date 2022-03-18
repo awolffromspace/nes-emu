@@ -1,29 +1,28 @@
-#include "memory.h"
+#include "ram.h"
 
-Memory::Memory() {
+RAM::RAM() {
 
 }
 
-void Memory::reset(bool mute) {
+void RAM::reset(bool mute) {
     memset(data, 0, 65536);
     write(0xfffd, 0x80, mute);
 
     if (!mute) {
-        std::cout << "Memory was reset\n";
+        std::cout << "RAM was reset\n";
     }
 }
 
-uint8_t Memory::read(uint16_t addr) {
+uint8_t RAM::read(uint16_t addr) {
     return data[addr];
 }
 
-void Memory::write(uint16_t addr, uint8_t val, bool mute) {
+void RAM::write(uint16_t addr, uint8_t val, bool mute) {
     data[addr] = val;
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val <<
-            " has been written to the memory address(es)\n0x" <<
-            (unsigned int) addr;
+            " has been written to RAM address(es)\n0x" << (unsigned int) addr;
     }
 
     if (addr < 0x2000) { // Zero Page mirroring
@@ -56,7 +55,7 @@ void Memory::write(uint16_t addr, uint8_t val, bool mute) {
     }
 }
 
-void Memory::push(uint8_t& pointer, uint8_t val, bool mute) {
+void RAM::push(uint8_t& pointer, uint8_t val, bool mute) {
     uint16_t index = 0x100 + pointer;
     data[index] = val;
 
@@ -70,7 +69,7 @@ void Memory::push(uint8_t& pointer, uint8_t val, bool mute) {
     --pointer;
 }
 
-uint8_t Memory::pull(uint8_t& pointer, bool mute) {
+uint8_t RAM::pull(uint8_t& pointer, bool mute) {
     ++pointer;
     uint16_t index = 0x100 + pointer;
     uint8_t val = data[index];
@@ -85,7 +84,7 @@ uint8_t Memory::pull(uint8_t& pointer, bool mute) {
     return val;
 }
 
-void Memory::readInInst(std::string& filename) {
+void RAM::readInInst(std::string& filename) {
     std::string line;
     std::ifstream file(filename.c_str());
 

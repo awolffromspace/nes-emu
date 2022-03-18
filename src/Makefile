@@ -1,6 +1,6 @@
 CXX = clang++ $(CXXFLAGS)
 CXXFLAGS = -Wall -O2 -std=c++11
-OFILES = cpu.o driver.o memory.o op.o
+OFILES = driver.o cpu.o ram.o op.o
 
 .SUFFIXES: .o .cpp
 
@@ -10,7 +10,7 @@ nes-emu: $(OFILES)
 clean:
 	-rm -f *.o *~ ../nes-emu
 
-cpu.o: cpu.cpp cpu.h op.h memory.h
-driver.o: driver.cpp cpu.h op.h memory.h
-memory.o: memory.cpp memory.h
+cpu.o: cpu.cpp cpu.h ram.h op.h
+driver.o: driver.cpp cpu.h ram.h op.h
 op.o: op.cpp op.h
+ram.o: ram.cpp ram.h
