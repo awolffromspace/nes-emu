@@ -3,7 +3,7 @@ a9a9 // LDA #$a9
 a902 // LDA #$02
 8dfe7f // STA $7ffe
 // label2 starts at $7ffd
-a980 // LDA #$80
-10ef // BPL label2
+38 // SEC
+b0f0 // BCS label2
 // label1:
 a901 // LDA #$01

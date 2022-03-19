@@ -1,0 +1,6 @@
+7003 // BVS label2
+// label1:
+a901 // LDA #$01
+00 // BRK
+// label2:
+a902 // LDA #$02

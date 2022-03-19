@@ -1,0 +1,11 @@
+4c0680 // JMP $8006
+// label2:
+a902 // LDA #$02
+00 // BRK
+a940 // LDA #$40
+8500 // STA $00
+a940 // LDA #$40
+6500 // ADC $00
+50f3 // BVC label2
+// label1:
+a901 // LDA #$01

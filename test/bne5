@@ -1,0 +1,16 @@
+a9d0 // LDA #$d0
+8dfb80 // STA $80fb
+a903 // LDA #$03
+8dfc80 // STA $80fc
+a9a9 // LDA #$a9
+8dfd80 // STA $80fd
+a901 // LDA #$01
+8dfe80 // STA $80fe
+// label1 starts at $80fd
+a9a9 // LDA #$a9
+8d0081 // STA $8100
+a902 // LDA #$02
+8d0181 // STA $8101
+// label2 starts at $8100
+a901 // LDA #$01
+4cfb80 // JMP $80fb
