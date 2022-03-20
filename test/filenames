@@ -150,6 +150,10 @@ clc1
 cld1
 cli1
 clv1
+dec-zpg1
+dec-zpg2
+dec-zpg3
+dec-zpg4
 inc-zpg1
 inc-zpg2
 inc-zpg3
