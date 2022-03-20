@@ -178,6 +178,11 @@ inc-zpg1
 inc-zpg2
 inc-zpg3
 inc-zpg4
+jmp-abs1
+jmp-abs2
+jmp-abs3
+jmp-abs4
+jmp-abs5
 jmp-idr1
 jmp-idr2
 jmp-idr3
