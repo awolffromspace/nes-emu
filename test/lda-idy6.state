@@ -1,0 +1,7 @@
+800e // PC
+ff // SP
+01 // A
+00 // X
+ff // Y
+00110000 // P
+19 // total cycles

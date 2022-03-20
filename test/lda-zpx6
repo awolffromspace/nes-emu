@@ -1,0 +1,4 @@
+a901 // LDA #$01
+857f // STA $7f
+a2ff // LDX #$ff
+b580 // LDA $80,X

@@ -1,7 +1,0 @@
-8014 // PC
-ff // SP
-02 // A
-00 // X
-ff // Y
-00110000 // P
-27 // total cycles
