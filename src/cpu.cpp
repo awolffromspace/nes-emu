@@ -506,6 +506,9 @@ void CPU::asl() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.status |= Op::Done;
+    } else if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         if (op.val & Negative) {
@@ -516,9 +519,6 @@ void CPU::asl() {
         op.val = op.val << 1;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
@@ -690,14 +690,14 @@ void CPU::dcp() {
 }
 
 void CPU::dec() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         --op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
@@ -729,14 +729,14 @@ void CPU::eor() {
 }
 
 void CPU::inc() {
-    if (op.status & Op::WriteUnmodified) {
+    if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         ++op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
@@ -844,6 +844,9 @@ void CPU::lsr() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.status |= Op::Done;
+    } else if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         if (op.val & Carry) {
@@ -854,9 +857,6 @@ void CPU::lsr() {
         op.val = op.val >> 1;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
@@ -930,6 +930,9 @@ void CPU::rol() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.status |= Op::Done;
+    } else if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
@@ -944,9 +947,6 @@ void CPU::rol() {
         op.val = temp;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
@@ -965,6 +965,9 @@ void CPU::ror() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.status |= Op::Done;
+    } else if (op.status & Op::WriteModified) {
+        ram.write(op.tempAddr, op.val, mute);
+        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
         ram.write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
@@ -979,9 +982,6 @@ void CPU::ror() {
         op.val = temp;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
-    } else if (op.status & Op::WriteModified) {
-        ram.write(op.tempAddr, op.val, mute);
-        op.status |= Op::Done;
     }
 }
 
