@@ -260,6 +260,15 @@ lsr-acc1
 lsr-acc2
 lsr-acc3
 lsr-acc4
+ora-imm1
+ora-imm2
+ora-imm3
+ora-imm4
+ora-imm5
+ora-imm6
+ora-imm7
+ora-imm8
+ora-imm9
 pha1
 pha2
 php1
