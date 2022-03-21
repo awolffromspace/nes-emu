@@ -1,0 +1,7 @@
+9a // TXS
+38 // SEC
+08 // PHP
+f8 // SED
+08 // PHP
+ad0001 // LDA $0100
+0dff01 // ORA $01ff

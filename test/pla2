@@ -1,0 +1,11 @@
+a901 // LDA #$01
+8dff01 // STA $01ff
+a902 // LDA #$02
+8d0001 // STA $0100
+a2fe // LDX #$fe
+9a // TXS
+68 // PLA
+6500 // ADC $00
+8500 // STA $00
+68 // PLA
+6500 // ADC $00

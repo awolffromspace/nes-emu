@@ -1,0 +1,4 @@
+a9ff // LDA #$ff
+48 // PHA
+a900 // LDA #$00
+68 // PLA

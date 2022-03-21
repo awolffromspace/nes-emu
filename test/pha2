@@ -1,0 +1,7 @@
+9a // TXS
+a901 // LDA #$01
+48 // PHA
+a902 // LDA #$02
+48 // PHA
+ad0001 // LDA $0100
+6dff01 // ADC $01ff

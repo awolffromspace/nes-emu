@@ -244,6 +244,16 @@ lsr-acc1
 lsr-acc2
 lsr-acc3
 lsr-acc4
+pha1
+pha2
+php1
+php2
+pla1
+pla2
+pla3
+pla4
+pla5
+pla6
 rol-acc1
 rol-acc2
 rol-acc3

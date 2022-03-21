@@ -896,6 +896,8 @@ void CPU::pla() {
             break;
         case 3:
             a = op.val;
+            updateZeroFlag(a);
+            updateNegativeFlag(a);
             op.status |= Op::Done;
     }
 }
