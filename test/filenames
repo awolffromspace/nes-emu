@@ -190,6 +190,11 @@ jmp-idr4
 jmp-idr5
 jmp-idr6
 jmp-idr7
+jsr1
+jsr2
+jsr3
+jsr4
+jsr5
 lda-abs1
 lda-abs2
 lda-abs3
