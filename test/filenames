@@ -314,6 +314,17 @@ rts2
 rts3
 rts4
 rts5
+sbc-imm1
+sbc-imm2
+sbc-imm3
+sbc-imm4
+sbc-imm5
+sbc-imm6
+sbc-imm7
+sbc-imm8
+sbc-imm9
+sbc-imm10
+sbc-imm11
 sec1
 sed1
 sei1
