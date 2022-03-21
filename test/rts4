@@ -1,0 +1,12 @@
+a9ff // LDA #$ff
+8dff01 // STA $01ff
+a9ff // LDA #$ff
+8dfe01 // STA $01fe
+a9a9 // LDA #$a9
+8500 // STA $00
+a902 // LDA #$02
+8501 // STA $01
+a2fd // LDX #$fd
+9a // TXS
+60 // RTS
+a901 // LDA #$01

@@ -1,0 +1,10 @@
+a980 // LDA #$80
+8dff01 // STA $01ff
+a910 // LDA #$10
+8dfe01 // STA $01fe
+a2fd // LDX #$fd
+9a // TXS
+60 // RTS
+a901 // LDA #$01
+00 // BRK
+a902 // LDA #$02

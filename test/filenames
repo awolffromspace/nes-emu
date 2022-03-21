@@ -195,6 +195,8 @@ jsr2
 jsr3
 jsr4
 jsr5
+jsr6
+jsr7
 lda-abs1
 lda-abs2
 lda-abs3
@@ -280,6 +282,11 @@ ror-acc5
 ror-acc6
 ror-acc7
 ror-acc8
+rts1
+rts2
+rts3
+rts4
+rts5
 sec1
 sed1
 sei1
