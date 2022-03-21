@@ -2,14 +2,10 @@ a901 // LDA #$01
 8dff01 // STA $01ff
 a902 // LDA #$02
 8dfe01 // STA $01fe
-a903 // LDA #$03
+a904 // LDA #$04
 8dfd01 // STA $01fd
 a2fc // LDX #$fc
 9a // TXS
-68 // PLA
-8500 // STA $00
-68 // PLA
-6500 // ADC $00
-8500 // STA $00
-68 // PLA
-6500 // ADC $00
+28 // PLP
+28 // PLP
+28 // PLP

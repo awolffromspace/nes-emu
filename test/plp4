@@ -1,0 +1,5 @@
+a901 // LDA #$01
+8dff01 // STA $01ff
+a2fe // LDX #$fe
+9a // TXS
+28 // PLP

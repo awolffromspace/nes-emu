@@ -1,7 +1,7 @@
-8016 // PC
+8014 // PC
 00 // SP
 03 // A
 fe // X
 00 // Y
 00110000 // P
-34 // total cycles
+31 // total cycles

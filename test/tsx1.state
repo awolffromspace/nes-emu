@@ -1,0 +1,7 @@
+8002 // PC
+ff // SP
+00 // A
+ff // X
+00 // Y
+10110000 // P
+3 // total cycles
