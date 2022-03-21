@@ -1,0 +1,2 @@
+a9aa // LDA #$aa
+49aa // EOR #$aa

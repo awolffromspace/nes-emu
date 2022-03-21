@@ -183,6 +183,15 @@ dec-zpg1
 dec-zpg2
 dec-zpg3
 dec-zpg4
+eor-imm1
+eor-imm2
+eor-imm3
+eor-imm4
+eor-imm5
+eor-imm6
+eor-imm7
+eor-imm8
+eor-imm9
 inc-zpg1
 inc-zpg2
 inc-zpg3
