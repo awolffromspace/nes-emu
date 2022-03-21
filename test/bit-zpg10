@@ -1,0 +1,4 @@
+a9ff // LDA #$ff
+8500 // STA $00
+a9ff // LDA #$ff
+2400 // BIT $00
