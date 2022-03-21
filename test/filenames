@@ -78,6 +78,15 @@ adc-zpx7
 adc-zpx8
 adc-zpx9
 adc-zpx10
+and-imm1
+and-imm2
+and-imm3
+and-imm4
+and-imm5
+and-imm6
+and-imm7
+and-imm8
+and-imm9
 asl-abs1
 asl-abs2
 asl-abs3

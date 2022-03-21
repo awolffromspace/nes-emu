@@ -1,0 +1,2 @@
+a9aa // LDA #$aa
+29aa // AND #$aa
