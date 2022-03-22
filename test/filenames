@@ -400,6 +400,10 @@ sta-zpx3
 sta-zpx4
 sta-zpx5
 sta-zpx6
+stx-zpg1
+stx-zpg2
+sty-zpg1
+sty-zpg2
 tsx1
 tsx2
 tsx3

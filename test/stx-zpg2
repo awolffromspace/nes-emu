@@ -1,0 +1,3 @@
+a201 // LDX #$01
+86ff // STX $ff
+a5ff // LDA $ff
