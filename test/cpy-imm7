@@ -1,0 +1,2 @@
+a0ff // LDY #$ff
+c0ff // CPY #$ff
