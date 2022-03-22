@@ -1,0 +1,3 @@
+a9fe // LDA #$fe
+38 // SEC
+e901 // SBC #$01
