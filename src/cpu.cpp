@@ -5,7 +5,7 @@ CPU::CPU() :
         a(0),
         x(0),
         y(0),
-        p(0x20),
+        p(0x30),
         totalCycles(0),
         endOfProgram(false),
         haltAtBrk(false),
@@ -23,7 +23,7 @@ void CPU::reset() {
     a = 0;
     x = 0;
     y = 0;
-    p = 0x20;
+    p = 0x30;
     op.reset();
     ram.reset(mute);
     pc = (ram.read(0xfffd) << 8) | ram.read(0xfffc);
@@ -64,7 +64,7 @@ void CPU::step() {
     } else if ((op.status & Op::InterruptPrologue) && (op.status & Op::NMI)) {
         prepareNMI();
     } else if ((op.status & Op::InterruptPrologue) && (op.status & Op::IRQ)) {
-        prepareIRQ();
+        prepareIRQ(false);
     } else {
         // Decode and execute
         (this->*addrModeArr[op.opcode])();
@@ -589,13 +589,12 @@ void CPU::bpl() {
 }
 
 void CPU::brk() {
-    p |= Break;
     if (haltAtBrk) {
         endOfProgram = true;
     } else {
         op.status |= Op::IRQ;
         op.status |= Op::InterruptPrologue;
-        prepareIRQ();
+        prepareIRQ(true);
     }
 }
 
@@ -908,7 +907,7 @@ void CPU::plp() {
             op.val = ram.pull(sp, mute);
             break;
         case 3:
-            p = op.val;
+            p = op.val | Break | UnusedFlag;
             op.status |= Op::Done;
     }
 }
@@ -994,7 +993,7 @@ void CPU::rra() {
 void CPU::rti() {
     switch (op.cycles) {
         case 3:
-            p = ram.pull(sp, mute);
+            p = ram.pull(sp, mute) | Break | UnusedFlag;
             break;
         case 4:
             op.tempAddr |= ram.pull(sp, mute);
@@ -1002,6 +1001,7 @@ void CPU::rti() {
         case 5:
             op.tempAddr |= ram.pull(sp, mute) << 8;
             pc = op.tempAddr;
+            op.status |= Op::Done;
     }
 }
 
@@ -1154,12 +1154,15 @@ void CPU::xaa() {
 
 // Interrupt Prologue Functions
 
-void CPU::prepareIRQ() {
+void CPU::prepareIRQ(bool isBrk) {
     uint8_t temp = 0;
     switch (op.cycles) {
         case 0:
             op.inst = 0;
             op.opcode = 0;
+            break;
+        case 1:
+            ++pc;
             break;
         case 2:
             temp = (pc & 0xff00) >> 8;
@@ -1171,7 +1174,11 @@ void CPU::prepareIRQ() {
             break;
         case 4:
             op.status &= 0x90;
-            ram.push(sp, p, mute);
+            temp = p;
+            if (!isBrk) {
+                temp &= ~Break;
+            }
+            ram.push(sp, temp, mute);
             break;
         case 5:
             op.tempAddr = ram.read(0xfffe);
@@ -1201,7 +1208,8 @@ void CPU::prepareNMI() {
             break;
         case 4:
             op.status &= 0xa0;
-            ram.push(sp, p, mute);
+            temp = p & ~Break;
+            ram.push(sp, temp, mute);
             break;
         case 5:
             op.tempAddr = ram.read(0xfffa);
@@ -1270,8 +1278,16 @@ bool CPU::compareState(struct CPUState& state) {
     return true;
 }
 
+unsigned int CPU::getTotalCycles() {
+    return totalCycles;
+}
+
 bool CPU::isEndOfProgram() {
     return endOfProgram;
+}
+
+bool CPU::isHaltAtBrk() {
+    return haltAtBrk;
 }
 
 void CPU::setHaltAtBrk(bool h) {

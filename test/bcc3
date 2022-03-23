@@ -1,8 +1,8 @@
-4c0680 // JMP $8006
+4c0780 // JMP $8007
 // label2:
 a902 // LDA #$02
-00 // BRK
+0000 // BRK
 18 // CLC
-90fa // BCC label2
+90f9 // BCC label2
 // label1:
 a901 // LDA #$01

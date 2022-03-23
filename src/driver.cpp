@@ -19,7 +19,6 @@ int main(int argc, char* argv[]) {
         readInFilenames(filenames);
         runTests(cpu, filenames);
     } else if (argc == 2) {
-        cpu.setHaltAtBrk(true);
         cpu.setMute(false);
 
         std::string filename(argv[1]);
@@ -113,6 +112,7 @@ void runProgram(CPU& cpu, std::string& filename) {
 
     while (!cpu.isEndOfProgram()) {
         if (input == "c" || input == "continue") {
+            cpu.setHaltAtBrk(true);
             cpu.print(false);
             cpu.step();
             cpu.print(true);
@@ -137,6 +137,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
     for (int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
+        struct CPUState state = readInState(currentFilename);
 
         if (testNum > 0) {
             cpu.reset();
@@ -144,11 +145,23 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
 
         cpu.readInInst(currentFilename);
 
-        while (!cpu.isEndOfProgram()) {
+        if (currentFilename.size() >= 8) {
+            std::string testType = currentFilename.substr(5, 3);
+            if (testType == "brk") {
+                cpu.setHaltAtBrk(false);
+            }
+        }
+
+        while ((cpu.isHaltAtBrk() && !cpu.isEndOfProgram()) ||
+                (!cpu.isHaltAtBrk() &&
+                cpu.getTotalCycles() < state.totalCycles)) {
             cpu.step();
         }
 
-        struct CPUState state = readInState(currentFilename);
+        if (!cpu.isHaltAtBrk()) {
+            cpu.setHaltAtBrk(true);
+        }
+
         if (!cpu.compareState(state)) {
             failedTests.push_back(testNum);
         }

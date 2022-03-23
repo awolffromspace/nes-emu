@@ -1,0 +1,11 @@
+a990 // LDA #$90
+8dffff // STA $ffff
+a9a9 // LDA #$a9
+8d0090 // STA $9000
+a901 // LDA #$01
+8d0190 // STA $9001
+a940 // LDA #$40
+8d0290 // STA $9002
+78 // SEI
+0000 // BRK
+a201 // LDX #$01

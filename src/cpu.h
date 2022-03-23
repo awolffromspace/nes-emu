@@ -116,7 +116,7 @@ class CPU {
         void xaa();
 
         // Interrupt Prologue Functions
-        void prepareIRQ();
+        void prepareIRQ(bool isBrk);
         void prepareNMI();
         void prepareReset();
 
@@ -129,7 +129,9 @@ class CPU {
         // Miscellaneous Functions
         void readInInst(std::string filename);
         bool compareState(struct CPUState& state);
+        unsigned int getTotalCycles();
         bool isEndOfProgram();
+        bool isHaltAtBrk();
         void setHaltAtBrk(bool h);
         void setMute(bool m);
 
@@ -282,6 +284,8 @@ class CPU {
             DecimalMode = 8,
             // Set if BRK has been executed
             Break = 16,
+            // Unused flag
+            UnusedFlag = 32,
             // Set if an invalid two's complement result was obtained by last
             // instruction
             // e.g., Adding two positive numbers and getting a negative

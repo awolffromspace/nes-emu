@@ -1,7 +1,7 @@
 a901 // LDA #$01
-f003 // BEQ label2
+f004 // BEQ label2
 // label1:
 a901 // LDA #$01
-00 // BRK
+0000 // BRK
 // label2:
 a902 // LDA #$02
