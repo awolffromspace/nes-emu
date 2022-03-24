@@ -1350,10 +1350,6 @@ uint32_t CPU::getFutureInst() {
     return inst;
 }
 
-uint16_t CPU::getPC() {
-    return pc;
-}
-
 unsigned int CPU::getTotalCycles() {
     return totalCycles;
 }
