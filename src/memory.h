@@ -16,6 +16,7 @@ class Memory {
         void push(uint8_t& pointer, uint8_t val, bool mute);
         uint8_t pull(uint8_t& pointer, bool mute);
         void readInInst(std::string& filename);
+        void readInINES(std::string& filename);
 
     private:
         uint8_t data[0x10000];

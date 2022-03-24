@@ -127,17 +127,22 @@ class CPU {
         void updateNegativeFlag(uint8_t result);
 
         // Miscellaneous Functions
-        void readInInst(std::string filename);
+        void readInInst(std::string& filename);
+        void readInINES(std::string& filename);
         bool compareState(struct CPUState& state);
+        uint32_t getFutureInst();
+        uint16_t getPC();
         unsigned int getTotalCycles();
         bool isEndOfProgram();
         bool isHaltAtBrk();
         void setHaltAtBrk(bool h);
         void setMute(bool m);
+        unsigned int getOpCycles();
 
         // Print Functions
         void print(bool isCycleDone);
         void printUnknownOp();
+        void printStateInst(uint32_t inst);
 
     private:
         // Program Counter

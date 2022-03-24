@@ -23,3 +23,7 @@ Enter `s` to step over the next cycle, `c` to continue until the end of the prov
 
 ![Screenshot1](/screenshot1.png)
 ![Screenshot2](/screenshot2.png)
+
+## Credits
+
+Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes).

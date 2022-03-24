@@ -6,9 +6,14 @@ void readInFilenames(std::vector<std::string>& filenames);
 
 struct CPUState readInState(std::string& filename);
 
+void readInNESTestStates(std::vector<struct CPUState>& states,
+    std::vector<uint32_t>& instructions, std::vector<std::string>& testLogs);
+
 void runProgram(CPU& cpu, std::string& filename);
 
 void runTests(CPU& cpu, std::vector<std::string>& filenames);
+
+void runNESTest(CPU& cpu);
 
 int main(int argc, char* argv[]) {
     CPU cpu;
@@ -18,6 +23,7 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> filenames;
         readInFilenames(filenames);
         runTests(cpu, filenames);
+        runNESTest(cpu);
     } else if (argc == 2) {
         cpu.setMute(false);
 
@@ -104,6 +110,72 @@ struct CPUState readInState(std::string& filename) {
     return state;
 }
 
+void readInNESTestStates(std::vector<struct CPUState>& states,
+        std::vector<uint32_t>& instructions,
+        std::vector<std::string>& testLogs) {
+    std::string filename = "nestest.log";
+    std::string line;
+    std::ifstream file(filename.c_str());
+
+    if (!file.is_open()) {
+        std::cerr << "Error reading in file" << std::endl;
+        exit(1);
+    }
+
+    while (file.good()) {
+        struct CPUState state;
+        uint32_t inst = 0;
+        std::string substring;
+        getline(file, line);
+
+        if (line.size() <= 1) {
+            break;
+        }
+
+        substring = line.substr(0, 4);
+        state.pc = std::stoul(substring, nullptr, 16) + 0x1;
+
+        substring = line.substr(6, 2);
+        inst = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(9, 2);
+        if (substring.at(0) != ' ') {
+            inst = inst << 8;
+            inst |= std::stoul(substring, nullptr, 16);
+        }
+
+        substring = line.substr(12, 2);
+        if (substring.at(0) != ' ') {
+            inst = inst << 8;
+            inst |= std::stoul(substring, nullptr, 16);
+        }
+        
+        substring = line.substr(50, 2);
+        state.a = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(55, 2);
+        state.x = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(60, 2);
+        state.y = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(65, 2);
+        state.p = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(71, 2);
+        state.sp = std::stoul(substring, nullptr, 16);
+
+        substring = line.substr(90, line.size() - 90);
+        state.totalCycles = std::stoul(substring, nullptr, 10) - 6;
+
+        states.push_back(state);
+        instructions.push_back(inst);
+        testLogs.push_back(line);
+    }
+
+    file.close();
+}
+
 void runProgram(CPU& cpu, std::string& filename) {
     cpu.readInInst(filename);
 
@@ -177,5 +249,32 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         unsigned int sizeMinusDir = currentFilename.size() - 5;
         std::cout << "Failed test \"" <<
             currentFilename.substr(5, sizeMinusDir) << "\"" << std::endl;
+    }
+}
+
+void runNESTest(CPU& cpu) {
+    std::string filename = "nestest.nes";
+    std::vector<struct CPUState> states;
+    std::vector<uint32_t> instructions;
+    std::vector<std::string> testLogs;
+    unsigned int instNum = 0;
+    cpu.reset();
+    cpu.readInINES(filename);
+    readInNESTestStates(states, instructions, testLogs);
+    while (!cpu.isEndOfProgram() || instNum >= states.size()) {
+        if (cpu.getOpCycles() == 1) {
+            struct CPUState state = states[instNum];
+            uint32_t testInst = instructions[instNum];
+            uint32_t inst = cpu.getFutureInst();
+            std::string testLog = testLogs[instNum];
+            if (!cpu.compareState(state) || inst != testInst) {
+                std::cout << "Test log: " << testLog << "\nEmulator: ";
+                cpu.printStateInst(inst);
+                std::cout << "\n";
+            }
+            ++instNum;
+        }
+
+        cpu.step();
     }
 }

@@ -94,3 +94,23 @@ void Memory::readInInst(std::string& filename) {
 
     file.close();
 }
+
+void Memory::readInINES(std::string& filename) {
+    std::ifstream file(filename.c_str(), std::ios::binary);
+
+    if (!file.is_open()) {
+        std::cerr << "Error reading in file" << std::endl;
+        exit(1);
+    }
+
+    int dataIndex = 0x8000;
+    for (int i = 0; i < 0x10; ++i) {
+        file.read((char*) &data[dataIndex], 1);
+    }
+
+    for (int i = 0; i < 0x4000; ++i) {
+        file.read((char*) &data[dataIndex], 1);
+        data[dataIndex + 0x4000] = data[dataIndex];
+        ++dataIndex;
+    }
+}

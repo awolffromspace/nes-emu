@@ -383,6 +383,7 @@ void CPU::zpg() {
             break;
         case 1:
             op.operandLo = memory.read(pc);
+            op.inst = (op.inst << 8) | op.operandLo;
             op.tempAddr = op.operandLo;
             ++pc;
             break;
@@ -408,6 +409,7 @@ void CPU::zpx() {
             break;
         case 1:
             op.operandLo = memory.read(pc);
+            op.inst = (op.inst << 8) | op.operandLo;
             temp = op.operandLo + x;
             op.tempAddr = temp;
             ++pc;
@@ -434,6 +436,7 @@ void CPU::zpy() {
             break;
         case 1:
             op.operandLo = memory.read(pc);
+            op.inst = (op.inst << 8) | op.operandLo;
             temp = op.operandLo + y;
             op.tempAddr = temp;
             ++pc;
@@ -883,7 +886,8 @@ void CPU::pha() {
 
 void CPU::php() {
     if (op.cycles == 2) {
-        memory.push(sp, p, mute);
+        uint8_t temp = p | Break | UnusedFlag;
+        memory.push(sp, temp, mute);
         op.status |= Op::Done;
     }
 }
@@ -1174,7 +1178,7 @@ void CPU::prepareIRQ(bool isBrk) {
             break;
         case 4:
             op.status &= 0x90;
-            temp = p;
+            temp = p | UnusedFlag;
             if (!isBrk) {
                 temp &= ~Break;
             }
@@ -1208,6 +1212,7 @@ void CPU::prepareNMI() {
             break;
         case 4:
             op.status &= 0xa0;
+            temp = p | UnusedFlag;
             temp = p & ~Break;
             memory.push(sp, temp, mute);
             break;
@@ -1266,16 +1271,87 @@ void CPU::updateNegativeFlag(uint8_t result) {
 
 // Miscellaneous Functions
 
-void CPU::readInInst(std::string filename) {
+void CPU::readInInst(std::string& filename) {
     memory.readInInst(filename);
+}
+
+void CPU::readInINES(std::string& filename) {
+    memory.readInINES(filename);
+    pc = 0xc000;
+    p |= 0x4;
+    sp = 0xfd;
 }
 
 bool CPU::compareState(struct CPUState& state) {
     if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
-            state.y != y || state.p != p || state.totalCycles != totalCycles) {
+            state.y != y || (state.p & 0xcf) != (p & 0xcf) ||
+            state.totalCycles != totalCycles) {
         return false;
     }
     return true;
+}
+
+uint32_t CPU::getFutureInst() {
+    uint8_t operandLo = 0, operandHi = 0;
+    uint32_t inst = op.inst;
+    switch (op.addrMode) {
+        case 1:
+            operandLo = memory.read(pc);
+            inst = (inst << 16) | (operandLo << 8);
+            operandHi = memory.read(pc + 0x1);
+            inst |= operandHi;
+            break;
+        case 2:
+            operandLo = memory.read(pc);
+            inst = (inst << 16) | (operandLo << 8);
+            operandHi = memory.read(pc + 0x1);
+            inst |= operandHi;
+            break;
+        case 3:
+            operandLo = memory.read(pc);
+            inst = (inst << 16) | (operandLo << 8);
+            operandHi = memory.read(pc + 0x1);
+            inst |= operandHi;
+            break;
+        case 5:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 7:
+            operandLo = memory.read(pc);
+            inst = (inst << 16) | (operandLo << 8);
+            operandHi = memory.read(pc + 0x1);
+            inst |= operandHi;
+            break;
+        case 8:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 9:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 10:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 11:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 12:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+            break;
+        case 13:
+            operandLo = memory.read(pc);
+            inst = (inst << 8) | operandLo;
+    }
+    return inst;
+}
+
+uint16_t CPU::getPC() {
+    return pc;
 }
 
 unsigned int CPU::getTotalCycles() {
@@ -1298,9 +1374,17 @@ void CPU::setMute(bool m) {
     mute = m;
 }
 
+unsigned int CPU::getOpCycles() {
+    return op.cycles;
+}
+
 // Print Functions
 
 void CPU::print(bool isCycleDone) {
+    if (mute) {
+        return;
+    }
+
     unsigned int inc = 0;
     std::string time;
     std::bitset<8> binaryP(p);
@@ -1341,9 +1425,19 @@ void CPU::print(bool isCycleDone) {
 void CPU::printUnknownOp() {
     if (op.cycles == 2) {
         op.status |= Op::Done;
-        std::cout << std::hex << "NOTE: Opcode 0x" << (unsigned int) op.opcode
-            << " has not been implemented yet"
-            "\n--------------------------------------------------\n" <<
-            std::dec;
+        if (!mute) {
+            std::cout << std::hex << "NOTE: Opcode 0x" <<
+                (unsigned int) op.opcode <<
+                " has not been implemented yet"
+                "\n--------------------------------------------------\n" <<
+                std::dec;
+        }
     }
+}
+
+void CPU::printStateInst(uint32_t inst) {
+    std::cout << std::hex << (unsigned int) pc << "  " << (unsigned int) inst <<
+        "  A:" << (unsigned int) a << " X:" << (unsigned int) x << " Y:" <<
+        (unsigned int) y << " P:" << (unsigned int) p << " SP:" <<
+        (unsigned int) sp << " CYC:" << std::dec << totalCycles << "\n";
 }
