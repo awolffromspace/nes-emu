@@ -14,54 +14,33 @@ void Memory::reset(bool mute) {
 }
 
 uint8_t Memory::read(uint16_t addr) {
+    if (addr < 0x2000) {
+        addr &= 0x7ff;
+    }
     return data[addr];
 }
 
 void Memory::write(uint16_t addr, uint8_t val, bool mute) {
+    if (addr < 0x2000) {
+        addr &= 0x7ff;
+    }
     data[addr] = val;
 
     if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val <<
-            " has been written to address(es)\n0x" << (unsigned int) addr;
-    }
-
-    if (addr < 0x2000) { // Zero Page mirroring
-        for (int i = 1; i <= 3; ++i) {
-            uint16_t index = addr + 0x800 * i;
-            if (index >= 0x2000) {
-                index -= 0x2000;
-            }
-            data[index] = val;
-
-            if (!mute) {
-                std::cout << ", 0x" << (unsigned int) index;
-            }
-        }
-    } else if (addr < 0x4000) { // I/O register mirroring
-        for (int i = 1; i <= 400; ++i) {
-            uint16_t index = addr + 0x8 * i;
-            if (index >= 0x4000) {
-                index -= 0x2000;
-            }
-            data[index] = val;
-            // Not printing I/O register mirroring due to the large number of
-            // addresses
-        }
-    }
-
-    if (!mute) {
-        std::cout << "\n--------------------------------------------------\n" <<
+        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
+            "been written to the address 0x" << (unsigned int) addr <<
+            "\n--------------------------------------------------\n" <<
             std::dec;
     }
 }
 
 void Memory::push(uint8_t& pointer, uint8_t val, bool mute) {
-    uint16_t index = 0x100 + pointer;
-    data[index] = val;
+    uint16_t addr = 0x100 + pointer;
+    data[addr] = val;
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been pushed to the stack address 0x" << (unsigned int) index <<
+            "been pushed to the stack address 0x" << (unsigned int) addr <<
             "\n--------------------------------------------------\n" <<
             std::dec;
     }
@@ -71,12 +50,12 @@ void Memory::push(uint8_t& pointer, uint8_t val, bool mute) {
 
 uint8_t Memory::pull(uint8_t& pointer, bool mute) {
     ++pointer;
-    uint16_t index = 0x100 + pointer;
-    uint8_t val = data[index];
+    uint16_t addr = 0x100 + pointer;
+    uint8_t val = data[addr];
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been pulled from the stack address 0x" << (unsigned int) index <<
+            "been pulled from the stack address 0x" << (unsigned int) addr <<
             "\n--------------------------------------------------\n" <<
             std::dec;
     }
@@ -93,7 +72,7 @@ void Memory::readInInst(std::string& filename) {
         exit(1);
     }
 
-    int dataIndex = 0x8000;
+    int dataAddr = 0x8000;
     while (file.good()) {
         getline(file, line);
         std::string substring = "";
@@ -106,8 +85,8 @@ void Memory::readInInst(std::string& filename) {
             substring += line.at(i);
 
             if (i % 2 == 1) {
-                data[dataIndex] = std::stoul(substring, nullptr, 16);
-                ++dataIndex;
+                data[dataAddr] = std::stoul(substring, nullptr, 16);
+                ++dataAddr;
                 substring = "";
             }
         }
