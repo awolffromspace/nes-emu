@@ -131,6 +131,7 @@ class CPU {
         void readInINES(std::string& filename);
         bool compareState(struct CPUState& state);
         uint32_t getFutureInst();
+        uint8_t readMemory(uint16_t addr);
         unsigned int getTotalCycles();
         bool isEndOfProgram();
         bool isHaltAtBrk();

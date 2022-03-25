@@ -193,6 +193,12 @@ void CPU::aby() {
                 op.status |= Op::Modify;
             }
             op.status |= Op::Write;
+            break;
+        case 5:
+            op.status |= Op::WriteUnmodified;
+            break;
+        case 6:
+            op.status |= Op::WriteModified;
     }
 }
 
@@ -445,6 +451,12 @@ void CPU::zpy() {
             op.val = memory.read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
+            break;
+        case 4:
+            op.status |= Op::WriteUnmodified;
+            break;
+        case 5:
+            op.status |= Op::WriteModified;
     }
 }
 
@@ -688,7 +700,16 @@ void CPU::cpy() {
 }
 
 void CPU::dcp() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        cmp();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        --op.val;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::dec() {
@@ -761,7 +782,16 @@ void CPU::iny() {
 }
 
 void CPU::isc() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        sbc();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        ++op.val;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::jmp() {
@@ -805,7 +835,13 @@ void CPU::las() {
 }
 
 void CPU::lax() {
-    printUnknownOp();
+    if (op.status & Op::Modify) {
+        a = op.val;
+        x = op.val;
+        updateZeroFlag(a);
+        updateNegativeFlag(a);
+        op.status |= Op::Done;
+    }
 }
 
 void CPU::lda() {
@@ -917,7 +953,25 @@ void CPU::plp() {
 }
 
 void CPU::rla() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        andOp();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        uint8_t temp = op.val << 1;
+        if (p & Carry) {
+            temp |= Carry;
+        }
+        if (op.val & Negative) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        op.val = temp;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::rol() {
@@ -991,7 +1045,25 @@ void CPU::ror() {
 }
 
 void CPU::rra() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        adc();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        uint8_t temp = op.val >> 1;
+        if (p & Carry) {
+            temp |= Negative;
+        }
+        if (op.val & Carry) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        op.val = temp;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::rti() {
@@ -1024,7 +1096,10 @@ void CPU::rts() {
 }
 
 void CPU::sax() {
-    printUnknownOp();
+    if (op.status & Op::Write) {
+        memory.write(op.tempAddr, a & x, mute);
+        op.status |= Op::Done;
+    }
 }
 
 void CPU::sbc() {
@@ -1064,11 +1139,39 @@ void CPU::shy() {
 }
 
 void CPU::slo() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        ora();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        if (op.val & Negative) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        op.val = op.val << 1;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::sre() {
-    printUnknownOp();
+    if (op.status & Op::WriteModified) {
+        memory.write(op.tempAddr, op.val, mute);
+        eor();
+        op.status |= Op::Done;
+    } else if (op.status & Op::WriteUnmodified) {
+        memory.write(op.tempAddr, op.val, mute);
+        if (op.val & Carry) {
+            p |= Carry;
+        } else {
+            p &= ~Carry;
+        }
+        op.val = op.val >> 1;
+        updateZeroFlag(op.val);
+        updateNegativeFlag(op.val);
+    }
 }
 
 void CPU::sta() {
@@ -1348,6 +1451,10 @@ uint32_t CPU::getFutureInst() {
             inst = (inst << 8) | operandLo;
     }
     return inst;
+}
+
+uint8_t CPU::readMemory(uint16_t addr) {
+    return memory.read(addr);
 }
 
 unsigned int CPU::getTotalCycles() {
