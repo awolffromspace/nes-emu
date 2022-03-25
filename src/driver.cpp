@@ -1,5 +1,3 @@
-#include <vector>
-
 #include "cpu.h"
 
 void readInFilenames(std::vector<std::string>& filenames);
@@ -73,7 +71,7 @@ struct CPUState readInState(std::string& filename) {
         getline(file, line);
         std::string substring = "";
 
-        for (int i = 0; i < line.size(); ++i) {
+        for (unsigned int i = 0; i < line.size(); ++i) {
             if (line.at(i) == '/' || line.at(i) == ' ') {
                 break;
             }
@@ -205,12 +203,12 @@ void runProgram(CPU& cpu, std::string& filename) {
 
 void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
-    for (int testNum = 0; testNum < filenames.size(); ++testNum) {
+    for (unsigned int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
         struct CPUState state = readInState(currentFilename);
 
         if (testNum > 0) {
-            cpu.reset();
+            cpu.clear();
         }
 
         cpu.readInInst(currentFilename);
@@ -242,7 +240,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         std::cout << "Passed " << numPassedTests << " tests\n";
     }
 
-    for (int i = 0; i < failedTests.size(); ++i) {
+    for (unsigned int i = 0; i < failedTests.size(); ++i) {
         std::string& currentFilename = filenames[failedTests[i]];
         unsigned int sizeMinusDir = currentFilename.size() - 5;
         std::cout << "Failed test \"" <<
@@ -258,7 +256,7 @@ void runNESTest(CPU& cpu) {
     unsigned int instNum = 0;
     bool passed = true;
 
-    cpu.reset();
+    cpu.clear();
 
     cpu.readInINES(filename);
     readInNESTestStates(states, instructions, testLogs);
@@ -282,8 +280,8 @@ void runNESTest(CPU& cpu) {
         cpu.step();
     }
 
-    uint8_t validOpResult = cpu.readMemory(0x2);
-    uint8_t invalidOpResult = cpu.readMemory(0x3);
+    uint8_t validOpResult = cpu.read(0x2);
+    uint8_t invalidOpResult = cpu.read(0x3);
 
     if (validOpResult != 0) {
         std::cout << "0x2: " << std::hex << (unsigned int) validOpResult <<

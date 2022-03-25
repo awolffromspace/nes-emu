@@ -3,8 +3,12 @@
 
 #include <bitset>
 
-#include "memory.h"
+#include "apu.h"
+#include "io.h"
+#include "mmc.h"
 #include "op.h"
+#include "ppu.h"
+#include "ram.h"
 
 struct CPUState {
     uint16_t pc;
@@ -19,7 +23,7 @@ struct CPUState {
 class CPU {
     public:
         CPU();
-        void reset();
+        void clear();
         void step();
 
         // Addressing Modes
@@ -115,6 +119,12 @@ class CPU {
         void tya(); // Transfer Y to A
         void xaa();
 
+        // Read/Write Functions
+        // Determines where to send the read/write request to (e.g., RAM, PPU,
+        // I/O, APU, MMC)
+        uint8_t read(uint16_t addr);
+        void write(uint16_t addr, uint8_t val, bool mute);
+
         // Interrupt Prologue Functions
         void prepareIRQ(bool isBrk);
         void prepareNMI();
@@ -131,7 +141,6 @@ class CPU {
         void readInINES(std::string& filename);
         bool compareState(struct CPUState& state);
         uint32_t getFutureInst();
-        uint8_t readMemory(uint16_t addr);
         unsigned int getTotalCycles();
         bool isEndOfProgram();
         bool isHaltAtBrk();
@@ -159,7 +168,11 @@ class CPU {
         uint8_t p;
         // Current operation
         Op op;
-        Memory memory;
+        RAM ram;
+        PPU ppu;
+        APU apu;
+        IO io;
+        MMC mmc;
         // Total number of cycles since initialization
         unsigned int totalCycles;
         // Set to true if haltAtBrk is true and break operation is ran

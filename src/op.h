@@ -6,7 +6,7 @@
 class Op {
     public:
         Op();
-        void reset();
+        void clear();
 
         enum AddrMode {
             Absolute = 1,

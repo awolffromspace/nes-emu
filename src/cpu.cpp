@@ -10,34 +10,34 @@ CPU::CPU() :
         endOfProgram(false),
         haltAtBrk(false),
         mute(true) {
-    // Set the reset vector to 0x8000, the beginning of the PRG-ROM lower bank
-    // This is where test programs will start at
-    memory.write(0xfffd, 0x80, true);
-
     // Initialize PC to the reset vector
-    pc = (memory.read(0xfffd) << 8) | memory.read(0xfffc);
+    pc = (read(0xfffd) << 8) | read(0xfffc);
 }
 
-void CPU::reset() {
+void CPU::clear() {
     sp = 0xff;
     a = 0;
     x = 0;
     y = 0;
     p = 0x30;
-    op.reset();
-    memory.reset(mute);
-    pc = (memory.read(0xfffd) << 8) | memory.read(0xfffc);
+    op.clear();
+    ram.clear(mute);
+    ppu.clear(mute);
+    apu.clear(mute);
+    io.clear(mute);
+    mmc.clear(mute);
+    pc = (read(0xfffd) << 8) | read(0xfffc);
     totalCycles = 0;
     endOfProgram = false;
 
     if (!mute) {
-        std::cout << "CPU was reset\n";
+        std::cout << "CPU was cleared\n";
     }
 }
 
 void CPU::step() {
     if ((op.status & Op::Done) || (totalCycles == 0)) {
-        op.reset();
+        op.clear();
 
         // Polling for interrupts
         // If any interrupts are flagged, start the interrupt prologue
@@ -55,7 +55,7 @@ void CPU::step() {
 
         // Fetch
         op.pc = pc;
-        op.inst = memory.read(pc);
+        op.inst = read(pc);
         op.opcode = op.inst;
     }
 
@@ -86,19 +86,19 @@ void CPU::abs() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
             op.tempAddr = op.operandLo;
             ++pc;
             break;
         case 2:
-            op.operandHi = memory.read(pc);
+            op.operandHi = read(pc);
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
             ++pc;
             break;
         case 3:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
             break;
@@ -119,20 +119,20 @@ void CPU::abx() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
             temp = op.operandLo + x;
             op.tempAddr = temp;
             ++pc;
             break;
         case 2:
-            op.operandHi = memory.read(pc);
+            op.operandHi = read(pc);
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
             ++pc;
             break;
         case 3:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             fixedAddr = x;
             fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.tempAddr == fixedAddr) {
@@ -142,7 +142,7 @@ void CPU::abx() {
             }
             break;
         case 4:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             if (!(op.status & Op::Modify)) {
                 op.status |= Op::Modify;
             }
@@ -165,20 +165,20 @@ void CPU::aby() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
             temp = op.operandLo + y;
             op.tempAddr = temp;
             ++pc;
             break;
         case 2:
-            op.operandHi = memory.read(pc);
+            op.operandHi = read(pc);
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
             ++pc;
             break;
         case 3:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             fixedAddr = y;
             fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.tempAddr == fixedAddr) {
@@ -188,7 +188,7 @@ void CPU::aby() {
             }
             break;
         case 4:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             if (!(op.status & Op::Modify)) {
                 op.status |= Op::Modify;
             }
@@ -221,7 +221,7 @@ void CPU::imm() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             op.val = op.operandLo;
             op.status |= Op::Modify;
@@ -249,22 +249,22 @@ void CPU::idr() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
             ++pc;
             break;
         case 2:
-            op.operandHi = memory.read(pc);
+            op.operandHi = read(pc);
             op.inst |= op.operandHi;
             ++pc;
             break;
         case 3:
-            op.tempAddr = memory.read((op.operandHi << 8) | op.operandLo);
+            op.tempAddr = read((op.operandHi << 8) | op.operandLo);
             break;
         case 4:
             temp = op.operandLo + 1;
-            op.tempAddr |= memory.read((op.operandHi << 8) | temp) << 8;
-            op.val = memory.read(op.tempAddr);
+            op.tempAddr |= read((op.operandHi << 8) | temp) << 8;
+            op.val = read(op.tempAddr);
     }
 }
 
@@ -276,20 +276,20 @@ void CPU::idx() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             ++pc;
             break;
         case 3:
             temp = op.operandLo + x;
-            op.tempAddr = memory.read(temp);
+            op.tempAddr = read(temp);
             break;
         case 4:
             temp = op.operandLo + x + 1;
-            op.tempAddr |= memory.read(temp) << 8;
+            op.tempAddr |= read(temp) << 8;
             break;
         case 5:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
             break;
@@ -310,23 +310,23 @@ void CPU::idy() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             ++pc;
             break;
         case 2:
-            temp = memory.read(op.operandLo) + y;
+            temp = read(op.operandLo) + y;
             op.tempAddr = temp;
             break;
         case 3:
             temp = op.operandLo + 1;
-            op.tempAddr |= memory.read(temp) << 8;
+            op.tempAddr |= read(temp) << 8;
             break;
         case 4:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             temp = op.operandLo + 1;
             fixedAddr = y;
-            fixedAddr += (memory.read(temp) << 8) + memory.read(op.operandLo);
+            fixedAddr += (read(temp) << 8) + read(op.operandLo);
             if (op.tempAddr == fixedAddr) {
                 op.status |= Op::Modify;
             } else {
@@ -334,7 +334,7 @@ void CPU::idy() {
             }
             break;
         case 5:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             if (!(op.status & Op::Modify)) {
                 op.status |= Op::Modify;
             }
@@ -357,7 +357,7 @@ void CPU::rel() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             ++pc;
             break;
@@ -388,13 +388,13 @@ void CPU::zpg() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             op.tempAddr = op.operandLo;
             ++pc;
             break;
         case 2:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
             break;
@@ -414,14 +414,14 @@ void CPU::zpx() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             temp = op.operandLo + x;
             op.tempAddr = temp;
             ++pc;
             break;
         case 3:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
             break;
@@ -441,14 +441,14 @@ void CPU::zpy() {
             ++pc;
             break;
         case 1:
-            op.operandLo = memory.read(pc);
+            op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             temp = op.operandLo + y;
             op.tempAddr = temp;
             ++pc;
             break;
         case 3:
-            op.val = memory.read(op.tempAddr);
+            op.val = read(op.tempAddr);
             op.status |= Op::Modify;
             op.status |= Op::Write;
             break;
@@ -522,10 +522,10 @@ void CPU::asl() {
         updateNegativeFlag(a);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         if (op.val & Negative) {
             p |= Carry;
         } else {
@@ -710,10 +710,10 @@ void CPU::dcp() {
 
 void CPU::dec() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         --op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -749,10 +749,10 @@ void CPU::eor() {
 
 void CPU::inc() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         ++op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -810,11 +810,11 @@ void CPU::jsr() {
             break;
         case 3:
             temp = (pc & 0xff00) >> 8;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 4:
             temp = pc & 0xff;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 5:
             pc = op.tempAddr;
@@ -875,10 +875,10 @@ void CPU::lsr() {
         updateNegativeFlag(a);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         if (op.val & Carry) {
             p |= Carry;
         } else {
@@ -907,7 +907,7 @@ void CPU::ora() {
 
 void CPU::pha() {
     if (op.cycles == 2) {
-        memory.push(sp, a, mute);
+        ram.push(sp, a, mute);
         op.status |= Op::Done;
     }
 }
@@ -915,7 +915,7 @@ void CPU::pha() {
 void CPU::php() {
     if (op.cycles == 2) {
         uint8_t temp = p | Break | UnusedFlag;
-        memory.push(sp, temp, mute);
+        ram.push(sp, temp, mute);
         op.status |= Op::Done;
     }
 }
@@ -923,7 +923,7 @@ void CPU::php() {
 void CPU::pla() {
     switch (op.cycles) {
         case 2:
-            op.val = memory.pull(sp, mute);
+            op.val = ram.pull(sp, mute);
             break;
         case 3:
             a = op.val;
@@ -936,7 +936,7 @@ void CPU::pla() {
 void CPU::plp() {
     switch (op.cycles) {
         case 2:
-            op.val = memory.pull(sp, mute);
+            op.val = ram.pull(sp, mute);
             break;
         case 3:
             p = op.val | Break | UnusedFlag;
@@ -969,10 +969,10 @@ void CPU::rol() {
         updateNegativeFlag(a);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
         if (p & Carry) {
             temp |= Carry;
@@ -1004,10 +1004,10 @@ void CPU::ror() {
         updateNegativeFlag(a);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
         if (p & Carry) {
             temp |= Negative;
@@ -1035,13 +1035,13 @@ void CPU::rra() {
 void CPU::rti() {
     switch (op.cycles) {
         case 3:
-            p = memory.pull(sp, mute) | Break | UnusedFlag;
+            p = ram.pull(sp, mute) | Break | UnusedFlag;
             break;
         case 4:
-            op.tempAddr |= memory.pull(sp, mute);
+            op.tempAddr |= ram.pull(sp, mute);
             break;
         case 5:
-            op.tempAddr |= memory.pull(sp, mute) << 8;
+            op.tempAddr |= ram.pull(sp, mute) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1050,10 +1050,10 @@ void CPU::rti() {
 void CPU::rts() {
     switch (op.cycles) {
         case 3:
-            op.tempAddr = memory.pull(sp, mute);
+            op.tempAddr = ram.pull(sp, mute);
             break;
         case 4:
-            op.tempAddr |= memory.pull(sp, mute) << 8;
+            op.tempAddr |= ram.pull(sp, mute) << 8;
             break;
         case 5:
             pc = op.tempAddr + 1;
@@ -1063,7 +1063,7 @@ void CPU::rts() {
 
 void CPU::sax() {
     if (op.status & Op::Write) {
-        memory.write(op.tempAddr, a & x, mute);
+        write(op.tempAddr, a & x, mute);
         op.status |= Op::Done;
     }
 }
@@ -1124,7 +1124,7 @@ void CPU::sre() {
 
 void CPU::sta() {
     if (op.status & Op::Write) {
-        memory.write(op.tempAddr, a, mute);
+        write(op.tempAddr, a, mute);
         op.status |= Op::Done;
     }
 }
@@ -1135,14 +1135,14 @@ void CPU::stp() {
 
 void CPU::stx() {
     if (op.status & Op::Write) {
-        memory.write(op.tempAddr, x, mute);
+        write(op.tempAddr, x, mute);
         op.status |= Op::Done;
     }
 }
 
 void CPU::sty() {
     if (op.status & Op::Write) {
-        memory.write(op.tempAddr, y, mute);
+        write(op.tempAddr, y, mute);
         op.status |= Op::Done;
     }
 }
@@ -1207,6 +1207,36 @@ void CPU::xaa() {
     printUnknownOp();
 }
 
+// Read/Write Functions
+
+uint8_t CPU::read(uint16_t addr) {
+    if (addr < 0x2000) {
+        return ram.read(addr);
+    } else if (addr < 0x4000 || addr == 0x4014) {
+        return ppu.readRegister(addr);
+    } else if (addr < 0x4016) {
+        return apu.readRegister(addr);
+    } else if (addr < 0x4020) {
+        return io.readRegister(addr);
+    } else {
+        return mmc.read(addr);
+    }
+}
+
+void CPU::write(uint16_t addr, uint8_t val, bool mute) {
+    if (addr < 0x2000) {
+        ram.write(addr, val, mute);
+    } else if (addr < 0x4000 || addr == 0x4014) {
+        ppu.writeRegister(addr, val, mute);
+    } else if (addr < 0x4016) {
+        apu.writeRegister(addr, val, mute);
+    } else if (addr < 0x4020) {
+        io.writeRegister(addr, val, mute);
+    } else {
+        mmc.write(addr, val, mute);
+    }
+}
+
 // Interrupt Prologue Functions
 
 void CPU::prepareIRQ(bool isBrk) {
@@ -1221,11 +1251,11 @@ void CPU::prepareIRQ(bool isBrk) {
             break;
         case 2:
             temp = (pc & 0xff00) >> 8;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 3:
             temp = pc & 0xff;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 4:
             op.status &= 0x90;
@@ -1233,14 +1263,14 @@ void CPU::prepareIRQ(bool isBrk) {
             if (!isBrk) {
                 temp &= ~Break;
             }
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = memory.read(0xfffe);
+            op.tempAddr = read(0xfffe);
             p |= InterruptDisable;
             break;
         case 6:
-            op.tempAddr |= memory.read(0xffff) << 8;
+            op.tempAddr |= read(0xffff) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1255,24 +1285,24 @@ void CPU::prepareNMI() {
             break;
         case 2:
             temp = (pc & 0xff00) >> 8;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 3:
             temp = pc & 0xff;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 4:
             op.status &= 0xa0;
             temp = p | UnusedFlag;
             temp = p & ~Break;
-            memory.push(sp, temp, mute);
+            ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = memory.read(0xfffa);
+            op.tempAddr = read(0xfffa);
             p |= InterruptDisable;
             break;
         case 6:
-            op.tempAddr |= memory.read(0xfffb) << 8;
+            op.tempAddr |= read(0xfffb) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1295,11 +1325,11 @@ void CPU::prepareReset() {
             --sp;
             break;
         case 5:
-            op.tempAddr = memory.read(0xfffc);
+            op.tempAddr = read(0xfffc);
             p |= InterruptDisable;
             break;
         case 6:
-            op.tempAddr |= memory.read(0xfffd) << 8;
+            op.tempAddr |= read(0xfffd) << 8;
             pc = op.tempAddr;
             op.status |= Op::Done;
     }
@@ -1323,11 +1353,11 @@ void CPU::updateNegativeFlag(uint8_t result) {
 // Miscellaneous Functions
 
 void CPU::readInInst(std::string& filename) {
-    memory.readInInst(filename);
+    mmc.readInInst(filename);
 }
 
 void CPU::readInINES(std::string& filename) {
-    memory.readInINES(filename);
+    mmc.readInINES(filename);
     pc = 0xc000;
     p |= 0x4;
     sp = 0xfd;
@@ -1347,62 +1377,58 @@ uint32_t CPU::getFutureInst() {
     uint32_t inst = op.inst;
     switch (op.addrMode) {
         case 1:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 16) | (operandLo << 8);
-            operandHi = memory.read(pc + 0x1);
+            operandHi = read(pc + 0x1);
             inst |= operandHi;
             break;
         case 2:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 16) | (operandLo << 8);
-            operandHi = memory.read(pc + 0x1);
+            operandHi = read(pc + 0x1);
             inst |= operandHi;
             break;
         case 3:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 16) | (operandLo << 8);
-            operandHi = memory.read(pc + 0x1);
+            operandHi = read(pc + 0x1);
             inst |= operandHi;
             break;
         case 5:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 7:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 16) | (operandLo << 8);
-            operandHi = memory.read(pc + 0x1);
+            operandHi = read(pc + 0x1);
             inst |= operandHi;
             break;
         case 8:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 9:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 10:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 11:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 12:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
             break;
         case 13:
-            operandLo = memory.read(pc);
+            operandLo = read(pc);
             inst = (inst << 8) | operandLo;
     }
     return inst;
-}
-
-uint8_t CPU::readMemory(uint16_t addr) {
-    return memory.read(addr);
 }
 
 unsigned int CPU::getTotalCycles() {

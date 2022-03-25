@@ -14,7 +14,7 @@ Op::Op() :
 
 }
 
-void Op::reset() {
+void Op::clear() {
     inst = 0;
     pc = 0;
     opcode = 0;
