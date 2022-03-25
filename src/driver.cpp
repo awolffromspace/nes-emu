@@ -259,15 +259,19 @@ void runNESTest(CPU& cpu) {
     std::vector<std::string> testLogs;
     unsigned int instNum = 0;
     bool passed = true;
+
     cpu.reset();
+
     cpu.readInINES(filename);
     readInNESTestStates(states, instructions, testLogs);
+
     while (!cpu.isEndOfProgram() && instNum < states.size()) {
         if (cpu.getOpCycles() == 1) {
             struct CPUState state = states[instNum];
             uint32_t testInst = instructions[instNum];
             uint32_t inst = cpu.getFutureInst();
             std::string testLog = testLogs[instNum];
+
             if (!cpu.compareState(state) || inst != testInst) {
                 std::cout << "Test log: " << testLog << "\nEmulator: ";
                 cpu.printStateInst(inst);
@@ -279,18 +283,22 @@ void runNESTest(CPU& cpu) {
 
         cpu.step();
     }
+
     uint8_t validOpResult = cpu.readMemory(0x2);
     uint8_t invalidOpResult = cpu.readMemory(0x3);
+
     if (validOpResult != 0) {
         std::cout << "0x2: " << std::hex << (unsigned int) validOpResult <<
             "\n";
         passed = false;
     }
+
     if (invalidOpResult != 0) {
         std::cout << "0x3: " << (unsigned int) invalidOpResult << "\n" <<
             std::dec;
         passed = false;
     }
+
     if (passed) {
         std::cout << "Passed nestest.nes\n";
     }
