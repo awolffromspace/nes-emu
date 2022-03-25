@@ -19,18 +19,16 @@ int main(int argc, char* argv[]) {
     CPU cpu;
     if (argc == 1) {
         cpu.setHaltAtBrk(true);
-
         std::vector<std::string> filenames;
         readInFilenames(filenames);
         runTests(cpu, filenames);
         runNESTest(cpu);
     } else if (argc == 2) {
         cpu.setMute(false);
-
         std::string filename(argv[1]);
         runProgram(cpu, filename);
     } else {
-        std::cerr << "Unexpected number of arguments" << std::endl;
+        std::cerr << "Unexpected number of arguments\n";
         exit(1);
     }
     return 0;
@@ -42,7 +40,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
     std::ifstream file(filenameList.c_str());
 
     if (!file.is_open()) {
-        std::cerr << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file\n";
         exit(1);
     }
 
@@ -67,7 +65,7 @@ struct CPUState readInState(std::string& filename) {
     std::ifstream file(stateFilename.c_str());
 
     if (!file.is_open()) {
-        std::cerr << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file\n";
         exit(1);
     }
 
@@ -97,7 +95,7 @@ struct CPUState readInState(std::string& filename) {
     file.close();
 
     if (dataIndex < 7) {
-        std::cerr << "Unexpected number of state fields" << std::endl;
+        std::cerr << "Unexpected number of state fields\n";
         exit(1);
     }
 
@@ -118,7 +116,7 @@ void readInNESTestStates(std::vector<struct CPUState>& states,
     std::ifstream file(filename.c_str());
 
     if (!file.is_open()) {
-        std::cerr << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file\n";
         exit(1);
     }
 
@@ -197,12 +195,12 @@ void runProgram(CPU& cpu, std::string& filename) {
             cpu.print(true);
             std::cin >> input;
         } else {
-            std::cout << "Exiting" << std::endl;
+            std::cout << "Exiting\n";
             exit(0);
         }
     }
 
-    std::cout << "End of the program" << std::endl;
+    std::cout << "End of the program\n";
 }
 
 void runTests(CPU& cpu, std::vector<std::string>& filenames) {
@@ -241,14 +239,14 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
 
     if (failedTests.size() != filenames.size()) {
         int numPassedTests = filenames.size() - failedTests.size();
-        std::cout << "Passed " << numPassedTests << " tests" << std::endl;
+        std::cout << "Passed " << numPassedTests << " tests\n";
     }
 
     for (int i = 0; i < failedTests.size(); ++i) {
         std::string& currentFilename = filenames[failedTests[i]];
         unsigned int sizeMinusDir = currentFilename.size() - 5;
         std::cout << "Failed test \"" <<
-            currentFilename.substr(5, sizeMinusDir) << "\"" << std::endl;
+            currentFilename.substr(5, sizeMinusDir) << "\"\n";
     }
 }
 

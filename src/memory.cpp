@@ -68,7 +68,7 @@ void Memory::readInInst(std::string& filename) {
     std::ifstream file(filename.c_str());
 
     if (!file.is_open()) {
-        std::cerr << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file\n";
         exit(1);
     }
 
@@ -99,7 +99,7 @@ void Memory::readInINES(std::string& filename) {
     std::ifstream file(filename.c_str(), std::ios::binary);
 
     if (!file.is_open()) {
-        std::cerr << "Error reading in file" << std::endl;
+        std::cerr << "Error reading in file\n";
         exit(1);
     }
 
