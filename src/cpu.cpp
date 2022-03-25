@@ -701,14 +701,10 @@ void CPU::cpy() {
 
 void CPU::dcp() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        dec();
         cmp();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        --op.val;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        dec();
     }
 }
 
@@ -783,14 +779,10 @@ void CPU::iny() {
 
 void CPU::isc() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        inc();
         sbc();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        ++op.val;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        inc();
     }
 }
 
@@ -954,23 +946,10 @@ void CPU::plp() {
 
 void CPU::rla() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        rol();
         andOp();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        uint8_t temp = op.val << 1;
-        if (p & Carry) {
-            temp |= Carry;
-        }
-        if (op.val & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
-        op.val = temp;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        rol();
     }
 }
 
@@ -1046,23 +1025,10 @@ void CPU::ror() {
 
 void CPU::rra() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        ror();
         adc();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        uint8_t temp = op.val >> 1;
-        if (p & Carry) {
-            temp |= Negative;
-        }
-        if (op.val & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
-        op.val = temp;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        ror();
     }
 }
 
@@ -1140,37 +1106,19 @@ void CPU::shy() {
 
 void CPU::slo() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        asl();
         ora();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        if (op.val & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
-        op.val = op.val << 1;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        asl();
     }
 }
 
 void CPU::sre() {
     if (op.status & Op::WriteModified) {
-        memory.write(op.tempAddr, op.val, mute);
+        lsr();
         eor();
-        op.status |= Op::Done;
     } else if (op.status & Op::WriteUnmodified) {
-        memory.write(op.tempAddr, op.val, mute);
-        if (op.val & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
-        op.val = op.val >> 1;
-        updateZeroFlag(op.val);
-        updateNegativeFlag(op.val);
+        lsr();
     }
 }
 
