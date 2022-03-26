@@ -25,8 +25,8 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, bool mute) {
     if (addr == 0x4014) {
         oamdma = val;
     } else {
-        addr &= 0x7;
-        registers[addr] = val;
+        uint16_t localAddr = addr & 0x7;
+        registers[localAddr] = val;
     }
 
     if (!mute) {

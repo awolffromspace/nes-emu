@@ -13,7 +13,7 @@ class APU {
         void writeRegister(uint16_t addr, uint8_t val, bool mute);
 
     private:
-        uint8_t registers[0x15];
+        uint8_t registers[0x16];
 };
 
 #endif

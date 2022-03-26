@@ -18,8 +18,8 @@ uint8_t IO::readRegister(uint16_t addr) {
 }
 
 void IO::writeRegister(uint16_t addr, uint8_t val, bool mute) {
-    addr -= 0x4016;
-    registers[addr] = val;
+    uint16_t localAddr = addr - 0x4016;
+    registers[localAddr] = val;
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<

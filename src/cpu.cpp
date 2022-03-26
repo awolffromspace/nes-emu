@@ -1216,6 +1216,8 @@ uint8_t CPU::read(uint16_t addr) {
         return ppu.readRegister(addr);
     } else if (addr < 0x4016) {
         return apu.readRegister(addr);
+    } else if (addr == 0x4017) {
+        return apu.readRegister(addr) | io.readRegister(addr);
     } else if (addr < 0x4020) {
         return io.readRegister(addr);
     } else {
@@ -1230,6 +1232,9 @@ void CPU::write(uint16_t addr, uint8_t val, bool mute) {
         ppu.writeRegister(addr, val, mute);
     } else if (addr < 0x4016) {
         apu.writeRegister(addr, val, mute);
+    } else if (addr == 0x4017) {
+        apu.writeRegister(addr, val, mute);
+        io.writeRegister(addr, val, mute);
     } else if (addr < 0x4020) {
         io.writeRegister(addr, val, mute);
     } else {

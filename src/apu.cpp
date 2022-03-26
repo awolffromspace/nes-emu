@@ -5,7 +5,7 @@ APU::APU() {
 }
 
 void APU::clear(bool mute) {
-    memset(registers, 0, 0x15);
+    memset(registers, 0, 0x16);
 
     if (!mute) {
         std::cout << "APU was cleared\n";
@@ -13,7 +13,7 @@ void APU::clear(bool mute) {
 }
 
 uint8_t APU::readRegister(uint16_t addr) {
-    if (addr == 0x4015) {
+    if (addr > 0x4014) {
         --addr;
     }
     addr &= 0x1f;
@@ -21,11 +21,12 @@ uint8_t APU::readRegister(uint16_t addr) {
 }
 
 void APU::writeRegister(uint16_t addr, uint8_t val, bool mute) {
-    if (addr == 0x4015) {
-        --addr;
+    uint16_t localAddr = addr;
+    if (localAddr > 0x4014) {
+        --localAddr;
     }
-    addr &= 0x1f;
-    registers[addr] = val;
+    localAddr &= 0x1f;
+    registers[localAddr] = val;
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<

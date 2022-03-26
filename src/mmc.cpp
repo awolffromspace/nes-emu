@@ -24,8 +24,8 @@ uint8_t MMC::read(uint16_t addr) {
 }
 
 void MMC::write(uint16_t addr, uint8_t val, bool mute) {
-    addr = (addr & 0xbfff) - 0x4020;
-    data[addr] = val;
+    uint16_t localAddr = (addr & 0xbfff) - 0x4020;
+    data[localAddr] = val;
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
