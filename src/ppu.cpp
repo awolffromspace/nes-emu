@@ -272,7 +272,7 @@ void PPU::getPixel(MMC& mmc) {
 }
 
 void PPU::updateFlags(MMC& mmc, bool mute) {
-    // This function is called twice if the first cycle is skipped
+    // This function is called twice if the first cycle is not skipped
     // Could refactor to prevent that
     if (op.cycle == 1 && op.scanline == 241 && !status.inVblank) {
         uint8_t flags = readRegister(0x2002, mmc) | 0x80;
