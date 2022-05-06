@@ -1,12 +1,14 @@
-#ifndef OP_H
-#define OP_H
+#ifndef CPUOP_H
+#define CPUOP_H
 
 #include <cstdint>
 
-class Op {
+class CPUOp {
     public:
-        Op();
-        void clear();
+        CPUOp();
+        void clear(bool clearInterrupts);
+        void clearInterruptFlags();
+        void clearDMA();
 
         enum AddrMode {
             Absolute = 1,
@@ -22,6 +24,11 @@ class Op {
             ZeroPage = 11,
             ZeroPageX = 12,
             ZeroPageY = 13
+        };
+        enum InstType {
+            ReadInst = 1,
+            WriteInst = 2,
+            RMWInst = 3
         };
         // Powers of two are used, so this enum can be used as a bitmask
         enum OpStatus {
@@ -43,8 +50,10 @@ class Op {
             Reset = 64,
             // When currently handling an interrupt
             InterruptPrologue = 128,
+            // When performing a DMA transfer to the PPU OAM
+            OAMDMA = 256,
             // When the operation is completely finished
-            Done = 256
+            Done = 512
         };
 
     private:
@@ -65,13 +74,16 @@ class Op {
         uint8_t val;
         // Temporary address to hold when needed
         uint16_t tempAddr;
+        uint16_t fixedAddr;
         // Addressing mode that the operation uses
-        int addrMode;
+        unsigned int addrMode;
+        unsigned int instType;
         // How many cycles the operation has taken thus far
-        unsigned int cycles;
+        unsigned int cycle;
+        unsigned int dmaCycle;
         // Indicates any cycle-relevant info about the operation
         // Depends on the enum Status
-        int status;
+        unsigned int status;
         friend class CPU;
 };
 

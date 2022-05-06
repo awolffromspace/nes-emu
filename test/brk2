@@ -1,3 +1,4 @@
+58 // CLI
 a990 // LDA #$90
 8dffff // STA $ffff
 a9a9 // LDA #$a9

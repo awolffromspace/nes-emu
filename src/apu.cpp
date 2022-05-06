@@ -12,7 +12,7 @@ void APU::clear(bool mute) {
     }
 }
 
-uint8_t APU::readRegister(uint16_t addr) {
+uint8_t APU::readIO(uint16_t addr) const {
     if (addr > 0x4014) {
         --addr;
     }
@@ -20,7 +20,7 @@ uint8_t APU::readRegister(uint16_t addr) {
     return registers[addr];
 }
 
-void APU::writeRegister(uint16_t addr, uint8_t val, bool mute) {
+void APU::writeIO(uint16_t addr, uint8_t val, bool mute) {
     uint16_t localAddr = addr;
     if (localAddr > 0x4014) {
         --localAddr;

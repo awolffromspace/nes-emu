@@ -12,7 +12,7 @@ void RAM::clear(bool mute) {
     }
 }
 
-uint8_t RAM::read(uint16_t addr) {
+uint8_t RAM::read(uint16_t addr) const {
     addr &= 0x7ff;
     return data[addr];
 }

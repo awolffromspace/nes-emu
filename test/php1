@@ -2,5 +2,5 @@
 08 // PHP
 f8 // SED
 08 // PHP
-adff01 // LDA $01ff
-0dfe01 // ORA $01fe
+adfd01 // LDA $01fd
+0dfc01 // ORA $01fc

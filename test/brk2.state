@@ -1,7 +1,7 @@
-801a // PC
-ff // SP
+801b // PC
+fd // SP
 01 // A
 01 // X
 00 // Y
 00110100 // P
-44 // total cycles
+46 // total cycles

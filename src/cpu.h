@@ -4,154 +4,45 @@
 #include <bitset>
 
 #include "apu.h"
+#include "cpu-op.h"
 #include "io.h"
-#include "mmc.h"
-#include "op.h"
 #include "ppu.h"
 #include "ram.h"
-
-struct CPUState {
-    uint16_t pc;
-    uint8_t sp;
-    uint8_t a;
-    uint8_t x;
-    uint8_t y;
-    uint8_t p;
-    unsigned int totalCycles;
-};
 
 class CPU {
     public:
         CPU();
         void clear();
-        void step();
+        void step(SDL_Renderer* renderer, SDL_Texture* texture);
 
-        // Addressing Modes
-        void abs(); // ABSolute
-        void abx(); // ABsolute, X
-        void aby(); // ABsolute, Y
-        void acc(); // ACCumulator
-        void imm(); // IMMediate
-        void imp(); // IMPlied
-        void idr(); // InDiRect
-        void idx(); // InDirect, X (AKA Indexed Indirect)
-        void idy(); // InDirect, Y (AKA Indirect Indexed)
-        void rel(); // RELative
-        void zpg(); // Zero PaGe
-        void zpx(); // Zero Page, X
-        void zpy(); // Zero Page, Y
-
-        // Operations
-        // Functions without comments next to them are unofficial opcodes
-        void adc(); // ADd with Carry
-        void ahx();
-        void alr();
-        void andOp(); // bitwise AND with accumulator
-        void anc();
-        void arr();
-        void asl(); // Arithmetic Shift Left
-        void axs();
-        void bcc(); // Branch on Carry Clear
-        void bcs(); // Branch on Carry Set
-        void beq(); // Branch on EQual
-        void bit(); // test BITs
-        void bmi(); // Branch on MInus
-        void bne(); // Branch on Not Equal
-        void bpl(); // Branch on PLus
-        void brk(); // BReaK
-        void bvc(); // Branch on oVerflow Clear
-        void bvs(); // Branch on oVerflow Set
-        void clc(); // CLear Carry
-        void cld(); // CLear Decimal
-        void cli(); // CLear Interrupt
-        void clv(); // CLear oVerflow
-        void cmp(); // CoMPare accumulator
-        void cpx(); // ComPare X register
-        void cpy(); // ComPare Y register
-        void dcp();
-        void dec(); // DECrement memory
-        void dex(); // DEcrement X
-        void dey(); // DEcrement Y
-        void eor(); // bitwise Exclusive OR
-        void inc(); // INCrement memory
-        void inx(); // INcrement X
-        void iny(); // INcrement Y
-        void isc();
-        void jmp(); // JuMP
-        void jsr(); // Jump to SubRoutine
-        void las();
-        void lax();
-        void lda(); // LoaD Accumulator
-        void ldx(); // LoaD X register
-        void ldy(); // LoaD Y register
-        void lsr(); // Logical Shift Right
-        void nop(); // No OPeration
-        void ora(); // bitwise OR with Accumulator
-        void pha(); // PusH Accumulator
-        void php(); // PusH Processor status
-        void pla(); // PuLl Accumulator
-        void plp(); // PuLl Processor status
-        void rla();
-        void rol(); // ROtate Left
-        void ror(); // ROtate Right
-        void rra();
-        void rti(); // ReTurn from Interrupt
-        void rts(); // ReTurn from Subroutine
-        void sax();
-        void sbc(); // SuBtract with Carry
-        void sec(); // SEt Carry
-        void sed(); // SEt Decimal
-        void sei(); // SEt Interrupt
-        void shx();
-        void shy();
-        void slo();
-        void sre();
-        void sta(); // STore Accumulator
-        void stp(); // STop the Processor
-        void stx(); // STore X register
-        void sty(); // STore Y register
-        void tas();
-        void tax(); // Transfer A to X
-        void tay(); // Transfer A to Y
-        void tsx(); // Transfer Stack pointer to X
-        void txa(); // Transfer X to A
-        void txs(); // Transfer X to Stack pointer
-        void tya(); // Transfer Y to A
-        void xaa();
-
-        // Read/Write Functions
-        // Determines where to send the read/write request to (e.g., RAM, PPU,
-        // I/O, APU, MMC)
-        uint8_t read(uint16_t addr);
-        void write(uint16_t addr, uint8_t val, bool mute);
-
-        // Interrupt Prologue Functions
-        void prepareIRQ(bool isBrk);
-        void prepareNMI();
-        void prepareReset();
-
-        // Processor Status Updates
-        // Only the zero and negative flags have dedicated functions because
-        // many operations set or clear them using the exact same conditions
-        void updateZeroFlag(uint8_t result);
-        void updateNegativeFlag(uint8_t result);
+        struct State {
+            uint16_t pc;
+            uint8_t sp;
+            uint8_t a;
+            uint8_t x;
+            uint8_t y;
+            uint8_t p;
+            unsigned int totalCycles;
+        };
 
         // Miscellaneous Functions
         void readInInst(std::string& filename);
         void readInINES(std::string& filename);
-        bool compareState(struct CPUState& state);
+        bool compareState(struct CPU::State& state) const;
         uint32_t getFutureInst();
-        unsigned int getTotalCycles();
-        bool isEndOfProgram();
-        bool isHaltAtBrk();
+        unsigned int getTotalCycles() const;
+        bool isEndOfProgram() const;
+        bool isHaltAtBrk() const;
         void setHaltAtBrk(bool h);
         void setMute(bool m);
-        unsigned int getOpCycles();
+        unsigned int getOpCycles() const;
+        uint8_t getValidOpResult() const;
+        uint8_t getInvalidOpResult() const;
 
         // Print Functions
-        void print(bool isCycleDone);
-        void printUnknownOp();
-        void printStateInst(uint32_t inst);
+        void print(bool isCycleDone) const;
+        void printUnknownOp() const;
+        void printStateInst(uint32_t inst) const;
 
     private:
         // Program Counter
@@ -167,7 +58,7 @@ class CPU {
         // Processor status
         uint8_t p;
         // Current operation
-        Op op;
+        CPUOp op;
         RAM ram;
         PPU ppu;
         APU apu;
@@ -312,6 +203,118 @@ class CPU {
             // i.e., bit 7 is 1
             Negative = 128
         };
+
+        // Addressing Modes
+        void abs(); // ABSolute
+        void abx(); // ABsolute, X
+        void aby(); // ABsolute, Y
+        void acc(); // ACCumulator
+        void imm(); // IMMediate
+        void imp(); // IMPlied
+        void idr(); // InDiRect
+        void idx(); // InDirect, X (AKA Indexed Indirect)
+        void idy(); // InDirect, Y (AKA Indirect Indexed)
+        void rel(); // RELative
+        void zpg(); // Zero PaGe
+        void zpx(); // Zero Page, X
+        void zpy(); // Zero Page, Y
+
+        // Operations
+        // Functions without comments next to them are unofficial opcodes
+        void adc(); // ADd with Carry
+        void ahx();
+        void alr();
+        void andOp(); // bitwise AND with accumulator
+        void anc();
+        void arr();
+        void asl(); // Arithmetic Shift Left
+        void axs();
+        void bcc(); // Branch on Carry Clear
+        void bcs(); // Branch on Carry Set
+        void beq(); // Branch on EQual
+        void bit(); // test BITs
+        void bmi(); // Branch on MInus
+        void bne(); // Branch on Not Equal
+        void bpl(); // Branch on PLus
+        void brk(); // BReaK
+        void bvc(); // Branch on oVerflow Clear
+        void bvs(); // Branch on oVerflow Set
+        void clc(); // CLear Carry
+        void cld(); // CLear Decimal
+        void cli(); // CLear Interrupt
+        void clv(); // CLear oVerflow
+        void cmp(); // CoMPare accumulator
+        void cpx(); // ComPare X register
+        void cpy(); // ComPare Y register
+        void dcp();
+        void dec(); // DECrement memory
+        void dex(); // DEcrement X
+        void dey(); // DEcrement Y
+        void eor(); // bitwise Exclusive OR
+        void inc(); // INCrement memory
+        void inx(); // INcrement X
+        void iny(); // INcrement Y
+        void isc();
+        void jmp(); // JuMP
+        void jsr(); // Jump to SubRoutine
+        void las();
+        void lax();
+        void lda(); // LoaD Accumulator
+        void ldx(); // LoaD X register
+        void ldy(); // LoaD Y register
+        void lsr(); // Logical Shift Right
+        void nop(); // No OPeration
+        void ora(); // bitwise OR with Accumulator
+        void pha(); // PusH Accumulator
+        void php(); // PusH Processor status
+        void pla(); // PuLl Accumulator
+        void plp(); // PuLl Processor status
+        void rla();
+        void rol(); // ROtate Left
+        void ror(); // ROtate Right
+        void rra();
+        void rti(); // ReTurn from Interrupt
+        void rts(); // ReTurn from Subroutine
+        void sax();
+        void sbc(); // SuBtract with Carry
+        void sec(); // SEt Carry
+        void sed(); // SEt Decimal
+        void sei(); // SEt Interrupt
+        void shx();
+        void shy();
+        void slo();
+        void sre();
+        void sta(); // STore Accumulator
+        void stp(); // STop the Processor
+        void stx(); // STore X register
+        void sty(); // STore Y register
+        void tas();
+        void tax(); // Transfer A to X
+        void tay(); // Transfer A to Y
+        void tsx(); // Transfer Stack pointer to X
+        void txa(); // Transfer X to A
+        void txs(); // Transfer X to Stack pointer
+        void tya(); // Transfer Y to A
+        void xaa();
+
+        // Read/Write Functions
+        // Determines where to send the read/write request to (e.g., RAM, PPU,
+        // I/O, APU, MMC)
+        uint8_t read(uint16_t addr);
+        void write(uint16_t addr, uint8_t val, bool mute);
+        void oamDMATransfer();
+
+        // Interrupt Functions
+        void pollInterrupts();
+        void prepareIRQ(bool isBrk);
+        void prepareNMI();
+        void prepareReset();
+
+        // Processor Status Updates
+        // Only the zero and negative flags have dedicated functions because
+        // many operations set or clear them using the exact same conditions
+        void updateZeroFlag(uint8_t result);
+        void updateNegativeFlag(uint8_t result);
 };
 
 #endif

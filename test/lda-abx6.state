@@ -1,7 +1,7 @@
 800b // PC
-ff // SP
+fd // SP
 01 // A
 01 // X
 00 // Y
-00110000 // P
+00110100 // P
 14 // total cycles

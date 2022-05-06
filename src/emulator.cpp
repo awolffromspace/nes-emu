@@ -2,9 +2,9 @@
 
 void readInFilenames(std::vector<std::string>& filenames);
 
-struct CPUState readInState(std::string& filename);
+struct CPU::State readInState(std::string& filename);
 
-void readInNESTestStates(std::vector<struct CPUState>& states,
+void readInNESTestStates(std::vector<struct CPU::State>& states,
     std::vector<uint32_t>& instructions, std::vector<std::string>& testLogs);
 
 void runProgram(CPU& cpu, std::string& filename);
@@ -12,6 +12,8 @@ void runProgram(CPU& cpu, std::string& filename);
 void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
 void runNESTest(CPU& cpu);
+
+void runNESGame(CPU& cpu);
 
 int main(int argc, char* argv[]) {
     CPU cpu;
@@ -21,6 +23,8 @@ int main(int argc, char* argv[]) {
         readInFilenames(filenames);
         runTests(cpu, filenames);
         runNESTest(cpu);
+        cpu.setHaltAtBrk(false);
+        runNESGame(cpu);
     } else if (argc == 2) {
         cpu.setMute(false);
         std::string filename(argv[1]);
@@ -54,10 +58,10 @@ void readInFilenames(std::vector<std::string>& filenames) {
     file.close();
 }
 
-struct CPUState readInState(std::string& filename) {
-    struct CPUState state;
+struct CPU::State readInState(std::string& filename) {
+    struct CPU::State state;
     uint16_t data[5];
-    int dataIndex = 0;
+    unsigned int dataIndex = 0;
     std::string line;
     std::string stateFilename = filename + ".state";
     std::ifstream file(stateFilename.c_str());
@@ -71,11 +75,11 @@ struct CPUState readInState(std::string& filename) {
         getline(file, line);
         std::string substring = "";
 
-        for (unsigned int i = 0; i < line.size(); ++i) {
-            if (line.at(i) == '/' || line.at(i) == ' ') {
+        for (char currentChar : line) {
+            if (currentChar == '/' || currentChar == ' ') {
                 break;
             }
-            substring += line.at(i);
+            substring += currentChar;
         }
 
         if (dataIndex == 5) {
@@ -106,7 +110,7 @@ struct CPUState readInState(std::string& filename) {
     return state;
 }
 
-void readInNESTestStates(std::vector<struct CPUState>& states,
+void readInNESTestStates(std::vector<struct CPU::State>& states,
         std::vector<uint32_t>& instructions,
         std::vector<std::string>& testLogs) {
     std::string filename = "nestest.log";
@@ -119,7 +123,7 @@ void readInNESTestStates(std::vector<struct CPUState>& states,
     }
 
     while (file.good()) {
-        struct CPUState state;
+        struct CPU::State state;
         uint32_t inst = 0;
         std::string substring;
         getline(file, line);
@@ -129,7 +133,7 @@ void readInNESTestStates(std::vector<struct CPUState>& states,
         }
 
         substring = line.substr(0, 4);
-        state.pc = std::stoul(substring, nullptr, 16) + 0x1;
+        state.pc = std::stoul(substring, nullptr, 16) + 1;
 
         substring = line.substr(6, 2);
         inst = std::stoul(substring, nullptr, 16);
@@ -182,14 +186,14 @@ void runProgram(CPU& cpu, std::string& filename) {
         if (input == "c" || input == "continue") {
             cpu.setHaltAtBrk(true);
             cpu.print(false);
-            cpu.step();
+            cpu.step(nullptr, nullptr);
             cpu.print(true);
             if (!cpu.isEndOfProgram()) {
                 std::cout << "\n";
             }
         } else if (input == "s" || input == "step") {
             cpu.print(false);
-            cpu.step();
+            cpu.step(nullptr, nullptr);
             cpu.print(true);
             std::cin >> input;
         } else {
@@ -205,7 +209,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
     for (unsigned int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
-        struct CPUState state = readInState(currentFilename);
+        struct CPU::State state = readInState(currentFilename);
 
         if (testNum > 0) {
             cpu.clear();
@@ -223,7 +227,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         while ((cpu.isHaltAtBrk() && !cpu.isEndOfProgram()) ||
                 (!cpu.isHaltAtBrk() &&
                 cpu.getTotalCycles() < state.totalCycles)) {
-            cpu.step();
+            cpu.step(nullptr, nullptr);
         }
 
         if (!cpu.isHaltAtBrk()) {
@@ -236,12 +240,12 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     }
 
     if (failedTests.size() != filenames.size()) {
-        int numPassedTests = filenames.size() - failedTests.size();
+        unsigned int numPassedTests = filenames.size() - failedTests.size();
         std::cout << "Passed " << numPassedTests << " tests\n";
     }
 
-    for (unsigned int i = 0; i < failedTests.size(); ++i) {
-        std::string& currentFilename = filenames[failedTests[i]];
+    for (unsigned int failedTest : failedTests) {
+        std::string& currentFilename = filenames[failedTest];
         unsigned int sizeMinusDir = currentFilename.size() - 5;
         std::cout << "Failed test \"" <<
             currentFilename.substr(5, sizeMinusDir) << "\"\n";
@@ -250,7 +254,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
 
 void runNESTest(CPU& cpu) {
     std::string filename = "nestest.nes";
-    std::vector<struct CPUState> states;
+    std::vector<struct CPU::State> states;
     std::vector<uint32_t> instructions;
     std::vector<std::string> testLogs;
     unsigned int instNum = 0;
@@ -263,7 +267,7 @@ void runNESTest(CPU& cpu) {
 
     while (!cpu.isEndOfProgram() && instNum < states.size()) {
         if (cpu.getOpCycles() == 1) {
-            struct CPUState state = states[instNum];
+            struct CPU::State state = states[instNum];
             uint32_t testInst = instructions[instNum];
             uint32_t inst = cpu.getFutureInst();
             std::string testLog = testLogs[instNum];
@@ -277,11 +281,11 @@ void runNESTest(CPU& cpu) {
             ++instNum;
         }
 
-        cpu.step();
+        cpu.step(nullptr, nullptr);
     }
 
-    uint8_t validOpResult = cpu.read(0x2);
-    uint8_t invalidOpResult = cpu.read(0x3);
+    uint8_t validOpResult = cpu.getValidOpResult();
+    uint8_t invalidOpResult = cpu.getInvalidOpResult();
 
     if (validOpResult != 0) {
         std::cout << "0x2: " << std::hex << (unsigned int) validOpResult <<
@@ -297,5 +301,32 @@ void runNESTest(CPU& cpu) {
 
     if (passed) {
         std::cout << "Passed nestest.nes\n";
+    }
+}
+
+void runNESGame(CPU& cpu) {
+    std::string filename = "super-mario-bros.nes";
+    cpu.clear();
+
+    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 240, SDL_WINDOW_OPENGL);
+    if (window == nullptr) {
+        std::cout << "Could not create window\n" << SDL_GetError();
+        exit(1);
+    }
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == nullptr) {
+        std::cout << "Could not create renderer\n";
+        exit(1);
+    }
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 256, 240);
+    if (texture == nullptr) {
+        std::cout << "Could not create texture\n";
+        exit(1);
+    }
+
+    cpu.readInINES(filename);
+    while (true) {
+        cpu.step(renderer, texture);
     }
 }

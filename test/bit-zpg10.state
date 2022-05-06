@@ -1,7 +1,7 @@
 8009 // PC
-ff // SP
+fd // SP
 ff // A
 00 // X
 00 // Y
-11110000 // P
+11110100 // P
 11 // total cycles

@@ -1,20 +1,24 @@
-CXX = clang++ $(CXXFLAGS)
+CXX = clang++ $(CXXFLAGS) ${SDL}
 CXXFLAGS = -Wall -O2 -std=c++11
-OFILES = apu.o cpu.o driver.o io.o mmc.o op.o ppu.o ram.o
+OBJECTS = apu.o cpu.o cpu-op.o emulator.o io.o mmc.o ppu.o ppu-op.o ram.o
+SDL = `sdl2-config --cflags --libs` -Wno-unused-command-line-argument
 
+.PHONY: nes-emu clean
 .SUFFIXES: .o .cpp
 
-nes-emu: $(OFILES)
-	$(CXX) $(OFILES) -o ../nes-emu
+nes-emu: $(OBJECTS)
+	$(CXX) $(OBJECTS) -o ../nes-emu
 
 clean:
-	-rm -f *.o *~ ../nes-emu
+	-rm -f *.o *~ nes-emu a.out ../nes-emu
 
 apu.o: apu.cpp apu.h
-cpu.o: cpu.cpp cpu.h apu.h io.h mmc.h op.h ppu.h ram.h
-driver.o: driver.cpp cpu.h apu.h io.h mmc.h op.h ppu.h ram.h
+cpu.o: cpu.cpp cpu.h apu.h cpu-op.h io.h ppu.h mmc.h ppu-op.h ram.h
+cpu-op.o: cpu-op.cpp cpu-op.h
+emulator.o: emulator.cpp cpu.h apu.h cpu-op.h io.h ppu.h mmc.h ppu-op.h \
+  ram.h
 io.o: io.cpp io.h
-mmc.o: mmc.cpp mmc.h
-op.o: op.cpp op.h
-ppu.o: ppu.cpp ppu.h
+mmc.o: mmc.cpp mmc.h ppu.h ppu-op.h
+ppu.o: ppu.cpp ppu.h mmc.h ppu-op.h
+ppu-op.o: ppu-op.cpp ppu-op.h
 ram.o: ram.cpp ram.h

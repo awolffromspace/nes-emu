@@ -1,2 +1,5 @@
 nes-emu
 src/*.o
+donkey-kong.nes
+pac-man.nes
+super-mario-bros.nes
