@@ -719,7 +719,7 @@ void PPU::updateStatus(uint8_t val, bool updatePrevWritten) {
     }
 }
 
-void PPU::updatePPUADDR(uint8_t val, MMC& mmc, bool mute) {
+void PPU::updatePPUAddr(uint8_t val, MMC& mmc, bool mute) {
     if (writeLoAddr) {
         ppuAddr &= 0xff00;
         ppuAddr |= val;

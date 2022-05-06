@@ -88,7 +88,7 @@ class PPU {
         void updateCtrl(uint8_t val);
         void updateMask(uint8_t val);
         void updateStatus(uint8_t val, bool updatePrevWritten);
-        void updatePPUADDR(uint8_t val, MMC& mmc, bool mute);
+        void updatePPUAddr(uint8_t val, MMC& mmc, bool mute);
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;
