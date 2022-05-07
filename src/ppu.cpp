@@ -8,6 +8,7 @@ PPU::PPU() :
         mirroring(0),
         totalCycles(0) {
     vram[0x3f00 - 0x3700] = 0xf;
+    initializePalette();
     ctrl.nametableBaseAddr = 0x2000;
     ctrl.ppuAddrInc = 1;
     ctrl.spritePatternAddr = 0;
@@ -784,281 +785,86 @@ uint8_t PPU::getColorBits() const {
 
 void PPU::setRGB() {
     unsigned int renderLine = getRenderLine();
-    unsigned int index = (op.pixel + renderLine * 256) * 4;
-    unsigned int greenIndex = index + 1;
-    unsigned int redIndex = index + 2;
-    uint8_t blueVal = 0;
-    uint8_t greenVal = 0;
-    uint8_t redVal = 0;
-    frame[index + 3] = SDL_ALPHA_OPAQUE;
+    unsigned int blueIndex = (op.pixel + renderLine * 256) * 4;
+    unsigned int greenIndex = blueIndex + 1;
+    unsigned int redIndex = blueIndex + 2;
+    uint8_t redVal = palette[op.paletteEntry].red;
+    uint8_t greenVal = palette[op.paletteEntry].green;
+    uint8_t blueVal = palette[op.paletteEntry].blue;
+    frame[blueIndex + 3] = SDL_ALPHA_OPAQUE;
 
-    switch (op.paletteEntry) {
-        case 0x00:
-            blueVal = 0x75;
-            greenVal = 0x75;
-            redVal = 0x75;
-            break;
-        case 0x01:
-            blueVal = 0x8f;
-            greenVal = 0x1b;
-            redVal = 0x27;
-            break;
-        case 0x02:
-            blueVal = 0xab;
-            greenVal = 0x00;
-            redVal = 0x00;
-            break;
-        case 0x03:
-            blueVal = 0x9f;
-            greenVal = 0x00;
-            redVal = 0x47;
-            break;
-        case 0x04:
-            blueVal = 0x77;
-            greenVal = 0x00;
-            redVal = 0x8f;
-            break;
-        case 0x05:
-            blueVal = 0x13;
-            greenVal = 0x00;
-            redVal = 0xab;
-            break;
-        case 0x06:
-            blueVal = 0x00;
-            greenVal = 0x00;
-            redVal = 0xa7;
-            break;
-        case 0x07:
-            blueVal = 0x00;
-            greenVal = 0x0b;
-            redVal = 0x7f;
-            break;
-        case 0x08:
-            blueVal = 0x00;
-            greenVal = 0x2f;
-            redVal = 0x43;
-            break;
-        case 0x09:
-            blueVal = 0x00;
-            greenVal = 0x47;
-            redVal = 0x00;
-            break;
-        case 0x0a:
-            blueVal = 0x00;
-            greenVal = 0x51;
-            redVal = 0x00;
-            break;
-        case 0x0b:
-            blueVal = 0x17;
-            greenVal = 0x3f;
-            redVal = 0x00;
-            break;
-        case 0x0c:
-            blueVal = 0x5f;
-            greenVal = 0x3f;
-            redVal = 0x1b;
-            break;
-        case 0x10:
-            blueVal = 0xbc;
-            greenVal = 0xbc;
-            redVal = 0xbc;
-            break;
-        case 0x11:
-            blueVal = 0xef;
-            greenVal = 0x73;
-            redVal = 0x00;
-            break;
-        case 0x12:
-            blueVal = 0xef;
-            greenVal = 0x3b;
-            redVal = 0x23;
-            break;
-        case 0x13:
-            blueVal = 0xf3;
-            greenVal = 0x00;
-            redVal = 0x83;
-            break;
-        case 0x14:
-            blueVal = 0xbf;
-            greenVal = 0x00;
-            redVal = 0xbf;
-            break;
-        case 0x15:
-            blueVal = 0x5b;
-            greenVal = 0x00;
-            redVal = 0xe7;
-            break;
-        case 0x16:
-            blueVal = 0x00;
-            greenVal = 0x2b;
-            redVal = 0xdb;
-            break;
-        case 0x17:
-            blueVal = 0x0f;
-            greenVal = 0x4f;
-            redVal = 0xcb;
-            break;
-        case 0x18:
-            blueVal = 0x00;
-            greenVal = 0x73;
-            redVal = 0x8b;
-            break;
-        case 0x19:
-            blueVal = 0x00;
-            greenVal = 0x97;
-            redVal = 0x00;
-            break;
-        case 0x1a:
-            blueVal = 0x00;
-            greenVal = 0xab;
-            redVal = 0x00;
-            break;
-        case 0x1b:
-            blueVal = 0x3b;
-            greenVal = 0x93;
-            redVal = 0x00;
-            break;
-        case 0x1c:
-            blueVal = 0x8b;
-            greenVal = 0x83;
-            redVal = 0x00;
-            break;
-        case 0x20:
-            blueVal = 0xff;
-            greenVal = 0xff;
-            redVal = 0xff;
-            break;
-        case 0x21:
-            blueVal = 0xff;
-            greenVal = 0xbf;
-            redVal = 0x3f;
-            break;
-        case 0x22:
-            blueVal = 0xff;
-            greenVal = 0x97;
-            redVal = 0x5f;
-            break;
-        case 0x23:
-            blueVal = 0xfd;
-            greenVal = 0x8b;
-            redVal = 0xa7;
-            break;
-        case 0x24:
-            blueVal = 0xff;
-            greenVal = 0x7b;
-            redVal = 0xf7;
-            break;
-        case 0x25:
-            blueVal = 0xb7;
-            greenVal = 0x77;
-            redVal = 0xff;
-            break;
-        case 0x26:
-            blueVal = 0x63;
-            greenVal = 0x77;
-            redVal = 0xff;
-            break;
-        case 0x27:
-            blueVal = 0x3b;
-            greenVal = 0x9b;
-            redVal = 0xff;
-            break;
-        case 0x28:
-            blueVal = 0x3f;
-            greenVal = 0xbf;
-            redVal = 0xf3;
-            break;
-        case 0x29:
-            blueVal = 0x13;
-            greenVal = 0xd3;
-            redVal = 0x83;
-            break;
-        case 0x2a:
-            blueVal = 0x4b;
-            greenVal = 0xdf;
-            redVal = 0x4f;
-            break;
-        case 0x2b:
-            blueVal = 0x98;
-            greenVal = 0xf8;
-            redVal = 0x58;
-            break;
-        case 0x2c:
-            blueVal = 0xdb;
-            greenVal = 0xeb;
-            redVal = 0x00;
-            break;
-        case 0x30:
-            blueVal = 0xff;
-            greenVal = 0xff;
-            redVal = 0xff;
-            break;
-        case 0x31:
-            blueVal = 0xff;
-            greenVal = 0xe7;
-            redVal = 0xab;
-            break;
-        case 0x32:
-            blueVal = 0xff;
-            greenVal = 0xd7;
-            redVal = 0xc7;
-            break;
-        case 0x33:
-            blueVal = 0xff;
-            greenVal = 0xcb;
-            redVal = 0xd7;
-            break;
-        case 0x34:
-            blueVal = 0xff;
-            greenVal = 0xc7;
-            redVal = 0xff;
-            break;
-        case 0x35:
-            blueVal = 0xdb;
-            greenVal = 0xc7;
-            redVal = 0xff;
-            break;
-        case 0x36:
-            blueVal = 0xb3;
-            greenVal = 0xbf;
-            redVal = 0xff;
-            break;
-        case 0x37:
-            blueVal = 0xab;
-            greenVal = 0xdb;
-            redVal = 0xff;
-            break;
-        case 0x38:
-            blueVal = 0xa3;
-            greenVal = 0xe7;
-            redVal = 0xff;
-            break;
-        case 0x39:
-            blueVal = 0xa3;
-            greenVal = 0xff;
-            redVal = 0xe3;
-            break;
-        case 0x3a:
-            blueVal = 0xbf;
-            greenVal = 0xf3;
-            redVal = 0xab;
-            break;
-        case 0x3b:
-            blueVal = 0xcf;
-            greenVal = 0xff;
-            redVal = 0xb3;
-            break;
-        case 0x3c:
-            blueVal = 0xf3;
-            greenVal = 0xff;
-            redVal = 0x9f;
-    }
-
-    if (frame[index] != blueVal || frame[greenIndex] != greenVal ||
-            frame[redIndex] != redVal) {
-        frame[index] = blueVal;
-        frame[greenIndex] = greenVal;
+    if (frame[redIndex] != redVal || frame[greenIndex] != greenVal ||
+            frame[blueIndex] != blueVal) {
         frame[redIndex] = redVal;
+        frame[greenIndex] = greenVal;
+        frame[blueIndex] = blueVal;
         op.changedFrame = true;
     }
+}
+
+void PPU::initializePalette() {
+    palette[0x00] = {0x75, 0x75, 0x75};
+    palette[0x01] = {0x27, 0x1b, 0x8f};
+    palette[0x02] = {0x00, 0x00, 0xab};
+    palette[0x03] = {0x47, 0x00, 0x9f};
+    palette[0x04] = {0x8f, 0x00, 0x77};
+    palette[0x05] = {0xab, 0x00, 0x13};
+    palette[0x06] = {0xa7, 0x00, 0x00};
+    palette[0x07] = {0x7f, 0x0b, 0x00};
+    palette[0x08] = {0x43, 0x2f, 0x00};
+    palette[0x09] = {0x00, 0x47, 0x00};
+    palette[0x0a] = {0x00, 0x51, 0x00};
+    palette[0x0b] = {0x00, 0x3f, 0x17};
+    palette[0x0c] = {0x1b, 0x3f, 0x5f};
+    palette[0x0d] = {0x00, 0x00, 0x00};
+    palette[0x0e] = {0x00, 0x00, 0x00};
+    palette[0x0f] = {0x00, 0x00, 0x00};
+    palette[0x10] = {0xbc, 0xbc, 0xbc};
+    palette[0x11] = {0x00, 0x73, 0xef};
+    palette[0x12] = {0x23, 0x3b, 0xef};
+    palette[0x13] = {0x83, 0x00, 0xf3};
+    palette[0x14] = {0xbf, 0x00, 0xbf};
+    palette[0x15] = {0xe7, 0x00, 0x5b};
+    palette[0x16] = {0xdb, 0x2b, 0x00};
+    palette[0x17] = {0xcb, 0x4f, 0x0f};
+    palette[0x18] = {0x8b, 0x73, 0x00};
+    palette[0x19] = {0x00, 0x97, 0x00};
+    palette[0x1a] = {0x00, 0xab, 0x00};
+    palette[0x1b] = {0x00, 0x93, 0x3b};
+    palette[0x1c] = {0x00, 0x83, 0x8b};
+    palette[0x1d] = {0x00, 0x00, 0x00};
+    palette[0x1e] = {0x00, 0x00, 0x00};
+    palette[0x1f] = {0x00, 0x00, 0x00};
+    palette[0x20] = {0xff, 0xff, 0xff};
+    palette[0x21] = {0x3f, 0xbf, 0xff};
+    palette[0x22] = {0x5f, 0x97, 0xff};
+    palette[0x23] = {0xa7, 0x8b, 0xfd};
+    palette[0x24] = {0xf7, 0x7b, 0xff};
+    palette[0x25] = {0xff, 0x77, 0xb7};
+    palette[0x26] = {0xff, 0x77, 0x63};
+    palette[0x27] = {0xff, 0x9b, 0x3b};
+    palette[0x28] = {0xf3, 0xbf, 0x3f};
+    palette[0x29] = {0x83, 0xd3, 0x13};
+    palette[0x2a] = {0x4f, 0xdf, 0x4b};
+    palette[0x2b] = {0x58, 0xf8, 0x98};
+    palette[0x2c] = {0x00, 0xeb, 0xdb};
+    palette[0x2d] = {0x00, 0x00, 0x00};
+    palette[0x2e] = {0x00, 0x00, 0x00};
+    palette[0x2f] = {0x00, 0x00, 0x00};
+    palette[0x30] = {0xff, 0xff, 0xff};
+    palette[0x31] = {0xab, 0xe7, 0xff};
+    palette[0x32] = {0xc7, 0xd7, 0xff};
+    palette[0x33] = {0xd7, 0xcb, 0xff};
+    palette[0x34] = {0xff, 0xc7, 0xff};
+    palette[0x35] = {0xff, 0xc7, 0xdb};
+    palette[0x36] = {0xff, 0xbf, 0xb3};
+    palette[0x37] = {0xff, 0xdb, 0xab};
+    palette[0x38] = {0xff, 0xe7, 0xa3};
+    palette[0x39] = {0xe3, 0xff, 0xa3};
+    palette[0x3a] = {0xab, 0xf3, 0xbf};
+    palette[0x3b] = {0xb3, 0xff, 0xcf};
+    palette[0x3c] = {0x9f, 0xff, 0xf3};
+    palette[0x3d] = {0x00, 0x00, 0x00};
+    palette[0x3e] = {0x00, 0x00, 0x00};
+    palette[0x3f] = {0x00, 0x00, 0x00};
 }

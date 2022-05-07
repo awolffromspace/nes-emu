@@ -40,6 +40,12 @@ class PPU {
         // uint8_t secondaryOAM[0x20];
         uint8_t vram[0x820];
         uint8_t frame[256 * 240 * 4];
+        struct RGBVal {
+            uint8_t red;
+            uint8_t green;
+            uint8_t blue;
+        };
+        struct RGBVal palette[0x40 * 3];
         PPUOp op;
         struct Controller {
             uint16_t nametableBaseAddr;
@@ -96,6 +102,7 @@ class PPU {
         unsigned int getRenderLine() const;
         uint8_t getColorBits() const;
         void setRGB();
+        void initializePalette();
 };
 
 #endif
