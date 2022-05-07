@@ -381,28 +381,17 @@ void PPU::updateAttributeAddr() {
 }
 
 void PPU::updateOpStatus() {
-    switch (op.status) {
-        case PPUOp::FetchNametableEntry:
-            op.status = PPUOp::FetchAttributeEntry;
-            break;
-        case PPUOp::FetchAttributeEntry:
-            if (op.cycle < 257 || op.cycle > 320) {
-                op.status = PPUOp::FetchPatternEntryLo;
-            } else {
-                op.status = PPUOp::FetchSpriteEntryLo;
-            }
-            break;
-        case PPUOp::FetchPatternEntryLo:
-            op.status = PPUOp::FetchPatternEntryHi;
-            break;
-        case PPUOp::FetchPatternEntryHi:
-            op.status = PPUOp::FetchNametableEntry;
-            break;
-        case PPUOp::FetchSpriteEntryLo:
-            op.status = PPUOp::FetchSpriteEntryHi;
-            break;
-        case PPUOp::FetchSpriteEntryHi:
-            op.status = PPUOp::FetchNametableEntry;
+    if (op.status == PPUOp::FetchAttributeEntry) {
+        if (op.cycle < 257 || op.cycle > 320) {
+            op.status = PPUOp::FetchPatternEntryLo;
+        } else {
+            op.status = PPUOp::FetchSpriteEntryLo;
+        }
+    } else if (op.status == PPUOp::FetchPatternEntryHi ||
+            op.status == PPUOp::FetchSpriteEntryHi) {
+        op.status = PPUOp::FetchNametableEntry;
+    } else {
+        ++op.status;
     }
 }
 
