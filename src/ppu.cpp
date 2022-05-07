@@ -442,7 +442,7 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
             updateStatus(val, false);
             break;
         case 0x2006:
-            updatePPUADDR(val, mmc, mute);
+            updatePPUAddr(val, mmc, mute);
             break;
         case 0x2007:
             writeVRAM(ppuAddr, val, mmc, mute);
