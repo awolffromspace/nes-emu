@@ -9,24 +9,6 @@ PPU::PPU() :
         totalCycles(0) {
     vram[0x3f00 - 0x3700] = 0xf;
     initializePalette();
-    ctrl.nametableBaseAddr = 0x2000;
-    ctrl.ppuAddrInc = 1;
-    ctrl.spritePatternAddr = 0;
-    ctrl.bgPatternAddr = 0;
-    ctrl.spriteHeight = 8;
-    ctrl.outputColorOnEXT = false;
-    ctrl.nmiAtVblank = false;
-    mask.grayscale = false;
-    mask.showBGLeftCol = false;
-    mask.showSpriteLeftCol = false;
-    mask.showBG = false;
-    mask.showSprites = false;
-    mask.redEmphasis = false;
-    mask.greenEmphasis = false;
-    mask.blueEmphasis = false;
-    status.spriteOverflow = false;
-    status.spriteZeroHit = false;
-    status.inVblank = false;
 }
 
 void PPU::clear(bool mute) {
@@ -37,24 +19,6 @@ void PPU::clear(bool mute) {
     memset(oam, 0, 0x100);
     memset(frame, 0, 256 * 240 * 4);
     op.clear();
-    ctrl.nametableBaseAddr = 0x2000;
-    ctrl.ppuAddrInc = 1;
-    ctrl.spritePatternAddr = 0;
-    ctrl.bgPatternAddr = 0;
-    ctrl.spriteHeight = 8;
-    ctrl.outputColorOnEXT = false;
-    ctrl.nmiAtVblank = false;
-    mask.grayscale = false;
-    mask.showBGLeftCol = false;
-    mask.showSpriteLeftCol = false;
-    mask.showBG = false;
-    mask.showSprites = false;
-    mask.redEmphasis = false;
-    mask.greenEmphasis = false;
-    mask.blueEmphasis = false;
-    status.spriteOverflow = false;
-    status.spriteZeroHit = false;
-    status.inVblank = false;
     ppuAddr = 0;
     ppuDataBuffer = 0;
     writeLoAddr = false;
@@ -112,7 +76,7 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 }
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
-    if (ctrl.nmiAtVblank && status.inVblank) {
+    if (isNMIEnabled() && isVblank()) {
         readIO(0x2002, mmc, mute);
         return true;
     }
@@ -149,28 +113,6 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "registers[6]           = 0x" << (unsigned int) registers[6] << "\n"
         "registers[7]           = 0x" << (unsigned int) registers[7] << "\n"
         "oamDMA                 = 0x" << (unsigned int) oamDMA << "\n"
-        "ctrl.nametableBaseAddr = 0x" << (unsigned int) ctrl.nametableBaseAddr
-        << "\n"
-        "ctrl.ppuAddrInc        = " << std::dec << ctrl.ppuAddrInc << "\n"
-        "ctrl.spritePatternAddr = 0x" << std::hex <<
-        (unsigned int) ctrl.spritePatternAddr << "\n"
-        "ctrl.bgPatternAddr     = 0x" << (unsigned int) ctrl.bgPatternAddr <<
-        "\n"
-        "ctrl.spriteHeight      = " << std::dec << ctrl.spriteHeight << "\n"
-        "ctrl.outputColorOnEXT  = " << (bool) ctrl.outputColorOnEXT << "\n"
-        "ctrl.nmiAtVblank       = " << (bool) ctrl.nmiAtVblank << "\n"
-        "mask.grayscale         = " << (bool) mask.grayscale << "\n"
-        "mask.showBGLeftCol     = " << (bool) mask.showBGLeftCol << "\n"
-        "mask.showSpriteLeftCol = " << (bool) mask.showSpriteLeftCol << "\n"
-        "mask.showBG            = " << (bool) mask.showBG << "\n"
-        "mask.showSprites       = " << (bool) mask.showSprites << "\n"
-        "mask.redEmphasis       = " << (bool) mask.redEmphasis << "\n"
-        "mask.greenEmphasis     = " << (bool) mask.greenEmphasis << "\n"
-        "mask.blueEmphasis      = " << (bool) mask.blueEmphasis << "\n"
-        "status.spriteOverflow  = " << (bool) status.spriteOverflow << "\n"
-        "status.spriteOverflow  = " << (bool) status.spriteOverflow << "\n"
-        "status.spriteZeroHit   = " << (bool) status.spriteZeroHit << "\n"
-        "status.inVblank        = " << (bool) status.inVblank << "\n"
         "ppuAddr                = " << std::hex << (unsigned int) ppuAddr <<
         "\n"
         "ppuDataBuffer          = " << (unsigned int) ppuDataBuffer << "\n"
@@ -218,12 +160,12 @@ void PPU::fetch(MMC& mmc) {
             break;
         case PPUOp::FetchPatternEntryLo:
             addr = op.nametableEntry * 0x10 + (renderLine % 8) +
-                ctrl.bgPatternAddr;
+                getBGPatternAddr();
             op.patternEntryLo = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchPatternEntryHi:
             addr = op.nametableEntry * 0x10 + (renderLine % 8) +
-                ctrl.bgPatternAddr + 8;
+                getBGPatternAddr() + 8;
             op.patternEntryHi = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchSpriteEntryLo:
@@ -263,7 +205,7 @@ void PPU::setPixel(MMC& mmc) {
         if (colorBits & 2) {
             op.paletteEntry |= 8;
         }
-        if (mask.showBG) {
+        if (isBGShown()) {
             op.paletteEntry = readVRAM(0x3f00 + op.paletteEntry, mmc);
         } else {
             op.paletteEntry = readVRAM(0x3f00, mmc);
@@ -273,12 +215,12 @@ void PPU::setPixel(MMC& mmc) {
 }
 
 void PPU::updateFlags(MMC& mmc, bool mute) {
-    // This function is called twice if the first cycle is not skipped
-    // Could refactor to prevent that
-    if (op.cycle == 1 && op.scanline == 241 && !status.inVblank) {
+    if (op.cycle == 1 && op.scanline == 241 && !isVblank() &&
+            !op.delayedFirstCycle) {
         uint8_t flags = readRegister(0x2002, mmc) | 0x80;
         writeRegister(0x2002, flags, mmc, mute);
-    } else if (op.cycle == 1 && op.scanline == 261 && status.inVblank) {
+    } else if (op.cycle == 1 && op.scanline == 261 && isVblank() &&
+            !op.delayedFirstCycle) {
         uint8_t flags = readRegister(0x2002, mmc) & 0x7f;
         writeRegister(0x2002, flags, mmc, mute);
     }
@@ -302,7 +244,7 @@ void PPU::prepNextCycle(MMC& mmc) {
         op.pixel = 0;
     }
 
-    bool skipFirstCycle = op.oddFrame && (mask.showBG || mask.showSprites);
+    bool skipFirstCycle = op.oddFrame && (isBGShown() || areSpritesShown());
     if (op.scanline == 261 && op.cycle == 340) {
         op.scanline = 0;
         op.oddFrame = !op.oddFrame;
@@ -330,8 +272,9 @@ void PPU::updateNametableAddr(MMC& mmc) {
         }
     }
 
-    if (op.nametableAddr == ctrl.nametableBaseAddr + 0x3c0) {
-        op.nametableAddr = ctrl.nametableBaseAddr;
+    uint16_t nametableBaseAddr = getNametableBaseAddr();
+    if (op.nametableAddr == nametableBaseAddr + 0x3c0) {
+        op.nametableAddr = nametableBaseAddr;
     }
 }
 
@@ -344,6 +287,7 @@ void PPU::updateAttributeAddr() {
     }
 
     unsigned int renderLine = getRenderLine();
+    uint16_t nametableBaseAddr = getNametableBaseAddr();
     switch (op.attributeQuadrant) {
         case PPUOp::TopLeft:
             op.attributeQuadrant = PPUOp::TopRight;
@@ -364,9 +308,9 @@ void PPU::updateAttributeAddr() {
             op.attributeQuadrant = PPUOp::BottomRight;
             break;
         case PPUOp::BottomRight:
-            if (op.nametableAddr == ctrl.nametableBaseAddr) {
+            if (op.nametableAddr == nametableBaseAddr) {
                 op.attributeQuadrant = PPUOp::TopLeft;
-                op.attributeAddr = ctrl.nametableBaseAddr + 0x3c0;
+                op.attributeAddr = nametableBaseAddr + 0x3c0;
             } else if (op.nametableAddr % 0x80 == 0 &&
                     (renderLine + 1) % 32 == 0) {
                 op.attributeQuadrant = PPUOp::TopLeft;
@@ -407,7 +351,7 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
             registers[7] = readVRAM(addr, mmc);
         }
         ppuDataBuffer = readVRAM(ppuAddr, mmc);
-        ppuAddr += ctrl.ppuAddrInc;
+        ppuAddr += getPPUAddrInc();
     }
     addr &= 7;
     return registers[addr];
@@ -421,26 +365,16 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
         registers[localAddr] = val;
     }
 
-    switch (addr) {
-        case 0x2000:
-            updateCtrl(val);
-            break;
-        case 0x2001:
-            updateMask(val);
-            break;
-        case 0x2002:
-            updateStatus(val, false);
-            break;
-        case 0x2006:
-            updatePPUAddr(val, mmc, mute);
-            break;
-        case 0x2007:
-            writeVRAM(ppuAddr, val, mmc, mute);
-            ppuAddr += ctrl.ppuAddrInc;
+    if (addr != 0x2002) {
+        registers[2] &= 0xe0;
+        registers[2] |= val & 0x1f;
     }
 
-    if (addr != 0x2002) {
-        updateStatus(val, true);
+    if (addr == 0x2006) {
+        updatePPUAddr(val, mmc, mute);
+    } else if (addr == 0x2007) {
+        writeVRAM(ppuAddr, val, mmc, mute);
+        ppuAddr += getPPUAddrInc();
     }
 
     if (!mute) {
@@ -526,186 +460,6 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
             "been written to the VRAM address 0x" << (unsigned int) addr <<
             "\n--------------------------------------------------\n" <<
             std::dec;
-    }
-}
-
-void PPU::updateCtrl(uint8_t val) {
-    uint8_t currentFlags = val & 0xfc;
-    switch (currentFlags) {
-        case 0:
-            ctrl.nametableBaseAddr = 0x2000;
-            break;
-        case 1:
-            ctrl.nametableBaseAddr = 0x2400;
-            break;
-        case 2:
-            ctrl.nametableBaseAddr = 0x2800;
-            break;
-        case 3:
-            ctrl.nametableBaseAddr = 0x2c00;
-    }
-
-    currentFlags = (val & 4) >> 2;
-    switch (currentFlags) {
-        case 0:
-            ctrl.ppuAddrInc = 1;
-            break;
-        case 1:
-            ctrl.ppuAddrInc = 0x20;
-    }
-
-    currentFlags = (val & 8) >> 3;
-    switch (currentFlags) {
-        case 0:
-            ctrl.spritePatternAddr = 0;
-            break;
-        case 1:
-            ctrl.spritePatternAddr = 0x1000;
-    }
-
-    currentFlags = (val & 0x10) >> 4;
-    switch (currentFlags) {
-        case 0:
-            ctrl.bgPatternAddr = 0;
-            break;
-        case 1:
-            ctrl.bgPatternAddr = 0x1000;
-    }
-
-    currentFlags = (val & 0x20) >> 5;
-    switch (currentFlags) {
-        case 0:
-            ctrl.spriteHeight = 8;
-            break;
-        case 1:
-            ctrl.spriteHeight = 16;
-    }
-
-    currentFlags = (val & 0x40) >> 6;
-    switch (currentFlags) {
-        case 0:
-            ctrl.outputColorOnEXT = false;
-            break;
-        case 1:
-            ctrl.outputColorOnEXT = true;
-    }
-
-    currentFlags = (val & 0x80) >> 7;
-    switch (currentFlags) {
-        case 0:
-            ctrl.nmiAtVblank = false;
-            break;
-        case 1:
-            ctrl.nmiAtVblank = true;
-    }
-}
-
-void PPU::updateMask(uint8_t val) {
-    uint8_t currentFlags = val & 0xfc;
-    currentFlags = val & 1;
-    switch (currentFlags) {
-        case 0:
-            mask.grayscale = false;
-            break;
-        case 1:
-            mask.grayscale = true;
-    }
-
-    currentFlags = (val & 2) >> 1;
-    switch (currentFlags) {
-        case 0:
-            mask.showBGLeftCol = false;
-            break;
-        case 1:
-            mask.showBGLeftCol = true;
-    }
-
-    currentFlags = (val & 4) >> 2;
-    switch (currentFlags) {
-        case 0:
-            mask.showSpriteLeftCol = false;
-            break;
-        case 1:
-            mask.showSpriteLeftCol = true;
-    }
-
-    currentFlags = (val & 8) >> 3;
-    switch (currentFlags) {
-        case 0:
-            mask.showBG = false;
-            break;
-        case 1:
-            mask.showBG = true;
-    }
-
-    currentFlags = (val & 0x10) >> 4;
-    switch (currentFlags) {
-        case 0:
-            mask.showSprites = false;
-            break;
-        case 1:
-            mask.showSprites = true;
-    }
-
-    currentFlags = (val & 0x20) >> 5;
-    switch (currentFlags) {
-        case 0:
-            mask.redEmphasis = false;
-            break;
-        case 1:
-            mask.redEmphasis = true;
-    }
-
-    currentFlags = (val & 0x40) >> 6;
-    switch (currentFlags) {
-        case 0:
-            mask.greenEmphasis = false;
-            break;
-        case 1:
-            mask.greenEmphasis = true;
-    }
-
-    currentFlags = (val & 0x80) >> 7;
-    switch (currentFlags) {
-        case 0:
-            mask.blueEmphasis = false;
-            break;
-        case 1:
-            mask.blueEmphasis = true;
-    }
-}
-
-void PPU::updateStatus(uint8_t val, bool updatePrevWritten) {
-    if (updatePrevWritten) {
-        registers[2] &= 0xe0;
-        registers[2] |= val & 0x1f;
-    } else {
-        uint8_t currentFlags = (val & 0x20) >> 5;
-        switch (currentFlags) {
-            case 0:
-                status.spriteOverflow = false;
-                break;
-            case 1:
-                status.spriteOverflow = true;
-        }
-
-        currentFlags = (val & 0x40) >> 6;
-        switch (currentFlags) {
-            case 0:
-                status.spriteZeroHit = false;
-                break;
-            case 1:
-                status.spriteZeroHit = true;
-        }
-
-        currentFlags = (val & 0x80) >> 7;
-        switch (currentFlags) {
-            case 0:
-                status.inVblank = false;
-                break;
-            case 1:
-                status.inVblank = true;
-        }
     }
 }
 
@@ -867,4 +621,154 @@ void PPU::initializePalette() {
     palette[0x3d] = {0x00, 0x00, 0x00};
     palette[0x3e] = {0x00, 0x00, 0x00};
     palette[0x3f] = {0x00, 0x00, 0x00};
+}
+
+uint16_t PPU::getNametableBaseAddr() const {
+    uint8_t flag = registers[0] & 3;
+    switch (flag) {
+        case 0:
+            return 0x2000;
+        case 1:
+            return 0x2400;
+        case 2:
+            return 0x2800;
+        default:
+            return 0x2c00;
+    }
+}
+
+unsigned int PPU::getPPUAddrInc() const {
+    uint8_t flag = registers[0] & 4;
+    if (flag) {
+        return 0x20;
+    }
+    return 1;
+}
+
+uint16_t PPU::getSpritePatternAddr() const {
+    uint8_t flag = registers[0] & 8;
+    if (flag) {
+        return 0x1000;
+    }
+    return 0;
+}
+
+uint16_t PPU::getBGPatternAddr() const {
+    uint8_t flag = registers[0] & 0x10;
+    if (flag) {
+        return 0x1000;
+    }
+    return 0;
+}
+
+unsigned int PPU::getSpriteHeight() const {
+    uint8_t flag = registers[0] & 0x20;
+    if (flag) {
+        return 16;
+    }
+    return 8;
+}
+
+bool PPU::isColorOutputOnEXT() const {
+    uint8_t flag = registers[0] & 0x40;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isNMIEnabled() const {
+    uint8_t flag = registers[0] & 0x80;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isGrayscale() const {
+    uint8_t flag = registers[1] & 1;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isBGLeftColShown() const {
+    uint8_t flag = registers[1] & 2;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::areSpritesLeftColShown() const {
+    uint8_t flag = registers[1] & 4;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isBGShown() const {
+    uint8_t flag = registers[1] & 8;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::areSpritesShown() const {
+    uint8_t flag = registers[1] & 0x10;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isRedEmphasized() const {
+    uint8_t flag = registers[1] & 0x20;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isGreenEmphasized() const {
+    uint8_t flag = registers[1] & 0x40;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isBlueEmphasized() const {
+    uint8_t flag = registers[1] & 0x80;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isSpriteOverflow() const {
+    uint8_t flag = registers[2] & 0x20;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isSpriteZeroHit() const {
+    uint8_t flag = registers[2] & 0x40;
+    if (flag) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isVblank() const {
+    uint8_t flag = registers[2] & 0x80;
+    if (flag) {
+        return true;
+    }
+    return false;
 }

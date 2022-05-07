@@ -47,33 +47,6 @@ class PPU {
         };
         struct RGBVal palette[0x40 * 3];
         PPUOp op;
-        struct Controller {
-            uint16_t nametableBaseAddr;
-            unsigned int ppuAddrInc;
-            uint16_t spritePatternAddr;
-            uint16_t bgPatternAddr;
-            unsigned int spriteHeight;
-            bool outputColorOnEXT;
-            bool nmiAtVblank;
-        };
-        struct Mask {
-            bool grayscale;
-            bool showBGLeftCol;
-            bool showSpriteLeftCol;
-            bool showBG;
-            bool showSprites;
-            bool redEmphasis;
-            bool greenEmphasis;
-            bool blueEmphasis;
-        };
-        struct Status {
-            bool spriteOverflow;
-            bool spriteZeroHit;
-            bool inVblank;
-        };
-        struct Controller ctrl;
-        struct Mask mask;
-        struct Status status;
         uint16_t ppuAddr;
         uint8_t ppuDataBuffer;
         bool writeLoAddr;
@@ -91,9 +64,6 @@ class PPU {
         void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         uint8_t readVRAM(uint16_t addr, MMC& mmc) const;
         void writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
-        void updateCtrl(uint8_t val);
-        void updateMask(uint8_t val);
-        void updateStatus(uint8_t val, bool updatePrevWritten);
         void updatePPUAddr(uint8_t val, MMC& mmc, bool mute);
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
@@ -103,6 +73,24 @@ class PPU {
         uint8_t getColorBits() const;
         void setRGB();
         void initializePalette();
+        uint16_t getNametableBaseAddr() const;
+        unsigned int getPPUAddrInc() const;
+        uint16_t getSpritePatternAddr() const;
+        uint16_t getBGPatternAddr() const;
+        unsigned int getSpriteHeight() const;
+        bool isColorOutputOnEXT() const;
+        bool isNMIEnabled() const;
+        bool isGrayscale() const;
+        bool isBGLeftColShown() const;
+        bool areSpritesLeftColShown() const;
+        bool isBGShown() const;
+        bool areSpritesShown() const;
+        bool isRedEmphasized() const;
+        bool isGreenEmphasized() const;
+        bool isBlueEmphasized() const;
+        bool isSpriteOverflow() const;
+        bool isSpriteZeroHit() const;
+        bool isVblank() const;
 };
 
 #endif
