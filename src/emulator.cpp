@@ -318,13 +318,13 @@ void runNESGame(CPU& cpu) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
         SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr) {
-        std::cerr << "Could not create renderer\n";
+        std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);
     }
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
         SDL_TEXTUREACCESS_STREAMING, 256, 240);
     if (texture == nullptr) {
-        std::cerr << "Could not create texture\n";
+        std::cerr << "Could not create texture\n" << SDL_GetError();
         exit(1);
     }
 
