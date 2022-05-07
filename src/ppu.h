@@ -55,6 +55,7 @@ class PPU {
 
         void fetch(MMC& mmc);
         void setPixel(MMC& mmc);
+        void setRGB();
         void updateFlags(MMC& mmc, bool mute);
         void prepNextCycle(MMC& mmc);
         void updateNametableAddr(MMC& mmc);
@@ -71,8 +72,6 @@ class PPU {
         uint16_t getFourScreenMirrorAddr(uint16_t addr, MMC& mmc) const;
         unsigned int getRenderLine() const;
         uint8_t getPaletteFromAttribute() const;
-        void setRGB();
-        void initializePalette();
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;
         uint16_t getSpritePatternAddr() const;
@@ -91,6 +90,7 @@ class PPU {
         bool isSpriteOverflow() const;
         bool isSpriteZeroHit() const;
         bool isVblank() const;
+        void initializePalette();
 };
 
 #endif
