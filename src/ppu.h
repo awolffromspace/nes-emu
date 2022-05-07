@@ -70,7 +70,7 @@ class PPU {
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;
         uint16_t getFourScreenMirrorAddr(uint16_t addr, MMC& mmc) const;
         unsigned int getRenderLine() const;
-        uint8_t getColorBits() const;
+        uint8_t getPaletteFromAttribute() const;
         void setRGB();
         void initializePalette();
         uint16_t getNametableBaseAddr() const;

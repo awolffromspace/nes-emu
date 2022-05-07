@@ -191,7 +191,7 @@ void PPU::setPixel(MMC& mmc) {
 
     unsigned int eightPixels = op.pixel + 8;
     for (; op.pixel < eightPixels; ++op.pixel) {
-        uint8_t colorBits = getColorBits();
+        uint8_t upperPaletteBits = getPaletteFromAttribute();
         op.paletteEntry = 0;
         if (op.patternEntryLo & (0x80 >> (op.pixel % 8))) {
             op.paletteEntry |= 1;
@@ -199,10 +199,10 @@ void PPU::setPixel(MMC& mmc) {
         if (op.patternEntryHi & (0x80 >> (op.pixel % 8))) {
             op.paletteEntry |= 2;
         }
-        if (colorBits & 1) {
+        if (upperPaletteBits & 1) {
             op.paletteEntry |= 4;
         }
-        if (colorBits & 2) {
+        if (upperPaletteBits & 2) {
             op.paletteEntry |= 8;
         }
         if (isBGShown()) {
@@ -522,7 +522,7 @@ unsigned int PPU::getRenderLine() const {
     }
 }
 
-uint8_t PPU::getColorBits() const {
+uint8_t PPU::getPaletteFromAttribute() const {
     unsigned int shiftNum = 0;
     switch (op.attributeQuadrant) {
         case PPUOp::TopRight:
