@@ -70,7 +70,7 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         bool mute) {
     if (op.scanline < 240 || op.scanline == 261) {
         fetch(mmc);
-        getPixel(mmc);
+        setPixel(mmc);
 
         if (op.scanline < 240 && op.cycle == 240 && op.changedFrame &&
                 renderer != nullptr && texture != nullptr) {
@@ -233,7 +233,7 @@ void PPU::fetch(MMC& mmc) {
     }
 }
 
-void PPU::getPixel(MMC& mmc) {
+void PPU::setPixel(MMC& mmc) {
     if (op.cycle % 2 == 1 || op.status != PPUOp::FetchPatternEntryHi) {
         return;
     }

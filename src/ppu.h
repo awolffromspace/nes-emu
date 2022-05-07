@@ -81,7 +81,7 @@ class PPU {
         unsigned int totalCycles;
 
         void fetch(MMC& mmc);
-        void getPixel(MMC& mmc);
+        void setPixel(MMC& mmc);
         void updateFlags(MMC& mmc, bool mute);
         void prepNextCycle(MMC& mmc);
         void updateNametableAddr(MMC& mmc);
