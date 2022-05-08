@@ -13,7 +13,16 @@ CPUOp::CPUOp() :
         instType(0),
         cycle(0),
         dmaCycle(0),
-        status(0) {
+        modify(false),
+        write(false),
+        writeUnmodified(false),
+        writeModified(false),
+        irq(false),
+        nmi(false),
+        reset(false),
+        interruptPrologue(false),
+        oamDMATransfer(false),
+        done(false) {
 
 }
 
@@ -30,19 +39,49 @@ void CPUOp::clear(bool clearInterrupts) {
     instType = 0;
     cycle = 0;
     dmaCycle = 0;
+    modify = false;
+    write = false;
+    writeUnmodified = false;
+    writeModified = false;
     if (clearInterrupts) {
-        status = 0;
-    } else {
-        status &= ~(CPUOp::Modify | CPUOp::Write | CPUOp::WriteUnmodified |
-            CPUOp::WriteModified | CPUOp::OAMDMA | CPUOp::Done);
+        irq = false;
+        nmi = false;
+        reset = false;
     }
+    interruptPrologue = false;
+    oamDMATransfer = false;
+    done = false;
+}
+
+void CPUOp::clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
+        bool clearInterruptPrologue) {
+    modify = false;
+    write = false;
+    writeUnmodified = false;
+    writeModified = false;
+    if (clearIRQ) {
+        irq = false;
+    }
+    if (clearNMI) {
+        nmi = false;
+    }
+    if (clearReset) {
+        reset = false;
+    }
+    if (clearInterruptPrologue) {
+        interruptPrologue = false;
+    }
+    oamDMATransfer = false;
+    done = false;
 }
 
 void CPUOp::clearInterruptFlags() {
-    status &= ~(CPUOp::IRQ | CPUOp::NMI | CPUOp::Reset);
+    irq = false;
+    nmi = false;
+    reset = false;
 }
 
 void CPUOp::clearDMA() {
     dmaCycle = 0;
-    status &= ~CPUOp::OAMDMA;
+    oamDMATransfer = false;
 }

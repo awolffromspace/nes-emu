@@ -7,17 +7,17 @@ PPU::PPU() :
         writeLoAddr(false),
         mirroring(0),
         totalCycles(0) {
-    vram[0x3f00 - 0x3700] = 0xf;
+    vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
 }
 
 void PPU::clear(bool mute) {
-    memset(registers, 0, 8);
+    memset(registers, 0, PPU_REGISTER_SIZE);
     oamDMA = 0;
-    memset(vram, 0, 0x820);
-    vram[0x3f00 - 0x3700] = 0xf;
-    memset(oam, 0, 0x100);
-    memset(frame, 0, 256 * 240 * 4);
+    memset(vram, 0, VRAM_SIZE);
+    vram[UNIVERSAL_BG_INDEX] = BLACK;
+    memset(oam, 0, OAM_SIZE);
+    memset(frame, 0, FRAME_SIZE);
     op.clear();
     ppuAddr = 0;
     ppuDataBuffer = 0;
@@ -32,17 +32,17 @@ void PPU::clear(bool mute) {
 
 void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         bool mute) {
-    if (op.scanline < 240 || op.scanline == 261) {
+    if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
         fetch(mmc);
         setPixel(mmc);
 
-        if (op.scanline < 240 && op.cycle == 240 && op.changedFrame &&
-                renderer != nullptr && texture != nullptr) {
+        if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
+                op.changedFrame && renderer != nullptr && texture != nullptr) {
             SDL_RenderClear(renderer);
             uint8_t* lockedPixels = nullptr;
             int pitch = 0;
             SDL_LockTexture(texture, nullptr, (void**) &lockedPixels, &pitch);
-            std::memcpy(lockedPixels, frame, 256 * 240 * 4);
+            std::memcpy(lockedPixels, frame, FRAME_SIZE);
             SDL_UnlockTexture(texture);
             // SDL_UpdateTexture(texture, nullptr, frame, 256 * 4);
             SDL_RenderCopy(renderer, texture, nullptr, nullptr);
@@ -57,15 +57,15 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
 
 uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
     uint8_t val = readRegister(addr, mmc);
-    if (addr == 0x2002) {
+    if (addr == PPUSTATUS) {
         uint8_t clearedVblank = val & 0x7f;
-        writeRegister(0x2002, clearedVblank, mmc, mute);
+        writeRegister(PPUSTATUS, clearedVblank, mmc, mute);
     }
     return val;
 }
 
 void PPU::writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == 0x2002) {
+    if (addr == PPUSTATUS) {
         return;
     }
     writeRegister(addr, val, mmc, mute);
@@ -77,7 +77,7 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
     if (isNMIEnabled() && isVblank()) {
-        readIO(0x2002, mmc, mute);
+        readIO(PPUSTATUS, mmc, mute);
         return true;
     }
     return false;
@@ -182,10 +182,10 @@ void PPU::setPixel(MMC& mmc) {
     if (op.cycle > 240 && op.cycle < 321) {
         return;
     }
-    if (op.scanline == 239 && op.cycle > 320) {
+    if (op.scanline == LAST_RENDER_LINE && op.cycle > 320) {
         return;
     }
-    if (op.scanline == 261 && op.cycle < 321) {
+    if (op.scanline == PRERENDER_LINE && op.cycle < 321) {
         return;
     }
 
@@ -206,9 +206,9 @@ void PPU::setPixel(MMC& mmc) {
             op.paletteEntry |= 8;
         }
         if (isBGShown()) {
-            op.paletteEntry = readVRAM(0x3f00 + op.paletteEntry, mmc);
+            op.paletteEntry = readVRAM(PALETTE_START + op.paletteEntry, mmc);
         } else {
-            op.paletteEntry = readVRAM(0x3f00, mmc);
+            op.paletteEntry = readVRAM(PALETTE_START, mmc);
         }
         setRGB();
     }
@@ -216,7 +216,7 @@ void PPU::setPixel(MMC& mmc) {
 
 void PPU::setRGB() {
     unsigned int renderLine = getRenderLine();
-    unsigned int blueIndex = (op.pixel + renderLine * 256) * 4;
+    unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
     uint8_t redVal = palette[op.paletteEntry].red;
@@ -236,25 +236,28 @@ void PPU::setRGB() {
 void PPU::updateFlags(MMC& mmc, bool mute) {
     if (op.cycle == 1 && op.scanline == 241 && !isVblank() &&
             !op.delayedFirstCycle) {
-        uint8_t flags = readRegister(0x2002, mmc) | 0x80;
-        writeRegister(0x2002, flags, mmc, mute);
-    } else if (op.cycle == 1 && op.scanline == 261 && isVblank() &&
+        uint8_t flags = readRegister(PPUSTATUS, mmc) | 0x80;
+        writeRegister(PPUSTATUS, flags, mmc, mute);
+    } else if (op.cycle == 1 && op.scanline == PRERENDER_LINE && isVblank() &&
             !op.delayedFirstCycle) {
-        uint8_t flags = readRegister(0x2002, mmc) & 0x7f;
-        writeRegister(0x2002, flags, mmc, mute);
+        uint8_t flags = readRegister(PPUSTATUS, mmc) & 0x7f;
+        writeRegister(PPUSTATUS, flags, mmc, mute);
     }
 }
 
 void PPU::prepNextCycle(MMC& mmc) {
     if (op.cycle % 2 == 0) {
-        if ((op.scanline < 239 && (op.cycle < 241 || op.cycle > 320) &&
-                op.cycle < 337) ||
-                (op.scanline == 239 && op.cycle < 241) ||
-                (op.scanline == 261 && op.cycle > 320 && op.cycle < 337)) {
+        // TODO: Simplify/break up this condition
+        if ((op.scanline < LAST_RENDER_LINE &&
+                (op.cycle < 241 || op.cycle > 320) && op.cycle < 337) ||
+                (op.scanline == LAST_RENDER_LINE && op.cycle < 241) ||
+                (op.scanline == PRERENDER_LINE && op.cycle > 320 &&
+                op.cycle < 337)) {
             updateNametableAddr(mmc);
             updateAttributeAddr();
         }
-        if (op.cycle < 337 && (op.scanline < 240 || op.scanline == 261)) {
+        if (op.cycle < 337 && (op.scanline <= LAST_RENDER_LINE ||
+                op.scanline == PRERENDER_LINE)) {
             updateOpStatus();
         }
     }
@@ -264,7 +267,7 @@ void PPU::prepNextCycle(MMC& mmc) {
     }
 
     bool skipFirstCycle = op.oddFrame && (isBGShown() || areSpritesShown());
-    if (op.scanline == 261 && op.cycle == 340) {
+    if (op.scanline == PRERENDER_LINE && op.cycle == 340) {
         op.scanline = 0;
         op.oddFrame = !op.oddFrame;
         op.cycle = 1;
@@ -291,9 +294,8 @@ void PPU::updateNametableAddr(MMC& mmc) {
         }
     }
 
-    uint16_t nametableBaseAddr = getNametableBaseAddr();
-    if (op.nametableAddr == nametableBaseAddr + 0x3c0) {
-        op.nametableAddr = nametableBaseAddr;
+    if (op.nametableAddr == NAMETABLE0_START + 0x3c0) {
+        op.nametableAddr = NAMETABLE0_START;
     }
 }
 
@@ -306,7 +308,6 @@ void PPU::updateAttributeAddr() {
     }
 
     unsigned int renderLine = getRenderLine();
-    uint16_t nametableBaseAddr = getNametableBaseAddr();
     switch (op.attributeQuadrant) {
         case PPUOp::TopLeft:
             op.attributeQuadrant = PPUOp::TopRight;
@@ -327,9 +328,9 @@ void PPU::updateAttributeAddr() {
             op.attributeQuadrant = PPUOp::BottomRight;
             break;
         case PPUOp::BottomRight:
-            if (op.nametableAddr == nametableBaseAddr) {
+            if (op.nametableAddr == NAMETABLE0_START) {
                 op.attributeQuadrant = PPUOp::TopLeft;
-                op.attributeAddr = nametableBaseAddr + 0x3c0;
+                op.attributeAddr = ATTRIBUTE0_START;
             } else if (op.nametableAddr % 0x80 == 0 &&
                     (renderLine + 1) % 32 == 0) {
                 op.attributeQuadrant = PPUOp::TopLeft;
@@ -360,11 +361,11 @@ void PPU::updateOpStatus() {
 }
 
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
-    if (addr == 0x4014) {
+    if (addr == OAMDMA) {
         return oamDMA;
     }
-    if (addr == 0x2007) {
-        if ((ppuAddr & 0x3fff) < 0x3f00) {
+    if (addr == PPUDATA) {
+        if ((ppuAddr & 0x3fff) < PALETTE_START) {
             registers[7] = ppuDataBuffer;
         } else {
             registers[7] = readVRAM(addr, mmc);
@@ -377,21 +378,21 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
 }
 
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == 0x4014) {
+    if (addr == OAMDMA) {
         oamDMA = val;
     } else {
         uint16_t localAddr = addr & 7;
         registers[localAddr] = val;
     }
 
-    if (addr != 0x2002) {
+    if (addr != PPUSTATUS) {
         registers[2] &= 0xe0;
         registers[2] |= val & 0x1f;
     }
 
-    if (addr == 0x2006) {
+    if (addr == PPUADDR) {
         updatePPUAddr(val, mmc, mute);
-    } else if (addr == 0x2007) {
+    } else if (addr == PPUDATA) {
         writeVRAM(ppuAddr, val, mmc, mute);
         ppuAddr += getPPUAddrInc();
     }
@@ -406,13 +407,13 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
 
 uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
     addr &= 0x3fff;
-    if (addr >= 0x3f00) {
+    if (addr >= PALETTE_START) {
         addr &= 0x3f1f;
         if (addr % 4 == 0) {
-            addr = 0x3f00;
+            addr = PALETTE_START;
         }
         addr -= 0x1700;
-    } else if (addr >= 0x2000) {
+    } else if (addr >= NAMETABLE0_START) {
         if (addr >= 0x3000) {
             addr &= 0x2fff;
         }
@@ -432,7 +433,7 @@ uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
         }
     }
 
-    if (addr < 0x2000) {
+    if (addr < NAMETABLE0_START) {
         return mmc.readCHR(addr);
     }
     addr -= 0x2000;
@@ -441,13 +442,13 @@ uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
 
 void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     uint16_t localAddr = addr & 0x3fff;
-    if (localAddr >= 0x3f00) {
+    if (localAddr >= PALETTE_START) {
         localAddr &= 0x3f1f;
         if (localAddr % 4 == 0) {
-            localAddr = 0x3f00;
+            localAddr = PALETTE_START;
         }
         localAddr -= 0x1700;
-    } else if (localAddr >= 0x2000) {
+    } else if (localAddr >= NAMETABLE0_START) {
         if (localAddr >= 0x3000) {
             localAddr &= 0x2fff;
         }
@@ -467,7 +468,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
         }
     }
 
-    if (localAddr < 0x2000) {
+    if (localAddr < NAMETABLE0_START) {
         mmc.writeCHR(localAddr, val, mute);
     } else {
         localAddr -= 0x2000;
@@ -495,31 +496,31 @@ void PPU::updatePPUAddr(uint8_t val, MMC& mmc, bool mute) {
 }
 
 uint16_t PPU::getHorizontalMirrorAddr(uint16_t addr) const {
-    if (addr >= 0x2c00) {
+    if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
-    } else if (addr >= 0x2800) {
+    } else if (addr >= NAMETABLE2_START) {
         addr -= 0x400;
-    } else if (addr >= 0x2400) {
+    } else if (addr >= NAMETABLE1_START) {
         addr -= 0x400;
     }
     return addr;
 }
 
 uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
-    if (addr >= 0x2c00) {
+    if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
-    } else if (addr >= 0x2800) {
+    } else if (addr >= NAMETABLE2_START) {
         addr -= 0x800;
     }
     return addr;
 }
 
 uint16_t PPU::getSingleScreenMirrorAddr(uint16_t addr) const {
-    if (addr >= 0x2c00) {
+    if (addr >= NAMETABLE3_START) {
         addr -= 0xc00;
-    } else if (addr >= 0x2800) {
+    } else if (addr >= NAMETABLE2_START) {
         addr -= 0x800;
-    } else if (addr >= 0x2400) {
+    } else if (addr >= NAMETABLE1_START) {
         addr -= 0x400;
     }
     return addr;
@@ -534,7 +535,7 @@ unsigned int PPU::getRenderLine() const {
     if (op.cycle < 320) {
         return op.scanline;
     }
-    if (op.scanline == 261) {
+    if (op.scanline == PRERENDER_LINE) {
         return 0;
     } else {
         return op.scanline + 1;
@@ -560,14 +561,13 @@ uint16_t PPU::getNametableBaseAddr() const {
     uint8_t flag = registers[0] & 3;
     switch (flag) {
         case 0:
-            return 0x2000;
+            return NAMETABLE0_START;
         case 1:
-            return 0x2400;
+            return NAMETABLE1_START;
         case 2:
-            return 0x2800;
-        default:
-            return 0x2c00;
+            return NAMETABLE2_START;
     }
+    return NAMETABLE3_START;
 }
 
 unsigned int PPU::getPPUAddrInc() const {
@@ -603,107 +603,55 @@ unsigned int PPU::getSpriteHeight() const {
 }
 
 bool PPU::isColorOutputOnEXT() const {
-    uint8_t flag = registers[0] & 0x40;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[0] & 0x40;
 }
 
 bool PPU::isNMIEnabled() const {
-    uint8_t flag = registers[0] & 0x80;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[0] & 0x80;
 }
 
 bool PPU::isGrayscale() const {
-    uint8_t flag = registers[1] & 1;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 1;
 }
 
 bool PPU::isBGLeftColShown() const {
-    uint8_t flag = registers[1] & 2;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 2;
 }
 
 bool PPU::areSpritesLeftColShown() const {
-    uint8_t flag = registers[1] & 4;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 4;
 }
 
 bool PPU::isBGShown() const {
-    uint8_t flag = registers[1] & 8;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 8;
 }
 
 bool PPU::areSpritesShown() const {
-    uint8_t flag = registers[1] & 0x10;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 0x10;
 }
 
 bool PPU::isRedEmphasized() const {
-    uint8_t flag = registers[1] & 0x20;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 0x20;
 }
 
 bool PPU::isGreenEmphasized() const {
-    uint8_t flag = registers[1] & 0x40;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 0x40;
 }
 
 bool PPU::isBlueEmphasized() const {
-    uint8_t flag = registers[1] & 0x80;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[1] & 0x80;
 }
 
 bool PPU::isSpriteOverflow() const {
-    uint8_t flag = registers[2] & 0x20;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[2] & 0x20;
 }
 
 bool PPU::isSpriteZeroHit() const {
-    uint8_t flag = registers[2] & 0x40;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[2] & 0x40;
 }
 
 bool PPU::isVblank() const {
-    uint8_t flag = registers[2] & 0x80;
-    if (flag) {
-        return true;
-    }
-    return false;
+    return registers[2] & 0x80;
 }
 
 void PPU::initializePalette() {

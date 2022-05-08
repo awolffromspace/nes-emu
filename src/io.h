@@ -5,6 +5,10 @@
 #include <iostream>
 #include <string.h>
 
+#define IO_REGISTER_SIZE 0xa
+#define JOY1 0x4016
+#define JOY2 0x4017
+
 class IO {
     public:
         IO();
@@ -13,7 +17,7 @@ class IO {
         void writeIO(uint16_t addr, uint8_t val, bool mute);
 
     private:
-        uint8_t registers[0xa];
+        uint8_t registers[IO_REGISTER_SIZE];
 };
 
 #endif

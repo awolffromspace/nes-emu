@@ -7,6 +7,8 @@ class CPUOp {
     public:
         CPUOp();
         void clear(bool clearInterrupts);
+        void clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
+            bool clearInterruptPrologue);
         void clearInterruptFlags();
         void clearDMA();
 
@@ -29,31 +31,6 @@ class CPUOp {
             ReadInst = 1,
             WriteInst = 2,
             RMWInst = 3
-        };
-        // Powers of two are used, so this enum can be used as a bitmask
-        enum OpStatus {
-            // When read operations can modify a register
-            Modify = 1,
-            // When write operations can write to memory
-            Write = 2,
-            // When read-modify-write operations can write unmodified data to
-            // memory
-            WriteUnmodified = 4,
-            // When read-modify-write operations can write modified data to
-            // memory
-            WriteModified = 8,
-            // When an IRQ or maskable interrupt is triggered
-            IRQ = 16,
-            // When an NMI or non-maskable interrupt is triggered
-            NMI = 32,
-            // When a reset interrupt is triggered
-            Reset = 64,
-            // When currently handling an interrupt
-            InterruptPrologue = 128,
-            // When performing a DMA transfer to the PPU OAM
-            OAMDMA = 256,
-            // When the operation is completely finished
-            Done = 512
         };
 
     private:
@@ -81,9 +58,26 @@ class CPUOp {
         // How many cycles the operation has taken thus far
         unsigned int cycle;
         unsigned int dmaCycle;
-        // Indicates any cycle-relevant info about the operation
-        // Depends on the enum Status
-        unsigned int status;
+        // If read operations can modify a register
+        bool modify;
+        // If write operations can write to memory
+        bool write;
+        // If read-modify-write operations can write unmodified data to memory
+        bool writeUnmodified;
+        // If read-modify-write operations can write modified data to memory
+        bool writeModified;
+        // If an IRQ or maskable interrupt was triggered
+        bool irq;
+        // If an NMI or non-maskable interrupt was triggered
+        bool nmi;
+        // If a reset interrupt was triggered
+        bool reset;
+        // If currently handling an interrupt
+        bool interruptPrologue;
+        // If performing a DMA transfer to the PPU OAM
+        bool oamDMATransfer;
+        // If the operation is completely finished
+        bool done;
         friend class CPU;
 };
 

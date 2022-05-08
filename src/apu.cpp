@@ -5,7 +5,7 @@ APU::APU() {
 }
 
 void APU::clear(bool mute) {
-    memset(registers, 0, 0x16);
+    memset(registers, 0, APU_REGISTER_SIZE);
 
     if (!mute) {
         std::cout << "APU was cleared\n";

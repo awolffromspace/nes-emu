@@ -1,29 +1,29 @@
 #include "mmc.h"
 
 MMC::MMC() :
-        prgMemory(0x10000 - 0x8000, 0),
-        chrMemory(0x2000, 0),
+        prgMemory(PRG_BANK_SIZE * 2, 0),
+        chrMemory(CHR_BANK_SIZE, 0),
         prgMemorySize(1),
         chrMemorySize(1),
         mapperID(0) {
     // Set the reset vector to 0x8000, the beginning of the PRG-ROM lower bank
     // This is where test programs will start at
-    writePRG(0xfffd, 0x80, true);
+    writePRG(UPPER_RESET_ADDR, 0x80, true);
 }
 
 void MMC::clear(bool mute) {
-    memset(saveWorkRAM, 0, 0x8000 - 0x4020);
-    prgMemory.resize(0x10000 - 0x8000);
+    memset(saveWorkRAM, 0, SAVE_WORK_RAM_SIZE);
+    prgMemory.resize(PRG_BANK_SIZE * 2);
     for (uint8_t& entry : prgMemory) {
         entry = 0;
     }
-    chrMemory.resize(0x2000);
+    chrMemory.resize(CHR_BANK_SIZE);
     for (uint8_t& entry : chrMemory) {
         entry = 0;
     }
     prgMemorySize = 1;
     chrMemorySize = 1;
-    writePRG(0xfffd, 0x80, mute);
+    writePRG(UPPER_RESET_ADDR, 0x80, mute);
     mapperID = 0;
 
     if (!mute) {
@@ -32,27 +32,27 @@ void MMC::clear(bool mute) {
 }
 
 uint8_t MMC::readPRG(uint16_t addr) const {
-    if (addr < 0x8000) {
-        addr -= 0x4020;
+    if (addr < PRG_MEMORY_START) {
+        addr -= SAVE_WORK_RAM_START;
         return saveWorkRAM[addr];
     }
     if (prgMemorySize == 1) {
         addr &= 0xbfff;
     }
-    addr -= 0x8000;
+    addr -= PRG_MEMORY_START;
     return prgMemory[addr];
 }
 
 void MMC::writePRG(uint16_t addr, uint8_t val, bool mute) {
     uint16_t localAddr = addr;
-    if (localAddr < 0x8000) {
-        localAddr -= 0x4020;
+    if (localAddr < PRG_MEMORY_START) {
+        localAddr -= SAVE_WORK_RAM_START;
         saveWorkRAM[localAddr] = val;
     } else {
         if (prgMemorySize == 1) {
             localAddr &= 0xbfff;
         }
-        localAddr -= 0x8000;
+        localAddr -= PRG_MEMORY_START;
         prgMemory[localAddr] = val;
     }
 
@@ -121,7 +121,7 @@ void MMC::readInINES(std::string& filename, PPU& ppu) {
 
     uint8_t readInByte;
     bool hasTrainer = false;
-    for (unsigned int i = 0; i < 0x10; ++i) {
+    for (unsigned int i = 0; i < HEADER_SIZE; ++i) {
         file.read((char*) &readInByte, 1);
 
         if (i == 4) {
@@ -149,16 +149,16 @@ void MMC::readInINES(std::string& filename, PPU& ppu) {
     }
 
     if (hasTrainer) {
-        for (unsigned int i = 0; i < 0x200; ++i) {
+        for (unsigned int i = 0; i < TRAINER_SIZE; ++i) {
             file.read((char*) &readInByte, 1);
         }
     }
 
-    for (unsigned int i = 0; i < prgMemorySize * 0x4000; ++i) {
+    for (unsigned int i = 0; i < PRG_BANK_SIZE * prgMemorySize; ++i) {
         file.read((char*) &prgMemory[i], 1);
     }
 
-    for (unsigned int i = 0; i < chrMemorySize * 0x2000; ++i) {
+    for (unsigned int i = 0; i < chrMemorySize * CHR_BANK_SIZE; ++i) {
         file.read((char*) &chrMemory[i], 1);
     }
 }

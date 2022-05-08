@@ -9,6 +9,11 @@
 #include "ppu.h"
 #include "ram.h"
 
+#define UPPER_IRQ_ADDR 0xffff
+#define LOWER_IRQ_ADDR 0xfffe
+#define UPPER_NMI_ADDR 0xfffb
+#define LOWER_NMI_ADDR 0xfffa
+
 class CPU {
     public:
         CPU();
@@ -315,6 +320,22 @@ class CPU {
         // many operations set or clear them using the exact same conditions
         void updateZeroFlag(uint8_t result);
         void updateNegativeFlag(uint8_t result);
+
+        // Processor Status Getters
+        // Checks if flags are set
+        bool isCarry() const;
+        bool isZero() const;
+        bool areInterruptsDisabled() const;
+        bool isOverflow() const;
+        bool isNegative() const;
+
+        // Processor Status Setters
+        void setCarryFlag(bool val);
+        void setZeroFlag(bool val);
+        void setInterruptDisable(bool val);
+        void setDecimalMode(bool val);
+        void setOverflowFlag(bool val);
+        void setNegativeFlag(bool val);
 };
 
 #endif

@@ -12,6 +12,16 @@ class PPU;
 
 #include "ppu.h"
 
+#define SAVE_WORK_RAM_SIZE 0x8000 - 0x4020
+#define SAVE_WORK_RAM_START 0x4020
+#define PRG_BANK_SIZE 0x4000
+#define PRG_MEMORY_START 0x8000
+#define CHR_BANK_SIZE 0x2000
+#define HEADER_SIZE 0x10
+#define TRAINER_SIZE 0x200
+#define UPPER_RESET_ADDR 0xfffd
+#define LOWER_RESET_ADDR 0xfffc
+
 class MMC {
     public:
         MMC();
@@ -24,7 +34,7 @@ class MMC {
         void readInINES(std::string& filename, PPU& ppu);
 
     private:
-        uint8_t saveWorkRAM[0x8000 - 0x4020];
+        uint8_t saveWorkRAM[SAVE_WORK_RAM_SIZE];
         std::vector<uint8_t> prgMemory;
         std::vector<uint8_t> chrMemory;
         unsigned int prgMemorySize;

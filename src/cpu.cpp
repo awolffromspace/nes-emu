@@ -5,13 +5,13 @@ CPU::CPU() :
         a(0),
         x(0),
         y(0),
-        p(0x34),
+        p(UnusedFlag | Break | InterruptDisable),
         totalCycles(0),
         endOfProgram(false),
         haltAtBrk(false),
         mute(true) {
     // Initialize PC to the reset vector
-    pc = (read(0xfffd) << 8) | read(0xfffc);
+    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
 }
 
 void CPU::clear() {
@@ -19,14 +19,14 @@ void CPU::clear() {
     a = 0;
     x = 0;
     y = 0;
-    p = 0x34;
+    p = UnusedFlag | Break | InterruptDisable;
     op.clear(true);
     ram.clear(mute);
     ppu.clear(mute);
     apu.clear(mute);
     io.clear(mute);
     mmc.clear(mute);
-    pc = (read(0xfffd) << 8) | read(0xfffc);
+    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
     totalCycles = 0;
     endOfProgram = false;
 
@@ -36,14 +36,13 @@ void CPU::clear() {
 }
 
 void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
-    if ((op.status & CPUOp::Done) || (totalCycles == 0)) {
+    if (op.done || totalCycles == 0) {
         op.clear(false);
 
         // If any interrupts are flagged, start the interrupt prologue
         // Ignore IRQ if the Interrupt Disable flag is set
-        if (((op.status & CPUOp::IRQ) && !(p & InterruptDisable)) ||
-                (op.status & CPUOp::NMI) || (op.status & CPUOp::Reset)) {
-            op.status |= CPUOp::InterruptPrologue;
+        if ((op.irq && !areInterruptsDisabled()) || op.nmi || op.reset) {
+            op.interruptPrologue = true;
         }
 
         // Fetch
@@ -52,16 +51,13 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
         op.opcode = op.inst;
     }
 
-    if (op.status & CPUOp::OAMDMA) {
+    if (op.oamDMATransfer) {
         oamDMATransfer();
-    } else if ((op.status & CPUOp::InterruptPrologue) &&
-            (op.status & CPUOp::Reset)) {
+    } else if (op.interruptPrologue && op.reset) {
         prepareReset();
-    } else if ((op.status & CPUOp::InterruptPrologue) &&
-            (op.status & CPUOp::NMI)) {
+    } else if (op.interruptPrologue && op.nmi) {
         prepareNMI();
-    } else if ((op.status & CPUOp::InterruptPrologue) &&
-            (op.status & CPUOp::IRQ)) {
+    } else if (op.interruptPrologue && op.irq) {
         prepareIRQ(false);
     } else {
         // Decode and execute
@@ -88,7 +84,7 @@ void CPU::readInINES(std::string& filename) {
     if (filename == "nestest.nes") {
         pc = 0xc000;
     } else {
-        pc = (read(0xfffd) << 8) | read(0xfffc);
+        pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
     }
 }
 
@@ -202,7 +198,6 @@ void CPU::print(bool isCycleDone) const {
     unsigned int inc = 0;
     std::string time;
     std::bitset<8> binaryP(p);
-    std::bitset<10> binaryStatus(op.status);
     if (isCycleDone) {
         time = "After";
     } else {
@@ -234,8 +229,7 @@ void CPU::print(bool isCycleDone) const {
         "addrMode    = " << (unsigned int) op.addrMode << "\n"
         "instType    = " << (unsigned int) op.instType << "\n"
         "cycle       = " << op.cycle << "\n"
-        "dmaCycle    = " << op.dmaCycle << "\n"
-        "status      = " << binaryStatus <<
+        "dmaCycle    = " << op.dmaCycle <<
         "\n--------------------------------------------------\n";
 }
 
@@ -289,15 +283,15 @@ void CPU::abs() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
             break;
         case 4:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 5:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -332,7 +326,7 @@ void CPU::abx() {
                 op.val = read(op.tempAddr);
             }
             if (op.tempAddr == op.fixedAddr) {
-                op.status |= CPUOp::Modify;
+                op.modify = true;
             } else {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
@@ -343,17 +337,17 @@ void CPU::abx() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!(op.status & CPUOp::Modify)) {
-                op.status |= CPUOp::Modify;
+            if (!op.modify) {
+                op.modify = true;
             }
-            op.status |= CPUOp::Write;
+            op.write = true;
             break;
         case 5:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 6:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -388,7 +382,7 @@ void CPU::aby() {
                 op.val = read(op.tempAddr);
             }
             if (op.tempAddr == op.fixedAddr) {
-                op.status |= CPUOp::Modify;
+                op.modify = true;
             } else {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
@@ -399,17 +393,17 @@ void CPU::aby() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!(op.status & CPUOp::Modify)) {
-                op.status |= CPUOp::Modify;
+            if (!op.modify) {
+                op.modify = true;
             }
-            op.status |= CPUOp::Write;
+            op.write = true;
             break;
         case 5:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 6:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -422,7 +416,7 @@ void CPU::acc() {
             break;
         case 1:
             op.val = a;
-            op.status |= CPUOp::Modify;
+            op.modify = true;
     }
 }
 
@@ -437,7 +431,7 @@ void CPU::imm() {
             op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             op.val = op.operandLo;
-            op.status |= CPUOp::Modify;
+            op.modify = true;
             ++pc;
     }
 }
@@ -450,8 +444,8 @@ void CPU::imp() {
             ++pc;
             break;
         case 1:
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
     }
 }
 
@@ -512,15 +506,15 @@ void CPU::idx() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
             break;
         case 6:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 7:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -555,7 +549,7 @@ void CPU::idy() {
                 op.val = read(op.tempAddr);
             }
             if (op.tempAddr == op.fixedAddr) {
-                op.status |= CPUOp::Modify;
+                op.modify = true;
             } else {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
@@ -566,17 +560,17 @@ void CPU::idy() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!(op.status & CPUOp::Modify)) {
-                op.status |= CPUOp::Modify;
+            if (!op.modify) {
+                op.modify = true;
             }
-            op.status |= CPUOp::Write;
+            op.write = true;
             break;
         case 6:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 7:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -601,17 +595,17 @@ void CPU::rel() {
                 op.fixedAddr |= 0xff00;
             }
             op.fixedAddr += pc;
-            op.status |= CPUOp::Modify;
+            op.modify = true;
             if (op.tempAddr == op.fixedAddr) {
                 op.clearInterruptFlags();
-                op.status |= CPUOp::Done;
+                op.done = true;
             } else {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
             }
             break;
         case 3:
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -636,15 +630,15 @@ void CPU::zpg() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
             break;
         case 3:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 4:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -673,15 +667,15 @@ void CPU::zpx() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
             break;
         case 4:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 5:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -710,15 +704,15 @@ void CPU::zpy() {
                     op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            op.status |= CPUOp::Modify;
-            op.status |= CPUOp::Write;
+            op.modify = true;
+            op.write = true;
             break;
         case 4:
-            op.status |= CPUOp::WriteUnmodified;
+            op.writeUnmodified = true;
             pollInterrupts();
             break;
         case 5:
-            op.status |= CPUOp::WriteModified;
+            op.writeModified = true;
     }
 }
 
@@ -728,53 +722,45 @@ void CPU::zpy() {
 
 void CPU::adc() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         uint16_t temp = a + op.val + (p & Carry);
         uint8_t pastA = a;
         a += op.val + (p & Carry);
-        if (temp > 0xff) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
-        if ((pastA ^ a) & (op.val ^ a) & Negative) {
-            p |= Overflow;
-        } else {
-            p &= ~Overflow;
-        }
+        setCarryFlag(temp > 0xff);
+        setOverflowFlag((pastA ^ a) & (op.val ^ a) & Negative);
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::ahx() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::alr() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::andOp() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a &= op.val;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::anc() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::arr() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
@@ -783,26 +769,18 @@ void CPU::asl() {
         op.instType = CPUOp::RMWInst;
     }
 
-    if ((op.status & CPUOp::Modify) && (op.addrMode == CPUOp::Accumulator)) {
-        if (a & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+    if (op.modify && op.addrMode == CPUOp::Accumulator) {
+        setCarryFlag(a & Negative);
         a = a << 1;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteModified) {
+        op.done = true;
+    } else if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
-        if (op.val & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(op.val & Negative);
         op.val = op.val << 1;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -810,69 +788,65 @@ void CPU::asl() {
 }
 
 void CPU::axs() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::bcc() {
-    if ((op.cycle == 1) && (p & Carry)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && !(p & Carry)) {
+    if (op.cycle == 1 && isCarry()) {
+        op.done = true;
+    } else if (op.modify && !isCarry()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::bcs() {
-    if ((op.cycle == 1) && !(p & Carry)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && (p & Carry)) {
+    if (op.cycle == 1 && !isCarry()) {
+        op.done = true;
+    } else if (op.modify && isCarry()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::beq() {
-    if ((op.cycle == 1) && !(p & Zero)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && (p & Zero)) {
+    if (op.cycle == 1 && !isZero()) {
+        op.done = true;
+    } else if (op.modify && isZero()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::bit() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         uint8_t temp = a & op.val;
-        if (op.val & Overflow) {
-            p |= Overflow;
-        } else {
-            p &= ~Overflow;
-        }
+        setOverflowFlag(op.val & Overflow);
         updateZeroFlag(temp);
         updateNegativeFlag(op.val);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::bmi() {
-    if ((op.cycle == 1) && !(p & Negative)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && (p & Negative)) {
+    if (op.cycle == 1 && !isNegative()) {
+        op.done = true;
+    } else if (op.modify && isNegative()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::bne() {
-    if ((op.cycle == 1) && (p & Zero)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && !(p & Zero)) {
+    if (op.cycle == 1 && isZero()) {
+        op.done = true;
+    } else if (op.modify && !isZero()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::bpl() {
-    if ((op.cycle == 1) && (p & Negative)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && !(p & Negative)) {
+    if (op.cycle == 1 && isNegative()) {
+        op.done = true;
+    } else if (op.modify && !isNegative()) {
         pc = op.tempAddr;
     }
 }
@@ -881,117 +855,105 @@ void CPU::brk() {
     if (haltAtBrk) {
         endOfProgram = true;
     } else {
-        op.status |= CPUOp::IRQ;
-        op.status |= CPUOp::InterruptPrologue;
+        op.irq = true;
+        op.interruptPrologue = true;
         prepareIRQ(true);
     }
 }
 
 void CPU::bvc() {
-    if ((op.cycle == 1) && (p & Overflow)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && !(p & Overflow)) {
+    if (op.cycle == 1 && isOverflow()) {
+        op.done = true;
+    } else if (op.modify && !isOverflow()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::bvs() {
-    if ((op.cycle == 1) && !(p & Overflow)) {
-        op.status |= CPUOp::Done;
-    } else if ((op.status & CPUOp::Modify) && (p & Overflow)) {
+    if (op.cycle == 1 && !isOverflow()) {
+        op.done = true;
+    } else if (op.modify && isOverflow()) {
         pc = op.tempAddr;
     }
 }
 
 void CPU::clc() {
-    if (op.status & CPUOp::Modify) {
-        p &= ~Carry;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setCarryFlag(false);
+        op.done = true;
     }
 }
 
 void CPU::cld() {
-    if (op.status & CPUOp::Modify) {
-        p &= ~DecimalMode;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setDecimalMode(false);
+        op.done = true;
     }
 }
 
 void CPU::cli() {
-    if (op.status & CPUOp::Modify) {
-        p &= ~InterruptDisable;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setInterruptDisable(false);
+        op.done = true;
     }
 }
 
 void CPU::clv() {
-    if (op.status & CPUOp::Modify) {
-        p &= ~Overflow;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setOverflowFlag(false);
+        op.done = true;
     }
 }
 
 void CPU::cmp() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         uint8_t temp = a - op.val;
-        if (a >= op.val) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(a >= op.val);
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::cpx() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         uint8_t temp = x - op.val;
-        if (x >= op.val) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(x >= op.val);
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::cpy() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         uint8_t temp = y - op.val;
-        if (y >= op.val) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(y >= op.val);
         updateZeroFlag(temp);
         updateNegativeFlag(temp);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::dcp() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         dec();
         cmp();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         dec();
     }
 }
 
 void CPU::dec() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
         --op.val;
         updateZeroFlag(op.val);
@@ -1000,39 +962,39 @@ void CPU::dec() {
 }
 
 void CPU::dex() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         --x;
         updateZeroFlag(x);
         updateNegativeFlag(x);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::dey() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         --y;
         updateZeroFlag(y);
         updateNegativeFlag(y);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::eor() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a ^= op.val;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::inc() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
         ++op.val;
         updateZeroFlag(op.val);
@@ -1041,29 +1003,29 @@ void CPU::inc() {
 }
 
 void CPU::inx() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         ++x;
         updateZeroFlag(x);
         updateNegativeFlag(x);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::iny() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         ++y;
         updateZeroFlag(y);
         updateNegativeFlag(y);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::isc() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         inc();
         sbc();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         inc();
     }
 }
@@ -1078,7 +1040,7 @@ void CPU::jmp() {
         case 2:
             if (op.addrMode == CPUOp::Absolute) {
                 pc = op.tempAddr;
-                op.status |= CPUOp::Done;
+                op.done = true;
             }
             break;
         case 3:
@@ -1089,7 +1051,7 @@ void CPU::jmp() {
         case 4:
             if (op.addrMode == CPUOp::Indirect) {
                 pc = op.tempAddr;
-                op.status |= CPUOp::Done;
+                op.done = true;
             }
     }
 }
@@ -1111,53 +1073,53 @@ void CPU::jsr() {
             break;
         case 5:
             pc = op.tempAddr;
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
 void CPU::las() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::lax() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a = op.val;
         x = op.val;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::lda() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a = op.val;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::ldx() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         x = op.val;
         updateZeroFlag(x);
         updateNegativeFlag(x);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::ldy() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         y = op.val;
         updateZeroFlag(y);
         updateNegativeFlag(y);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
@@ -1166,26 +1128,18 @@ void CPU::lsr() {
         op.instType = CPUOp::RMWInst;
     }
 
-    if ((op.status & CPUOp::Modify) && (op.addrMode == CPUOp::Accumulator)) {
-        if (a & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+    if (op.modify && op.addrMode == CPUOp::Accumulator) {
+        setCarryFlag(a & Carry);
         a = a >> 1;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteModified) {
+        op.done = true;
+    } else if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
-        if (op.val & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(op.val & Carry);
         op.val = op.val >> 1;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -1194,18 +1148,18 @@ void CPU::lsr() {
 
 void CPU::nop() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        op.done = true;
     }
 }
 
 void CPU::ora() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a |= op.val;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
@@ -1216,7 +1170,7 @@ void CPU::pha() {
             break;
         case 2:
             ram.push(sp, a, mute);
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1229,7 +1183,7 @@ void CPU::php() {
         case 2:
             temp = p | Break | UnusedFlag;
             ram.push(sp, temp, mute);
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1243,7 +1197,7 @@ void CPU::pla() {
             a = op.val;
             updateZeroFlag(a);
             updateNegativeFlag(a);
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1255,16 +1209,16 @@ void CPU::plp() {
             break;
         case 3:
             p = op.val | Break | UnusedFlag;
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
 void CPU::rla() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         rol();
         andOp();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         rol();
     }
 }
@@ -1274,34 +1228,26 @@ void CPU::rol() {
         op.instType = CPUOp::RMWInst;
     }
 
-    if ((op.status & CPUOp::Modify) && (op.addrMode == CPUOp::Accumulator)) {
+    if (op.modify && op.addrMode == CPUOp::Accumulator) {
         uint8_t temp = a << 1;
-        if (p & Carry) {
+        if (isCarry()) {
             temp |= Carry;
         }
-        if (a & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(a & Negative);
         a = temp;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteModified) {
+        op.done = true;
+    } else if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val << 1;
-        if (p & Carry) {
+        if (isCarry()) {
             temp |= Carry;
         }
-        if (op.val & Negative) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(op.val & Negative);
         op.val = temp;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -1313,34 +1259,26 @@ void CPU::ror() {
         op.instType = CPUOp::RMWInst;
     }
 
-    if ((op.status & CPUOp::Modify) && (op.addrMode == CPUOp::Accumulator)) {
+    if (op.modify && op.addrMode == CPUOp::Accumulator) {
         uint8_t temp = a >> 1;
-        if (p & Carry) {
+        if (isCarry()) {
             temp |= Negative;
         }
-        if (a & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(a & Carry);
         a = temp;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteModified) {
+        op.done = true;
+    } else if (op.writeModified) {
         write(op.tempAddr, op.val, mute);
-        op.status |= CPUOp::Done;
-    } else if (op.status & CPUOp::WriteUnmodified) {
+        op.done = true;
+    } else if (op.writeUnmodified) {
         write(op.tempAddr, op.val, mute);
         uint8_t temp = op.val >> 1;
-        if (p & Carry) {
+        if (isCarry()) {
             temp |= Negative;
         }
-        if (op.val & Carry) {
-            p |= Carry;
-        } else {
-            p &= ~Carry;
-        }
+        setCarryFlag(op.val & Carry);
         op.val = temp;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -1349,10 +1287,10 @@ void CPU::ror() {
 
 void CPU::rra() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         ror();
         adc();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         ror();
     }
 }
@@ -1369,7 +1307,7 @@ void CPU::rti() {
         case 5:
             op.tempAddr |= ram.pull(sp, mute) << 8;
             pc = op.tempAddr;
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1384,180 +1322,180 @@ void CPU::rts() {
             break;
         case 5:
             pc = op.tempAddr + 1;
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
 void CPU::sax() {
     op.instType = CPUOp::WriteInst;
-    if (op.status & CPUOp::Write) {
+    if (op.write) {
         write(op.tempAddr, a & x, mute);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::sbc() {
     op.instType = CPUOp::ReadInst;
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         op.val = 0xff - op.val;
         adc();
     }
 }
 
 void CPU::sec() {
-    if (op.status & CPUOp::Modify) {
-        p |= Carry;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setCarryFlag(true);
+        op.done = true;
     }
 }
 
 void CPU::sed() {
-    if (op.status & CPUOp::Modify) {
-        p |= DecimalMode;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setDecimalMode(true);
+        op.done = true;
     }
 }
 
 void CPU::sei() {
-    if (op.status & CPUOp::Modify) {
-        p |= InterruptDisable;
-        op.status |= CPUOp::Done;
+    if (op.modify) {
+        setInterruptDisable(true);
+        op.done = true;
     }
 }
 
 void CPU::shx() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::shy() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::slo() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         asl();
         ora();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         asl();
     }
 }
 
 void CPU::sre() {
     op.instType = CPUOp::RMWInst;
-    if (op.status & CPUOp::WriteModified) {
+    if (op.writeModified) {
         lsr();
         eor();
-    } else if (op.status & CPUOp::WriteUnmodified) {
+    } else if (op.writeUnmodified) {
         lsr();
     }
 }
 
 void CPU::sta() {
     op.instType = CPUOp::WriteInst;
-    if (op.status & CPUOp::Write) {
+    if (op.write) {
         write(op.tempAddr, a, mute);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::stp() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::stx() {
     op.instType = CPUOp::WriteInst;
-    if (op.status & CPUOp::Write) {
+    if (op.write) {
         write(op.tempAddr, x, mute);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::sty() {
     op.instType = CPUOp::WriteInst;
-    if (op.status & CPUOp::Write) {
+    if (op.write) {
         write(op.tempAddr, y, mute);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::tas() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 void CPU::tax() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         x = a;
         updateZeroFlag(x);
         updateNegativeFlag(x);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::tay() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         y = a;
         updateZeroFlag(y);
         updateNegativeFlag(y);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::tsx() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         x = sp;
         updateZeroFlag(x);
         updateNegativeFlag(x);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::txa() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a = x;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::txs() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         sp = x;
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::tya() {
-    if (op.status & CPUOp::Modify) {
+    if (op.modify) {
         a = y;
         updateZeroFlag(a);
         updateNegativeFlag(a);
-        op.status |= CPUOp::Done;
+        op.done = true;
     }
 }
 
 void CPU::xaa() {
-    op.status |= CPUOp::Done;
+    op.done = true;
     printUnknownOp();
 }
 
 // Read/Write Functions
 
 uint8_t CPU::read(uint16_t addr) {
-    if (addr < 0x2000) {
+    if (addr < PPUCTRL) {
         return ram.read(addr);
-    } else if (addr < 0x4000 || addr == 0x4014) {
+    } else if (addr < SQ1_VOL || addr == OAMDMA) {
         return ppu.readIO(addr, mmc, mute);
-    } else if (addr < 0x4016) {
+    } else if (addr < JOY1) {
         return apu.readIO(addr);
-    } else if (addr == 0x4017) {
+    } else if (addr == JOY2) {
         return apu.readIO(addr) | io.readIO(addr);
-    } else if (addr < 0x4020) {
+    } else if (addr < SAVE_WORK_RAM_START) {
         return io.readIO(addr);
     } else {
         return mmc.readPRG(addr);
@@ -1565,19 +1503,19 @@ uint8_t CPU::read(uint16_t addr) {
 }
 
 void CPU::write(uint16_t addr, uint8_t val, bool mute) {
-    if (addr < 0x2000) {
+    if (addr < PPUCTRL) {
         ram.write(addr, val, mute);
-    } else if (addr < 0x4000) {
+    } else if (addr < SQ1_VOL) {
         ppu.writeIO(addr, val, mmc, mute);
-    } else if (addr == 0x4014) {
+    } else if (addr == OAMDMA) {
         ppu.writeIO(addr, val, mmc, mute);
-        op.status |= CPUOp::OAMDMA;
-    } else if (addr < 0x4016) {
+        op.oamDMATransfer = true;
+    } else if (addr < JOY1) {
         apu.writeIO(addr, val, mute);
-    } else if (addr == 0x4017) {
+    } else if (addr == JOY2) {
         apu.writeIO(addr, val, mute);
         io.writeIO(addr, val, mute);
-    } else if (addr < 0x4020) {
+    } else if (addr < SAVE_WORK_RAM_START) {
         io.writeIO(addr, val, mute);
     } else {
         mmc.writePRG(addr, val, mute);
@@ -1585,11 +1523,11 @@ void CPU::write(uint16_t addr, uint8_t val, bool mute) {
 }
 
 void CPU::oamDMATransfer() {
-    if ((op.dmaCycle == 1) && (totalCycles % 2 == 1)) {
+    if (op.dmaCycle == 1 && totalCycles % 2 == 1) {
         --op.dmaCycle;
-    } else if ((op.dmaCycle > 0) && (op.dmaCycle % 2 == 0)) {
+    } else if (op.dmaCycle > 0 && op.dmaCycle % 2 == 0) {
         unsigned int oamAddr = op.dmaCycle / 2 - 1;
-        uint16_t cpuBaseAddr = ppu.readIO(0x4014, mmc, mute) << 8;
+        uint16_t cpuBaseAddr = ppu.readIO(OAMDMA, mmc, mute) << 8;
         uint16_t cpuAddr = cpuBaseAddr + oamAddr;
         uint8_t cpuData = read(cpuAddr);
         ppu.writeOAM(oamAddr, cpuData);
@@ -1607,7 +1545,7 @@ void CPU::oamDMATransfer() {
 void CPU::pollInterrupts() {
     op.clearInterruptFlags();
     if (ppu.isNMIActive(mmc, mute)) {
-        op.status |= CPUOp::NMI;
+        op.nmi = true;
     }
 }
 
@@ -1630,7 +1568,7 @@ void CPU::prepareIRQ(bool isBrk) {
             ram.push(sp, temp, mute);
             break;
         case 4:
-            op.status &= 0x90;
+            op.clearStatusFlags(false, true, true, false);
             temp = p | UnusedFlag;
             if (!isBrk) {
                 temp &= ~Break;
@@ -1638,15 +1576,15 @@ void CPU::prepareIRQ(bool isBrk) {
             ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = read(0xfffe);
-            p |= InterruptDisable;
+            op.tempAddr = read(LOWER_IRQ_ADDR);
+            setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(0xffff) << 8;
+            op.tempAddr |= read(UPPER_IRQ_ADDR) << 8;
             pc = op.tempAddr;
-            op.status &= ~CPUOp::InterruptPrologue;
+            op.interruptPrologue = false;
             op.clearInterruptFlags();
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1666,21 +1604,21 @@ void CPU::prepareNMI() {
             ram.push(sp, temp, mute);
             break;
         case 4:
-            op.status &= 0xa0;
+            op.clearStatusFlags(true, false, true, false);
             temp = p | UnusedFlag;
             temp = p & ~Break;
             ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = read(0xfffa);
-            p |= InterruptDisable;
+            op.tempAddr = read(LOWER_NMI_ADDR);
+            setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(0xfffb) << 8;
+            op.tempAddr |= read(UPPER_NMI_ADDR) << 8;
             pc = op.tempAddr;
-            op.status &= ~CPUOp::InterruptPrologue;
+            op.interruptPrologue = false;
             op.clearInterruptFlags();
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1697,19 +1635,19 @@ void CPU::prepareReset() {
             --sp;
             break;
         case 4:
-            op.status &= 0xc0;
+            op.clearStatusFlags(true, true, false, false);
             --sp;
             break;
         case 5:
-            op.tempAddr = read(0xfffc);
-            p |= InterruptDisable;
+            op.tempAddr = read(LOWER_RESET_ADDR);
+            setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(0xfffd) << 8;
+            op.tempAddr |= read(UPPER_RESET_ADDR) << 8;
             pc = op.tempAddr;
-            op.status &= ~CPUOp::InterruptPrologue;
+            op.interruptPrologue = false;
             op.clearInterruptFlags();
-            op.status |= CPUOp::Done;
+            op.done = true;
     }
 }
 
@@ -1726,4 +1664,76 @@ void CPU::updateZeroFlag(uint8_t result) {
 void CPU::updateNegativeFlag(uint8_t result) {
     p &= ~Negative;
     p |= result & Negative;
+}
+
+// Processor Status Getters
+
+bool CPU::isCarry() const {
+    return p & Carry;
+}
+
+bool CPU::isZero() const {
+    return p & Zero;
+}
+
+bool CPU::areInterruptsDisabled() const {
+    return p & InterruptDisable;
+}
+
+bool CPU::isOverflow() const {
+    return p & Overflow;
+}
+
+bool CPU::isNegative() const {
+    return p & Negative;
+}
+
+// Processor Status Setters
+
+void CPU::setCarryFlag(bool val) {
+    if (val) {
+        p |= Carry;
+    } else {
+        p &= ~Carry;
+    }
+}
+
+void CPU::setZeroFlag(bool val) {
+    if (val) {
+        p |= Zero;
+    } else {
+        p &= ~Zero;
+    }
+}
+
+void CPU::setInterruptDisable(bool val) {
+    if (val) {
+        p |= InterruptDisable;
+    } else {
+        p &= ~InterruptDisable;
+    }
+}
+
+void CPU::setDecimalMode(bool val) {
+    if (val) {
+        p |= DecimalMode;
+    } else {
+        p &= ~DecimalMode;
+    }
+}
+
+void CPU::setOverflowFlag(bool val) {
+    if (val) {
+        p |= Overflow;
+    } else {
+        p &= ~Overflow;
+    }
+}
+
+void CPU::setNegativeFlag(bool val) {
+    if (val) {
+        p |= Negative;
+    } else {
+        p &= ~Negative;
+    }
 }

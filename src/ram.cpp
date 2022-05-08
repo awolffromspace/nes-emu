@@ -5,7 +5,7 @@ RAM::RAM() {
 }
 
 void RAM::clear(bool mute) {
-    memset(data, 0, 0x800);
+    memset(data, 0, RAM_SIZE);
 
     if (!mute) {
         std::cout << "RAM was cleared\n";

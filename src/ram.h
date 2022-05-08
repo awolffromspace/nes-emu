@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string.h>
 
+#define RAM_SIZE 0x800
+
 class RAM {
     public:
         RAM();
@@ -15,7 +17,7 @@ class RAM {
         uint8_t pull(uint8_t& pointer, bool mute);
 
     private:
-        uint8_t data[0x800];
+        uint8_t data[RAM_SIZE];
 };
 
 #endif

@@ -5,7 +5,7 @@ IO::IO() {
 }
 
 void IO::clear(bool mute) {
-    memset(registers, 0, 0xa);
+    memset(registers, 0, IO_REGISTER_SIZE);
 
     if (!mute) {
         std::cout << "IO was cleared\n";
