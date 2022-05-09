@@ -24,6 +24,7 @@ class MMC;
 #define PPUDATA 0x2007
 #define OAMDMA 0x4014
 #define OAM_SIZE 0x100
+#define SECONDARY_OAM_SIZE 0x20
 #define VRAM_SIZE 0x400 + 0x400 + 0x20
 #define FRAME_SIZE 256 * 240 * 4
 #define FRAME_WIDTH 256
@@ -64,7 +65,7 @@ class PPU {
         uint8_t registers[PPU_REGISTER_SIZE];
         uint8_t oamDMA;
         uint8_t oam[OAM_SIZE];
-        // uint8_t secondaryOAM[0x20];
+        uint8_t secondaryOAM[SECONDARY_OAM_SIZE];
         uint8_t vram[VRAM_SIZE];
         uint8_t frame[FRAME_SIZE];
         struct RGBVal {
@@ -98,6 +99,7 @@ class PPU {
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;
         uint16_t getFourScreenMirrorAddr(uint16_t addr, MMC& mmc) const;
         unsigned int getRenderLine() const;
+        bool isRendering() const;
         uint8_t getPaletteFromAttribute() const;
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;

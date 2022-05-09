@@ -17,6 +17,7 @@ void PPU::clear(bool mute) {
     memset(vram, 0, VRAM_SIZE);
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     memset(oam, 0, OAM_SIZE);
+    memset(secondaryOAM, 0, SECONDARY_OAM_SIZE);
     memset(frame, 0, FRAME_SIZE);
     op.clear();
     ppuAddr = 0;
@@ -176,16 +177,8 @@ void PPU::fetch(MMC& mmc) {
 }
 
 void PPU::setPixel(MMC& mmc) {
-    if (op.cycle % 2 == 1 || op.status != PPUOp::FetchPatternEntryHi) {
-        return;
-    }
-    if (op.cycle > 240 && op.cycle < 321) {
-        return;
-    }
-    if (op.scanline == LAST_RENDER_LINE && op.cycle > 320) {
-        return;
-    }
-    if (op.scanline == PRERENDER_LINE && op.cycle < 321) {
+    if (op.cycle % 2 == 1 || op.status != PPUOp::FetchPatternEntryHi ||
+            !isRendering()) {
         return;
     }
 
@@ -247,17 +240,12 @@ void PPU::updateFlags(MMC& mmc, bool mute) {
 
 void PPU::prepNextCycle(MMC& mmc) {
     if (op.cycle % 2 == 0) {
-        // TODO: Simplify/break up this condition
-        if ((op.scanline < LAST_RENDER_LINE &&
-                (op.cycle < 241 || op.cycle > 320) && op.cycle < 337) ||
-                (op.scanline == LAST_RENDER_LINE && op.cycle < 241) ||
-                (op.scanline == PRERENDER_LINE && op.cycle > 320 &&
-                op.cycle < 337)) {
+        if (isRendering()) {
             updateNametableAddr(mmc);
             updateAttributeAddr();
         }
-        if (op.cycle < 337 && (op.scanline <= LAST_RENDER_LINE ||
-                op.scanline == PRERENDER_LINE)) {
+        if ((op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) &&
+                op.cycle < 337) {
             updateOpStatus();
         }
     }
@@ -294,16 +282,13 @@ void PPU::updateNametableAddr(MMC& mmc) {
         }
     }
 
-    if (op.nametableAddr == NAMETABLE0_START + 0x3c0) {
+    if (op.nametableAddr == ATTRIBUTE0_START) {
         op.nametableAddr = NAMETABLE0_START;
     }
 }
 
 void PPU::updateAttributeAddr() {
-    if (op.status != PPUOp::FetchPatternEntryHi) {
-        return;
-    }
-    if (op.nametableAddr % 2 == 1) {
+    if (op.status != PPUOp::FetchPatternEntryHi || op.nametableAddr % 2 == 1) {
         return;
     }
 
@@ -540,6 +525,20 @@ unsigned int PPU::getRenderLine() const {
     } else {
         return op.scanline + 1;
     }
+}
+
+bool PPU::isRendering() const {
+    if (op.scanline < LAST_RENDER_LINE && (op.cycle < 241 || op.cycle > 320) &&
+            op.cycle < 337) {
+        return true;
+    }
+    if (op.scanline == LAST_RENDER_LINE && op.cycle < 241) {
+        return true;
+    }
+    if (op.scanline == PRERENDER_LINE && op.cycle > 320 && op.cycle < 337) {
+        return true;
+    }
+    return false;
 }
 
 uint8_t PPU::getPaletteFromAttribute() const {
