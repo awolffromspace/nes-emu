@@ -40,6 +40,7 @@ class PPUOp {
         uint8_t patternEntryHi;
         uint8_t spriteEntryLo;
         uint8_t spriteEntryHi;
+        // Palette value that is associated with a color
         uint8_t paletteEntry;
         // Current scanline out of 262 total scanlines (0 - 261)
         unsigned int scanline;
@@ -47,11 +48,14 @@ class PPUOp {
         unsigned int pixel;
         // Current quadrant of the attribute table byte
         unsigned int attributeQuadrant;
+        // If the current frame is odd (flips between true/false each frame)
         bool oddFrame;
-        bool changedFrame;
+        // How many frames the PPU has outputted
+        unsigned int frameNum;
         // How many cycles the PPU has taken to render the current scanline
         // (max 340)
         unsigned int cycle;
+        // If the first cycle was not skipped (in other words, delayed)
         bool delayedFirstCycle;
         // Indicates any cycle-relevant info about the operation
         // Depends on the enum Status

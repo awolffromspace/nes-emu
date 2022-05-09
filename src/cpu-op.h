@@ -51,6 +51,9 @@ class CPUOp {
         uint8_t val;
         // Temporary address to hold when needed
         uint16_t tempAddr;
+        // Fixed version of the above temporary address in cases where the carry
+        // is supposed to affect the upper 8 bits of the address but has to be
+        // fixed in a later cycle
         uint16_t fixedAddr;
         // Addressing mode that the operation uses
         unsigned int addrMode;

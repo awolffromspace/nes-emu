@@ -38,7 +38,8 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         setPixel(mmc);
 
         if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
-                op.changedFrame && renderer != nullptr && texture != nullptr) {
+                renderer != nullptr && texture != nullptr &&
+                op.frameNum % 105 == 0) {
             SDL_RenderClear(renderer);
             uint8_t* lockedPixels = nullptr;
             int pitch = 0;
@@ -48,7 +49,6 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
             // SDL_UpdateTexture(texture, nullptr, frame, 256 * 4);
             SDL_RenderCopy(renderer, texture, nullptr, nullptr);
             SDL_RenderPresent(renderer);
-            op.changedFrame = false;
         }
     }
     updateFlags(mmc, mute);
@@ -103,45 +103,44 @@ void PPU::print(bool isCycleDone, bool mute) const {
         std::cout << "--------------------------------------------------\n";
     }
     std::cout << "Cycle " << totalCycles + inc << ": " << time
-        << std::hex << "\n------------------------\n"
-        "PPU Fields\n------------------------\n"
-        "registers[0]           = 0x" << (unsigned int) registers[0] << "\n"
-        "registers[1]           = 0x" << (unsigned int) registers[1] << "\n"
-        "registers[2]           = 0x" << (unsigned int) registers[2] << "\n"
-        "registers[3]           = 0x" << (unsigned int) registers[3] << "\n"
-        "registers[4]           = 0x" << (unsigned int) registers[4] << "\n"
-        "registers[5]           = 0x" << (unsigned int) registers[5] << "\n"
-        "registers[6]           = 0x" << (unsigned int) registers[6] << "\n"
-        "registers[7]           = 0x" << (unsigned int) registers[7] << "\n"
-        "oamDMA                 = 0x" << (unsigned int) oamDMA << "\n"
-        "ppuAddr                = " << std::hex << (unsigned int) ppuAddr <<
-        "\n"
-        "ppuDataBuffer          = " << (unsigned int) ppuDataBuffer << "\n"
-        "writeLoAddr            = " << std::dec << (bool) writeLoAddr << "\n"
-        "mirroring              = " << mirroring << "\n"
-        "totalCycles            = " << totalCycles <<
-        "\n------------------------\n" << std::hex <<
-        "PPU Operation Fields\n------------------------\n"
-        "nametableAddr          = 0x" << (unsigned int) op.nametableAddr << "\n"
-        "nametableEntry         = 0x" << (unsigned int) op.nametableEntry <<
-        "\n"
-        "attributeAddr          = 0x" << (unsigned int) op.attributeAddr << "\n"
-        "attributeEntry         = 0x" << (unsigned int) op.attributeEntry <<
-        "\n"
-        "patternEntryLo         = 0x" << (unsigned int) op.patternEntryLo <<
-        "\n"
-        "patternEntryHi         = 0x" << (unsigned int) op.patternEntryHi <<
-        "\n"
-        "spriteEntryLo          = 0x" << (unsigned int) op.spriteEntryLo << "\n"
-        "spriteEntryHi          = 0x" << (unsigned int) op.spriteEntryHi << "\n"
+        << std::hex << "\n----------------------------\n"
+        "PPU Fields\n----------------------------\n"
+        "registers[0]      = 0x" << (unsigned int) registers[0] << "\n"
+        "registers[1]      = 0x" << (unsigned int) registers[1] << "\n"
+        "registers[2]      = 0x" << (unsigned int) registers[2] << "\n"
+        "registers[3]      = 0x" << (unsigned int) registers[3] << "\n"
+        "registers[4]      = 0x" << (unsigned int) registers[4] << "\n"
+        "registers[5]      = 0x" << (unsigned int) registers[5] << "\n"
+        "registers[6]      = 0x" << (unsigned int) registers[6] << "\n"
+        "registers[7]      = 0x" << (unsigned int) registers[7] << "\n"
+        "oamDMA            = 0x" << (unsigned int) oamDMA << "\n"
+        << std::hex <<
+        "ppuAddr           = " << (unsigned int) ppuAddr << "\n"
+        "ppuDataBuffer     = " << (unsigned int) ppuDataBuffer << "\n"
         << std::dec <<
-        "scanline               = " << op.scanline << "\n"
-        "pixel                  = " << op.pixel << "\n"
-        "attributeQuadrant      = " << op.attributeQuadrant << "\n"
-        "oddFrame               = " << (bool) op.oddFrame << "\n"
-        "cycle                  = " << op.cycle << "\n"
-        "delayedFirstCycle      = " << (bool) op.delayedFirstCycle << "\n"
-        "status                 = " << op.status <<
+        "writeLoAddr       = " << (bool) writeLoAddr << "\n"
+        "mirroring         = " << mirroring << "\n"
+        "totalCycles       = " << totalCycles <<
+        "\n----------------------------\n" << std::hex <<
+        "PPU Operation Fields\n----------------------------\n"
+        "nametableAddr     = 0x" << (unsigned int) op.nametableAddr << "\n"
+        "nametableEntry    = 0x" << (unsigned int) op.nametableEntry << "\n"
+        "attributeAddr     = 0x" << (unsigned int) op.attributeAddr << "\n"
+        "attributeEntry    = 0x" << (unsigned int) op.attributeEntry << "\n"
+        "patternEntryLo    = 0x" << (unsigned int) op.patternEntryLo << "\n"
+        "patternEntryHi    = 0x" << (unsigned int) op.patternEntryHi << "\n"
+        "spriteEntryLo     = 0x" << (unsigned int) op.spriteEntryLo << "\n"
+        "spriteEntryHi     = 0x" << (unsigned int) op.spriteEntryHi << "\n"
+        "paletteEntry      = 0x" << (unsigned int) op.paletteEntry << "\n"
+        << std::dec <<
+        "scanline          = " << op.scanline << "\n"
+        "pixel             = " << op.pixel << "\n"
+        "attributeQuadrant = " << op.attributeQuadrant << "\n"
+        "oddFrame          = " << (bool) op.oddFrame << "\n"
+        "frameNum          = " << op.frameNum << "\n"
+        "cycle             = " << op.cycle << "\n"
+        "delayedFirstCycle = " << (bool) op.delayedFirstCycle << "\n"
+        "status            = " << op.status <<
         "\n--------------------------------------------------\n";
 }
 
@@ -212,18 +211,10 @@ void PPU::setRGB() {
     unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
-    uint8_t redVal = palette[op.paletteEntry].red;
-    uint8_t greenVal = palette[op.paletteEntry].green;
-    uint8_t blueVal = palette[op.paletteEntry].blue;
+    frame[redIndex] = palette[op.paletteEntry].red;
+    frame[greenIndex] = palette[op.paletteEntry].green;
+    frame[blueIndex] = palette[op.paletteEntry].blue;
     frame[blueIndex + 3] = SDL_ALPHA_OPAQUE;
-
-    if (frame[redIndex] != redVal || frame[greenIndex] != greenVal ||
-            frame[blueIndex] != blueVal) {
-        frame[redIndex] = redVal;
-        frame[greenIndex] = greenVal;
-        frame[blueIndex] = blueVal;
-        op.changedFrame = true;
-    }
 }
 
 void PPU::updateFlags(MMC& mmc, bool mute) {
@@ -260,15 +251,21 @@ void PPU::prepNextCycle(MMC& mmc) {
         op.oddFrame = !op.oddFrame;
         op.cycle = 1;
         op.delayedFirstCycle = false;
+        ++op.frameNum;
     } else if (op.cycle == 340) {
         ++op.scanline;
         op.oddFrame = !op.oddFrame;
         op.cycle = 1;
         op.delayedFirstCycle = false;
+        ++op.frameNum;
     } else if (op.cycle == 1 && !skipFirstCycle && !op.delayedFirstCycle) {
         op.delayedFirstCycle = true;
     } else {
         ++op.cycle;
+    }
+
+    if (op.frameNum == 4294967250) {
+        op.frameNum = 0;
     }
 }
 

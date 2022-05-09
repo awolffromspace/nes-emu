@@ -206,30 +206,40 @@ void CPU::print(bool isCycleDone) const {
         std::cout << "--------------------------------------------------\n";
     }
     std::cout << "Cycle " << totalCycles + inc << ": " << time
-        << std::hex << "\n------------------------\n"
-        "CPU Fields\n------------------------\n"
-        "pc          = 0x" << (unsigned int) pc << "\n"
-        "sp          = 0x" << (unsigned int) sp << "\n"
-        "a           = 0x" << (unsigned int) a << "\n"
-        "x           = 0x" << (unsigned int) x << "\n"
-        "y           = 0x" << (unsigned int) y << "\n"
-        "p           = " << binaryP << "\n"
-        "totalCycles = " << std::dec << totalCycles <<
-        "\n------------------------\n" << std::hex <<
-        "CPU Operation Fields\n------------------------\n"
-        "inst        = 0x" << (unsigned int) op.inst << "\n"
-        "pc          = 0x" << (unsigned int) op.pc << "\n"
-        "opcode      = 0x" << (unsigned int) op.opcode << "\n"
-        "operandLo   = 0x" << (unsigned int) op.operandLo << "\n"
-        "operandHi   = 0x" << (unsigned int) op.operandHi << "\n"
-        "val         = 0x" << (unsigned int) op.val << "\n"
-        "tempAddr    = 0x" << (unsigned int) op.tempAddr << "\n"
-        "fixedAddr   = 0x" << (unsigned int) op.fixedAddr << "\n"
+        << std::hex << "\n----------------------------\n"
+        "CPU Fields\n----------------------------\n"
+        "pc                = 0x" << (unsigned int) pc << "\n"
+        "sp                = 0x" << (unsigned int) sp << "\n"
+        "a                 = 0x" << (unsigned int) a << "\n"
+        "x                 = 0x" << (unsigned int) x << "\n"
+        "y                 = 0x" << (unsigned int) y << "\n"
+        "p                 = " << binaryP << "\n"
+        "totalCycles       = " << std::dec << totalCycles <<
+        "\n----------------------------\n" << std::hex <<
+        "CPU Operation Fields\n----------------------------\n"
+        "inst              = 0x" << (unsigned int) op.inst << "\n"
+        "pc                = 0x" << (unsigned int) op.pc << "\n"
+        "opcode            = 0x" << (unsigned int) op.opcode << "\n"
+        "operandLo         = 0x" << (unsigned int) op.operandLo << "\n"
+        "operandHi         = 0x" << (unsigned int) op.operandHi << "\n"
+        "val               = 0x" << (unsigned int) op.val << "\n"
+        "tempAddr          = 0x" << (unsigned int) op.tempAddr << "\n"
+        "fixedAddr         = 0x" << (unsigned int) op.fixedAddr << "\n"
         << std::dec <<
-        "addrMode    = " << (unsigned int) op.addrMode << "\n"
-        "instType    = " << (unsigned int) op.instType << "\n"
-        "cycle       = " << op.cycle << "\n"
-        "dmaCycle    = " << op.dmaCycle <<
+        "addrMode          = " << (unsigned int) op.addrMode << "\n"
+        "instType          = " << (unsigned int) op.instType << "\n"
+        "cycle             = " << op.cycle << "\n"
+        "dmaCycle          = " << op.dmaCycle << "\n"
+        "modify            = " << (bool) op.modify << "\n"
+        "write             = " << (bool) op.write << "\n"
+        "writeUnmodified   = " << (bool) op.writeUnmodified << "\n"
+        "writeModified     = " << (bool) op.writeModified << "\n"
+        "irq               = " << (bool) op.irq << "\n"
+        "nmi               = " << (bool) op.nmi << "\n"
+        "reset             = " << (bool) op.reset << "\n"
+        "interruptPrologue = " << (bool) op.interruptPrologue << "\n"
+        "oamDMATransfer    = " << (bool) op.oamDMATransfer << "\n"
+        "done              = " << (bool) op.done <<
         "\n--------------------------------------------------\n";
 }
 
