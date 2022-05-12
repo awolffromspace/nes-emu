@@ -35,6 +35,7 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         bool mute) {
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
         fetch(mmc);
+        addTileRow();
         setPixel(mmc);
 
         if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
@@ -175,45 +176,52 @@ void PPU::fetch(MMC& mmc) {
     }
 }
 
-void PPU::setPixel(MMC& mmc) {
+void PPU::addTileRow() {
     if (op.cycle % 2 == 1 || op.status != PPUOp::FetchPatternEntryHi ||
-            !isRendering()) {
+            !isValidFetch()) {
         return;
     }
 
-    unsigned int eightPixels = op.pixel + 8;
-    for (; op.pixel < eightPixels; ++op.pixel) {
-        uint8_t upperPaletteBits = getPaletteFromAttribute();
-        op.paletteEntry = 0;
-        if (op.patternEntryLo & (0x80 >> (op.pixel % 8))) {
-            op.paletteEntry |= 1;
-        }
-        if (op.patternEntryHi & (0x80 >> (op.pixel % 8))) {
-            op.paletteEntry |= 2;
-        }
-        if (upperPaletteBits & 1) {
-            op.paletteEntry |= 4;
-        }
-        if (upperPaletteBits & 2) {
-            op.paletteEntry |= 8;
-        }
-        if (isBGShown()) {
-            op.paletteEntry = readVRAM(PALETTE_START + op.paletteEntry, mmc);
-        } else {
-            op.paletteEntry = readVRAM(PALETTE_START, mmc);
-        }
-        setRGB();
-    }
+    op.tileRows.push({op.nametableEntry, op.attributeEntry, op.patternEntryLo,
+        op.patternEntryHi, op.attributeQuadrant});
 }
 
-void PPU::setRGB() {
+void PPU::setPixel(MMC& mmc) {
+    if (!isRendering()) {
+        return;
+    }
+
+    struct PPUOp::TileRow tileRow = op.tileRows.front();
+    uint8_t upperPaletteBits = getPaletteFromAttribute();
+    uint8_t paletteEntry = 0;
+    if (tileRow.patternEntryLo & (0x80 >> (op.pixel % 8))) {
+        paletteEntry |= 1;
+    }
+    if (tileRow.patternEntryHi & (0x80 >> (op.pixel % 8))) {
+        paletteEntry |= 2;
+    }
+    if (upperPaletteBits & 1) {
+        paletteEntry |= 4;
+    }
+    if (upperPaletteBits & 2) {
+        paletteEntry |= 8;
+    }
+    if (isBGShown()) {
+        paletteEntry = readVRAM(PALETTE_START + paletteEntry, mmc);
+    } else {
+        paletteEntry = readVRAM(PALETTE_START, mmc);
+    }
+    setRGB(paletteEntry);
+}
+
+void PPU::setRGB(uint8_t paletteEntry) {
     unsigned int renderLine = getRenderLine();
     unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
-    frame[redIndex] = palette[op.paletteEntry].red;
-    frame[greenIndex] = palette[op.paletteEntry].green;
-    frame[blueIndex] = palette[op.paletteEntry].blue;
+    frame[redIndex] = palette[paletteEntry].red;
+    frame[greenIndex] = palette[paletteEntry].green;
+    frame[blueIndex] = palette[paletteEntry].blue;
     frame[blueIndex + 3] = SDL_ALPHA_OPAQUE;
 }
 
@@ -231,7 +239,7 @@ void PPU::updateFlags(MMC& mmc, bool mute) {
 
 void PPU::prepNextCycle(MMC& mmc) {
     if (op.cycle % 2 == 0) {
-        if (isRendering()) {
+        if (isValidFetch()) {
             updateNametableAddr(mmc);
             updateAttributeAddr();
         }
@@ -241,8 +249,14 @@ void PPU::prepNextCycle(MMC& mmc) {
         }
     }
 
-    if (op.cycle == 240) {
-        op.pixel = 0;
+    if (isRendering()) {
+        ++op.pixel;
+        if (op.pixel % 8 == 0) {
+            op.tileRows.pop();
+        }
+        if (op.pixel == 256) {
+            op.pixel = 0;
+        }
     }
 
     bool skipFirstCycle = op.oddFrame && (isBGShown() || areSpritesShown());
@@ -525,6 +539,13 @@ unsigned int PPU::getRenderLine() const {
 }
 
 bool PPU::isRendering() const {
+    if (op.scanline <= LAST_RENDER_LINE && op.cycle >= 4 && op.cycle <= 259) {
+        return true;
+    }
+    return false;
+}
+
+bool PPU::isValidFetch() const {
     if (op.scanline < LAST_RENDER_LINE && (op.cycle < 241 || op.cycle > 320) &&
             op.cycle < 337) {
         return true;
@@ -539,8 +560,9 @@ bool PPU::isRendering() const {
 }
 
 uint8_t PPU::getPaletteFromAttribute() const {
+    struct PPUOp::TileRow tileRow = op.tileRows.front();
     unsigned int shiftNum = 0;
-    switch (op.attributeQuadrant) {
+    switch (tileRow.attributeQuadrant) {
         case PPUOp::TopRight:
             shiftNum = 2;
             break;
@@ -550,7 +572,7 @@ uint8_t PPU::getPaletteFromAttribute() const {
         case PPUOp::BottomRight:
             shiftNum = 6;
     }
-    return (op.attributeEntry >> shiftNum) & 3;
+    return (tileRow.attributeEntry >> shiftNum) & 3;
 }
 
 uint16_t PPU::getNametableBaseAddr() const {

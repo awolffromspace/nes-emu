@@ -27,6 +27,11 @@ void PPUOp::clear() {
     attributeEntry = 0;
     patternEntryLo = 0;
     patternEntryHi = 0;
+
+    while (!tileRows.empty()) {
+        tileRows.pop();
+    }
+
     spriteEntryLo = 0;
     spriteEntryHi = 0;
     paletteEntry = 0;

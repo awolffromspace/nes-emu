@@ -82,8 +82,9 @@ class PPU {
         unsigned int totalCycles;
 
         void fetch(MMC& mmc);
+        void addTileRow();
         void setPixel(MMC& mmc);
-        void setRGB();
+        void setRGB(uint8_t paletteEntry);
         void updateFlags(MMC& mmc, bool mute);
         void prepNextCycle(MMC& mmc);
         void updateNametableAddr(MMC& mmc);
@@ -100,6 +101,7 @@ class PPU {
         uint16_t getFourScreenMirrorAddr(uint16_t addr, MMC& mmc) const;
         unsigned int getRenderLine() const;
         bool isRendering() const;
+        bool isValidFetch() const;
         uint8_t getPaletteFromAttribute() const;
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;

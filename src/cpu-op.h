@@ -12,27 +12,6 @@ class CPUOp {
         void clearInterruptFlags();
         void clearDMA();
 
-        enum AddrMode {
-            Absolute = 1,
-            AbsoluteX = 2,
-            AbsoluteY = 3,
-            Accumulator = 4,
-            Immediate = 5,
-            Implied = 6,
-            Indirect = 7,
-            IndirectX = 8,
-            IndirectY = 9,
-            Relative = 10,
-            ZeroPage = 11,
-            ZeroPageX = 12,
-            ZeroPageY = 13
-        };
-        enum InstType {
-            ReadInst = 1,
-            WriteInst = 2,
-            RMWInst = 3
-        };
-
     private:
         // Instruction
         uint32_t inst;
@@ -55,8 +34,28 @@ class CPUOp {
         // is supposed to affect the upper 8 bits of the address but has to be
         // fixed in a later cycle
         uint16_t fixedAddr;
+        enum AddrMode {
+            Absolute = 1,
+            AbsoluteX = 2,
+            AbsoluteY = 3,
+            Accumulator = 4,
+            Immediate = 5,
+            Implied = 6,
+            Indirect = 7,
+            IndirectX = 8,
+            IndirectY = 9,
+            Relative = 10,
+            ZeroPage = 11,
+            ZeroPageX = 12,
+            ZeroPageY = 13
+        };
         // Addressing mode that the operation uses
         unsigned int addrMode;
+        enum InstType {
+            ReadInst = 1,
+            WriteInst = 2,
+            RMWInst = 3
+        };
         unsigned int instType;
         // How many cycles the operation has taken thus far
         unsigned int cycle;
