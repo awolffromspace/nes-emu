@@ -7,9 +7,9 @@ PPUOp::PPUOp() :
         attributeEntry(0),
         patternEntryLo(0),
         patternEntryHi(0),
-        spriteEntryLo(0),
-        spriteEntryHi(0),
-        paletteEntry(0),
+        oamEntry(0),
+        spriteNum(0),
+        oamEntryNum(0),
         scanline(261),
         pixel(0),
         attributeQuadrant(0),
@@ -32,9 +32,11 @@ void PPUOp::clear() {
         tileRows.pop();
     }
 
-    spriteEntryLo = 0;
-    spriteEntryHi = 0;
-    paletteEntry = 0;
+    oamEntry = 0;
+    spriteNum = 0;
+    oamEntryNum = 0;
+    currentSprites.clear();
+    nextSprites.clear();
     scanline = 261;
     pixel = 0;
     attributeQuadrant = 0;

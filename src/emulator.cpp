@@ -305,7 +305,7 @@ void runNESTest(CPU& cpu) {
 }
 
 void runNESGame(CPU& cpu) {
-    std::string filename = "super-mario-bros.nes";
+    std::string filename = "donkey-kong.nes";
     cpu.clear();
 
     SDL_Init(SDL_INIT_EVERYTHING);

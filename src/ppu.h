@@ -30,7 +30,8 @@ class MMC;
 #define FRAME_WIDTH 256
 #define FRAME_HEIGHT 240
 #define PALETTE_SIZE 0x40
-#define PALETTE_START 0x3f00
+#define IMAGE_PALETTE_START 0x3f00
+#define SPRITE_PALETTE_START 0x3f10
 #define NAMETABLE0_START 0x2000
 #define NAMETABLE1_START 0x2400
 #define NAMETABLE2_START 0x2800
@@ -62,17 +63,18 @@ class PPU {
         };
 
     private:
+        struct RGBVal {
+            uint8_t red;
+            uint8_t green;
+            uint8_t blue;
+        };
+
         uint8_t registers[PPU_REGISTER_SIZE];
         uint8_t oamDMA;
         uint8_t oam[OAM_SIZE];
         uint8_t secondaryOAM[SECONDARY_OAM_SIZE];
         uint8_t vram[VRAM_SIZE];
         uint8_t frame[FRAME_SIZE];
-        struct RGBVal {
-            uint8_t red;
-            uint8_t green;
-            uint8_t blue;
-        };
         struct RGBVal palette[PALETTE_SIZE];
         PPUOp op;
         uint16_t ppuAddr;
@@ -82,7 +84,10 @@ class PPU {
         unsigned int totalCycles;
 
         void fetch(MMC& mmc);
+        void fetchSpriteEntry(MMC& mmc);
         void addTileRow();
+        void clearSecondaryOAM();
+        void evaluateSprites(MMC& mmc);
         void setPixel(MMC& mmc);
         void setRGB(uint8_t paletteEntry);
         void updateFlags(MMC& mmc, bool mute);
@@ -103,6 +108,14 @@ class PPU {
         bool isRendering() const;
         bool isValidFetch() const;
         uint8_t getPaletteFromAttribute() const;
+        unsigned int getSpriteRenderLineDiff(unsigned int yPos) const;
+        bool isSpriteYInRange(unsigned int yPos) const;
+        unsigned int getSpritePixelDiff(unsigned int xPos) const;
+        bool isSpriteXInRange(unsigned int xPos) const;
+        uint8_t getPaletteFromSpriteAttributes(uint8_t spriteAttributes) const;
+        bool isSpritePrioritized(uint8_t spriteAttributes) const;
+        bool isSpriteFlippedHorizontally(uint8_t spriteAttributes) const;
+        bool isSpriteFlippedVertically(uint8_t spriteAttributes) const;
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;
         uint16_t getSpritePatternAddr() const;

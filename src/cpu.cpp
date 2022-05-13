@@ -20,7 +20,7 @@ void CPU::clear() {
     x = 0;
     y = 0;
     p = UnusedFlag | Break | InterruptDisable;
-    op.clear(true);
+    op.clear(true, true);
     ram.clear(mute);
     ppu.clear(mute);
     apu.clear(mute);
@@ -37,7 +37,7 @@ void CPU::clear() {
 
 void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
     if (op.done || totalCycles == 0) {
-        op.clear(false);
+        op.clear(false, false);
 
         // If any interrupts are flagged, start the interrupt prologue
         // Ignore IRQ if the Interrupt Disable flag is set
@@ -1547,6 +1547,7 @@ void CPU::oamDMATransfer() {
 
     if (op.dmaCycle == 514) {
         op.clearDMA();
+        op.done = true;
     }
 }
 

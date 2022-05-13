@@ -26,7 +26,7 @@ CPUOp::CPUOp() :
 
 }
 
-void CPUOp::clear(bool clearInterrupts) {
+void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
     inst = 0;
     pc = 0;
     opcode = 0;
@@ -49,7 +49,9 @@ void CPUOp::clear(bool clearInterrupts) {
         reset = false;
     }
     interruptPrologue = false;
-    oamDMATransfer = false;
+    if (clearDMA) {
+        oamDMATransfer = false;
+    }
     done = false;
 }
 
