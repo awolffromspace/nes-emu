@@ -88,7 +88,7 @@ void CPU::readInINES(const std::string& filename) {
     }
 }
 
-void CPU::writeIO(const SDL_Event& event/*, uint8_t& written*/) {
+void CPU::writeIO(const SDL_Event& event) {
     uint8_t pressed = 0;
     if (event.type == SDL_KEYDOWN) {
         pressed = 1;

@@ -33,7 +33,7 @@ class CPU {
         // Miscellaneous Functions
         void readInInst(const std::string& filename);
         void readInINES(const std::string& filename);
-        void writeIO(const SDL_Event& event/*, uint8_t& written*/);
+        void writeIO(const SDL_Event& event);
         bool compareState(struct CPU::State& state) const;
         uint32_t getFutureInst();
         unsigned int getTotalCycles() const;
