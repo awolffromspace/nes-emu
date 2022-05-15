@@ -60,8 +60,6 @@ class PPUOp {
         // How many cycles the PPU has taken to render the current scanline
         // (max 340)
         unsigned int cycle;
-        // If the first cycle was not skipped (in other words, delayed)
-        bool delayedFirstCycle;
         // Indicates any cycle-relevant info about the operation
         // Depends on the enum Status
         unsigned int status;

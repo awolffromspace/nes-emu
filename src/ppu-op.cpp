@@ -15,8 +15,7 @@ PPUOp::PPUOp() :
         attributeQuadrant(0),
         oddFrame(false),
         frameNum(0),
-        cycle(1),
-        delayedFirstCycle(false),
+        cycle(0),
         status(0) {
 }
 
@@ -42,7 +41,6 @@ void PPUOp::clear() {
     attributeQuadrant = 0;
     oddFrame = false;
     frameNum = 0;
-    cycle = 1;
-    delayedFirstCycle = false;
+    cycle = 0;
     status = 0;
 }

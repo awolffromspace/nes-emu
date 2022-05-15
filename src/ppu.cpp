@@ -33,6 +33,10 @@ void PPU::clear(bool mute) {
 
 void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         bool mute) {
+    if (op.cycle == 0 && op.oddFrame && (isBGShown() || areSpritesShown())) {
+        ++op.cycle;
+    }
+
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
         fetch(mmc);
         addTileRow();
@@ -143,7 +147,6 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "oddFrame          = " << (bool) op.oddFrame << "\n"
         "frameNum          = " << op.frameNum << "\n"
         "cycle             = " << op.cycle << "\n"
-        "delayedFirstCycle = " << (bool) op.delayedFirstCycle << "\n"
         "status            = " << op.status <<
         "\n--------------------------------------------------\n";
 }
@@ -385,19 +388,17 @@ void PPU::setRGB(uint8_t paletteEntry) {
 }
 
 void PPU::updateFlags(MMC& mmc, bool mute) {
-    if (op.cycle == 1 && op.scanline == 241 && !isVblank() &&
-            !op.delayedFirstCycle) {
+    if (op.cycle == 1 && op.scanline == 241 && !isVblank()) {
         uint8_t flags = readRegister(PPUSTATUS, mmc) | 0x80;
         writeRegister(PPUSTATUS, flags, mmc, mute);
-    } else if (op.cycle == 1 && op.scanline == PRERENDER_LINE && isVblank() &&
-            !op.delayedFirstCycle) {
+    } else if (op.cycle == 1 && op.scanline == PRERENDER_LINE && isVblank()) {
         uint8_t flags = readRegister(PPUSTATUS, mmc) & 0x7f;
         writeRegister(PPUSTATUS, flags, mmc, mute);
     }
 }
 
 void PPU::prepNextCycle(MMC& mmc) {
-    if (op.cycle % 2 == 0) {
+    if (op.cycle % 2 == 0 && op.cycle != 0) {
         if (isValidFetch()) {
             updateNametableAddr(mmc);
             updateAttributeAddr();
@@ -430,22 +431,17 @@ void PPU::prepNextCycle(MMC& mmc) {
         op.oamEntryNum = 0;
     }
 
-    bool skipFirstCycle = op.oddFrame && (isBGShown() || areSpritesShown());
     if (op.scanline == PRERENDER_LINE && op.cycle == 340) {
         registers[2] &= 0xbf;
         op.scanline = 0;
         op.oddFrame = !op.oddFrame;
-        op.cycle = 1;
-        op.delayedFirstCycle = false;
+        op.cycle = 0;
         ++op.frameNum;
     } else if (op.cycle == 340) {
         ++op.scanline;
         op.oddFrame = !op.oddFrame;
-        op.cycle = 1;
-        op.delayedFirstCycle = false;
+        op.cycle = 0;
         ++op.frameNum;
-    } else if (op.cycle == 1 && !skipFirstCycle && !op.delayedFirstCycle) {
-        op.delayedFirstCycle = true;
     } else {
         ++op.cycle;
     }
