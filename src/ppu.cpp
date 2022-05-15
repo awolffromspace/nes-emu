@@ -42,7 +42,7 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
 
         if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
                 renderer != nullptr && texture != nullptr &&
-                op.frameNum % 86 == 0) {
+                op.frameNum % 300 == 0) {
             SDL_RenderClear(renderer);
             uint8_t* lockedPixels = nullptr;
             int pitch = 0;
@@ -442,7 +442,7 @@ void PPU::prepNextCycle(MMC& mmc) {
         ++op.cycle;
     }
 
-    if (op.frameNum == 4294967280) {
+    if (op.frameNum == 4294967100) {
         op.frameNum = 0;
     }
 }

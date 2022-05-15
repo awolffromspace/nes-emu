@@ -316,7 +316,7 @@ void runNESGame(CPU& cpu) {
         exit(1);
     }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
-        SDL_RENDERER_ACCELERATED);
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == nullptr) {
         std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);
@@ -333,7 +333,7 @@ void runNESGame(CPU& cpu) {
     bool running = true;
     while (running) {
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
-        while (cpu.getTotalPPUCycles() < ppuCycles + 341 * 262) {
+        while (cpu.getTotalPPUCycles() < ppuCycles + 341 * 262 / 300) {
             cpu.step(renderer, texture);
         }
 
