@@ -333,8 +333,7 @@ void runNESGame(CPU& cpu) {
     bool running = true;
     while (running) {
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
-        while (cpu.getTotalPPUCycles() < ppuCycles + PPU_CYCLES_PER_FRAME /
-                NUM_FRAME_TO_SKIP) {
+        while (cpu.getTotalPPUCycles() < ppuCycles + PPU_CYCLES_PER_FRAME) {
             cpu.step(renderer, texture);
         }
 
