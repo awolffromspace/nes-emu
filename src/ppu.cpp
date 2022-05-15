@@ -263,7 +263,7 @@ void PPU::evaluateSprites(MMC& mmc) {
         if (op.oamEntryNum == 0 && isSpriteYInRange(op.oamEntry)) {
             unsigned int foundSpriteNum = op.nextSprites.size();
             secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
-            op.nextSprites.push_back({op.oamEntry, 0, 0, 0, 0, 0});
+            op.nextSprites.push_back({op.oamEntry, 0, 0, 0, 0, 0, op.spriteNum});
             ++op.oamEntryNum;
         } else if (op.oamEntryNum == 1) {
             unsigned int foundSpriteNum = op.nextSprites.size() - 1;
@@ -308,7 +308,9 @@ void PPU::setPixel(MMC& mmc) {
         bgPixel |= 8;
     }
 
+    uint8_t bgPixelLower = bgPixel & 3;
     uint8_t spritePixel = 0;
+    uint8_t spritePixelLower = 0;
     struct PPUOp::Sprite currentSprite;
     unsigned int foundSpriteNum = 0;
     bool foundSprite = false;
@@ -317,6 +319,8 @@ void PPU::setPixel(MMC& mmc) {
         unsigned int spritePixelDiff = getSpritePixelDiff(currentSprite.xPos);
         if (isSpriteXInRange(currentSprite.xPos)) {
             uint8_t pixelBit = 0x80 >> spritePixelDiff;
+            upperPaletteBits = getPaletteFromSpriteAttributes(
+                currentSprite.attributes);
             if (isSpriteFlippedHorizontally(currentSprite.attributes)) {
                 pixelBit = 1 << spritePixelDiff;
             }
@@ -326,7 +330,14 @@ void PPU::setPixel(MMC& mmc) {
             if (currentSprite.patternEntryHi & pixelBit) {
                 spritePixel |= 2;
             }
-            if (spritePixel) {
+            spritePixelLower = spritePixel;
+            if (upperPaletteBits & 1) {
+                spritePixel |= 4;
+            }
+            if (upperPaletteBits & 2) {
+                spritePixel |= 8;
+            }
+            if (spritePixelLower & 3) {
                 foundSprite = true;
                 break;
             }
@@ -337,19 +348,10 @@ void PPU::setPixel(MMC& mmc) {
     bool spriteChosen = false;
     if (foundSprite) {
         bool priority = isSpritePrioritized(currentSprite.attributes);
-        if (bgPixel && spritePixel && priority) {
+        if (bgPixelLower && spritePixelLower && priority) {
             spriteChosen = true;
-        } else if (!bgPixel && spritePixel) {
+        } else if (!bgPixelLower && spritePixelLower) {
             spriteChosen = true;
-        }
-
-        upperPaletteBits = getPaletteFromSpriteAttributes(
-            currentSprite.attributes);
-        if (upperPaletteBits & 1) {
-            spritePixel |= 4;
-        }
-        if (upperPaletteBits & 2) {
-            spritePixel |= 8;
         }
     }
 
@@ -357,6 +359,11 @@ void PPU::setPixel(MMC& mmc) {
     if (spriteChosen && areSpritesShown() &&
             (areSpritesLeftColShown() || op.pixel > 7)) {
         paletteEntry = readVRAM(SPRITE_PALETTE_START + spritePixel, mmc);
+        if (currentSprite.spriteNum == 0 && bgPixel && isBGShown() &&
+                ((isBGLeftColShown() && areSpritesLeftColShown()) ||
+                op.pixel > 7) && op.pixel != 255) {
+            registers[2] |= 0x40;
+        }
     } else if (!spriteChosen && isBGShown() &&
             (isBGLeftColShown() || op.pixel > 7)) {
         paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPixel, mmc);
@@ -425,6 +432,7 @@ void PPU::prepNextCycle(MMC& mmc) {
 
     bool skipFirstCycle = op.oddFrame && (isBGShown() || areSpritesShown());
     if (op.scanline == PRERENDER_LINE && op.cycle == 340) {
+        registers[2] &= 0xbf;
         op.scanline = 0;
         op.oddFrame = !op.oddFrame;
         op.cycle = 1;
@@ -604,7 +612,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     uint16_t localAddr = addr & 0x3fff;
     if (localAddr >= IMAGE_PALETTE_START) {
         localAddr &= 0x3f1f;
-        if (localAddr % 4 == 0) {
+        if (localAddr == 0x3f10) {
             localAddr = IMAGE_PALETTE_START;
         }
         localAddr -= 0x1700;

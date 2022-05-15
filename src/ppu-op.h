@@ -25,6 +25,7 @@ class PPUOp {
             uint8_t xPos;
             uint8_t patternEntryLo;
             uint8_t patternEntryHi;
+            unsigned int spriteNum;
         };
 
         // Address of the nametable byte
