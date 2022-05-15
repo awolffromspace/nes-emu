@@ -41,6 +41,10 @@ class MMC;
 #define BLACK 0xf
 #define LAST_RENDER_LINE 239
 #define PRERENDER_LINE 261
+#define LAST_CYCLE 340
+#define TOTAL_PIXELS_PER_SCANLINE 256
+#define PPU_CYCLES_PER_FRAME 341 * 262
+#define NUM_FRAME_TO_SKIP 200
 
 class PPU {
     public:
@@ -84,13 +88,21 @@ class PPU {
         unsigned int mirroring;
         unsigned int totalCycles;
 
+        void skipCycle0();
         void fetch(MMC& mmc);
         void fetchSpriteEntry(MMC& mmc);
+        uint8_t getSpriteTileRowIndex(struct PPUOp::Sprite& sprite) const;
         void addTileRow();
         void clearSecondaryOAM();
         void evaluateSprites(MMC& mmc);
         void setPixel(MMC& mmc);
+        uint8_t getBGPixel() const;
+        uint8_t getSpritePixel(struct PPUOp::Sprite& sprite) const;
+        bool isSpriteChosen(struct PPUOp::Sprite& sprite, uint8_t bgPixel,
+            uint8_t spritePixel) const;
+        void setSprite0Hit(struct PPUOp::Sprite& sprite, uint8_t bgPixel);
         void setRGB(uint8_t paletteEntry);
+        void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
         void updateFlags(MMC& mmc, bool mute);
         void prepNextCycle(MMC& mmc);
         void updateNametableAddr(MMC& mmc);
