@@ -38,12 +38,12 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         fetch(mmc);
         addTileRow();
         clearSecondaryOAM();
-        evaluateSprites(mmc);
+        evaluateSprites();
         setPixel(mmc);
         renderFrame(renderer, texture);
     }
     updateFlags(mmc, mute);
-    prepNextCycle(mmc);
+    prepNextCycle();
     ++totalCycles;
 }
 
@@ -243,7 +243,7 @@ void PPU::clearSecondaryOAM() {
     }
 }
 
-void PPU::evaluateSprites(MMC& mmc) {
+void PPU::evaluateSprites() {
     if (op.cycle < 65 || op.cycle > 256 || op.scanline > LAST_RENDER_LINE) {
         return;
     }
@@ -429,10 +429,10 @@ void PPU::updateFlags(MMC& mmc, bool mute) {
     }
 }
 
-void PPU::prepNextCycle(MMC& mmc) {
+void PPU::prepNextCycle() {
     if (op.cycle % 2 == 0 && op.cycle != 0) {
         if (isValidFetch()) {
-            updateNametableAddr(mmc);
+            updateNametableAddr();
             updateAttributeAddr();
         }
         if (op.status == PPUOp::FetchSpriteEntryHi) {
@@ -483,7 +483,7 @@ void PPU::prepNextCycle(MMC& mmc) {
     }
 }
 
-void PPU::updateNametableAddr(MMC& mmc) {
+void PPU::updateNametableAddr() {
     if (op.status == PPUOp::FetchPatternEntryHi) {
         ++op.nametableAddr;
 
@@ -587,7 +587,7 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 
     if (addr == PPUADDR) {
-        updatePPUAddr(val, mmc, mute);
+        updatePPUAddr(val, mute);
     } else if (addr == PPUDATA) {
         writeVRAM(ppuAddr, val, mmc, mute);
         ppuAddr += getPPUAddrInc();
@@ -625,7 +625,7 @@ uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
                 addr = getSingleScreenMirrorAddr(addr);
                 break;
             case PPU::FourScreen:
-                addr = getFourScreenMirrorAddr(addr, mmc);
+                addr = getFourScreenMirrorAddr(addr);
         }
     }
 
@@ -660,7 +660,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
                 localAddr = getSingleScreenMirrorAddr(localAddr);
                 break;
             case PPU::FourScreen:
-                localAddr = getFourScreenMirrorAddr(localAddr, mmc);
+                localAddr = getFourScreenMirrorAddr(localAddr);
         }
     }
 
@@ -679,7 +679,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 }
 
-void PPU::updatePPUAddr(uint8_t val, MMC& mmc, bool mute) {
+void PPU::updatePPUAddr(uint8_t val, bool mute) {
     if (writeLoAddr) {
         ppuAddr &= 0xff00;
         ppuAddr |= val;
@@ -722,7 +722,7 @@ uint16_t PPU::getSingleScreenMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getFourScreenMirrorAddr(uint16_t addr, MMC& mmc) const {
+uint16_t PPU::getFourScreenMirrorAddr(uint16_t addr) const {
     // TODO: Implement CHR memory banks
     return getHorizontalMirrorAddr(addr);
 }
