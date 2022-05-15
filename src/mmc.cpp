@@ -79,7 +79,7 @@ void MMC::writeCHR(uint16_t addr, uint8_t val, bool mute) {
     }
 }
 
-void MMC::readInInst(std::string& filename) {
+void MMC::readInInst(const std::string& filename) {
     std::string line;
     std::ifstream file(filename.c_str());
 
@@ -111,7 +111,7 @@ void MMC::readInInst(std::string& filename) {
     file.close();
 }
 
-void MMC::readInINES(std::string& filename, PPU& ppu) {
+void MMC::readInINES(const std::string& filename, PPU& ppu) {
     std::ifstream file(filename.c_str(), std::ios::binary);
 
     if (!file.is_open()) {

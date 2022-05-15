@@ -52,6 +52,7 @@ class PPU {
         void writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         void writeOAM(uint8_t addr, uint8_t val);
         bool isNMIActive(MMC& mmc, bool mute);
+        unsigned int getTotalCycles() const;
         void setMirroring(unsigned int mirroring);
         void print(bool isCycleDone, bool mute) const;
 

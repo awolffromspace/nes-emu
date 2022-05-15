@@ -36,9 +36,12 @@ class CPUOp {
         uint16_t fixedAddr;
         // Addressing mode that the operation uses
         unsigned int addrMode;
+        // Type of instruction (i.e., read, write, or read-modify-write)
+        // Depends on enum InstType
         unsigned int instType;
         // How many cycles the operation has taken thus far
         unsigned int cycle;
+        // How many cycles the DMA transfer has taken thus far
         unsigned int dmaCycle;
         // If read operations can modify a register
         bool modify;
@@ -60,6 +63,7 @@ class CPUOp {
         bool oamDMATransfer;
         // If the operation is completely finished
         bool done;
+
         friend class CPU;
 
         enum AddrMode {

@@ -31,8 +31,9 @@ class CPU {
         };
 
         // Miscellaneous Functions
-        void readInInst(std::string& filename);
-        void readInINES(std::string& filename);
+        void readInInst(const std::string& filename);
+        void readInINES(const std::string& filename);
+        void writeIO(const SDL_Event& event/*, uint8_t& written*/);
         bool compareState(struct CPU::State& state) const;
         uint32_t getFutureInst();
         unsigned int getTotalCycles() const;
@@ -41,6 +42,7 @@ class CPU {
         void setHaltAtBrk(bool h);
         void setMute(bool m);
         unsigned int getOpCycles() const;
+        unsigned int getTotalPPUCycles() const;
         uint8_t getValidOpResult() const;
         uint8_t getInvalidOpResult() const;
 

@@ -30,8 +30,8 @@ class MMC {
         void writePRG(uint16_t addr, uint8_t val, bool mute);
         uint8_t readCHR(uint16_t addr) const;
         void writeCHR(uint16_t addr, uint8_t val, bool mute);
-        void readInInst(std::string& filename);
-        void readInINES(std::string& filename, PPU& ppu);
+        void readInInst(const std::string& filename);
+        void readInINES(const std::string& filename, PPU& ppu);
 
     private:
         uint8_t saveWorkRAM[SAVE_WORK_RAM_SIZE];

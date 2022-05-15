@@ -64,6 +64,7 @@ class PPUOp {
         // Indicates any cycle-relevant info about the operation
         // Depends on the enum Status
         unsigned int status;
+
         friend class PPU;
 
         enum QuadrantLocation {

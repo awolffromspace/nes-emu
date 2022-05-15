@@ -2,12 +2,12 @@
 
 void readInFilenames(std::vector<std::string>& filenames);
 
-struct CPU::State readInState(std::string& filename);
+struct CPU::State readInState(const std::string& filename);
 
 void readInNESTestStates(std::vector<struct CPU::State>& states,
     std::vector<uint32_t>& instructions, std::vector<std::string>& testLogs);
 
-void runProgram(CPU& cpu, std::string& filename);
+void runProgram(CPU& cpu, const std::string& filename);
 
 void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
@@ -58,7 +58,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
     file.close();
 }
 
-struct CPU::State readInState(std::string& filename) {
+struct CPU::State readInState(const std::string& filename) {
     struct CPU::State state;
     uint16_t data[5];
     unsigned int dataIndex = 0;
@@ -176,7 +176,7 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
     file.close();
 }
 
-void runProgram(CPU& cpu, std::string& filename) {
+void runProgram(CPU& cpu, const std::string& filename) {
     cpu.readInInst(filename);
 
     std::string input;
@@ -329,7 +329,29 @@ void runNESGame(CPU& cpu) {
     }
 
     cpu.readInINES(filename);
-    while (true) {
-        cpu.step(renderer, texture);
+    SDL_Event event;
+    bool running = true;
+    while (running) {
+        unsigned int ppuCycles = cpu.getTotalPPUCycles();
+        while (cpu.getTotalPPUCycles() < ppuCycles + 341 * 262) {
+            cpu.step(renderer, texture);
+        }
+
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_KEYDOWN:
+                    cpu.writeIO(event);
+                    break;
+                case SDL_KEYUP:
+                    cpu.writeIO(event);
+                    break;
+                case SDL_QUIT:
+                    running = false;
+            }
+        }
     }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }

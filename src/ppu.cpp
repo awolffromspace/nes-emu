@@ -87,6 +87,10 @@ bool PPU::isNMIActive(MMC& mmc, bool mute) {
     return false;
 }
 
+unsigned int PPU::getTotalCycles() const {
+    return totalCycles;
+}
+
 void PPU::setMirroring(unsigned int mirroring) {
     this->mirroring = mirroring;
 }

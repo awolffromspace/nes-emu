@@ -75,16 +75,48 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
 
 // Miscellaneous Functions
 
-void CPU::readInInst(std::string& filename) {
+void CPU::readInInst(const std::string& filename) {
     mmc.readInInst(filename);
 }
 
-void CPU::readInINES(std::string& filename) {
+void CPU::readInINES(const std::string& filename) {
     mmc.readInINES(filename, ppu);
     if (filename == "nestest.nes") {
         pc = 0xc000;
     } else {
         pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
+    }
+}
+
+void CPU::writeIO(const SDL_Event& event/*, uint8_t& written*/) {
+    uint8_t pressed = 0;
+    if (event.type == SDL_KEYDOWN) {
+        pressed = 1;
+    }
+    switch (event.key.keysym.sym) {
+        case SDLK_z:
+            io.a = pressed;
+            break;
+        case SDLK_x:
+            io.b = pressed;
+            break;
+        case SDLK_RSHIFT:
+            io.select = pressed;
+            break;
+        case SDLK_RETURN:
+            io.start = pressed;
+            break;
+        case SDLK_UP:
+            io.up = pressed;
+            break;
+        case SDLK_DOWN:
+            io.down = pressed;
+            break;
+        case SDLK_LEFT:
+            io.left = pressed;
+            break;
+        case SDLK_RIGHT:
+            io.right = pressed;
     }
 }
 
@@ -178,6 +210,10 @@ void CPU::setMute(bool m) {
 
 unsigned int CPU::getOpCycles() const {
     return op.cycle;
+}
+
+unsigned int CPU::getTotalPPUCycles() const {
+    return ppu.getTotalCycles();
 }
 
 uint8_t CPU::getValidOpResult() const {
