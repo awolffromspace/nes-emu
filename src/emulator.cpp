@@ -13,7 +13,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
 void runNESTest(CPU& cpu);
 
-void runNESGame(CPU& cpu);
+void runNESGame(CPU& cpu, const std::string& gameFilename);
 
 int main(int argc, char* argv[]) {
     CPU cpu;
@@ -23,9 +23,27 @@ int main(int argc, char* argv[]) {
         readInFilenames(filenames);
         runTests(cpu, filenames);
         runNESTest(cpu);
-        cpu.setHaltAtBrk(false);
-        runNESGame(cpu);
     } else if (argc == 2) {
+        std::string gameFilename(argv[1]);
+        if (gameFilename.size() < 5) {
+            std::cerr << "Game filename is too short or missing its filename "
+                "extension\n";
+            exit(1);
+        }
+        std::string fileFormat = gameFilename.substr(gameFilename.size() - 4,
+            4);
+        if (fileFormat != ".nes") {
+            std::cerr << "Wrong filename extension\n";
+            exit(1);
+        }
+        runNESGame(cpu, gameFilename);
+    } else if (argc == 3) {
+        std::string debugStr = "debug";
+        std::string arg(argv[2]);
+        if (arg != debugStr) {
+            std::cerr << "Unexpected argument\n";
+            exit(1);
+        }
         cpu.setMute(false);
         std::string filename(argv[1]);
         runProgram(cpu, filename);
@@ -177,7 +195,17 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
 }
 
 void runProgram(CPU& cpu, const std::string& filename) {
-    cpu.readInInst(filename);
+    bool nesFile = false;
+    if (filename.size() > 4) {
+        std::string fileFormat = filename.substr(filename.size() - 4, 4);
+        if (fileFormat == ".nes") {
+            cpu.readInINES(filename);
+            nesFile = true;
+        }
+    }
+    if (!nesFile) {
+        cpu.readInInst(filename);
+    }
 
     std::string input;
     std::cin >> input;
@@ -304,9 +332,8 @@ void runNESTest(CPU& cpu) {
     }
 }
 
-void runNESGame(CPU& cpu) {
-    std::string filename = "donkey-kong.nes";
-    cpu.clear();
+void runNESGame(CPU& cpu, const std::string& gameFilename) {
+    cpu.readInINES(gameFilename);
 
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED,
@@ -316,7 +343,7 @@ void runNESGame(CPU& cpu) {
         exit(1);
     }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr) {
         std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);
@@ -328,7 +355,6 @@ void runNESGame(CPU& cpu) {
         exit(1);
     }
 
-    cpu.readInINES(filename);
     SDL_Event event;
     bool running = true;
     while (running) {
