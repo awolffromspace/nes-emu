@@ -23,14 +23,14 @@ Run an .NES file:
 ./nes-emu filename.nes
 ```
 
-Controls:
-Z = A button
-X = B button
-Up arrow = D-pad up
-Down arrow = D-pad down
-Left arrow = D-pad left
-Right arrow = D-pad right
-Enter/return = start button
+Controls:  
+Z = A button  
+X = B button  
+Up arrow = D-pad up  
+Down arrow = D-pad down  
+Left arrow = D-pad left  
+Right arrow = D-pad right  
+Enter/return = start button  
 Right shift = select button
 
 Run unit tests from the test directory and the nestest.nes system test:
@@ -66,6 +66,5 @@ Run debugger on an .NES file:
 
 ## Credits
 
-Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes)
-
+Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes)  
 NESdev wiki for thorough documentation of the NES
