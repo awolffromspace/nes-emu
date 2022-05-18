@@ -57,12 +57,12 @@ Run debugger on an .NES file:
 
 ## Screenshots
 
-![Donkey Kong GIF](/images/donkey-kong.gif)
-![Donkey Kong Screenshot](/images/donkey-kong.png)
-![Super Mario Bros. Screenshot](/images/super-mario-bros.png)
-![Pac-Man Screenshot](/images/pac-man.png)
-![Debug Screenshot 1](/images/debug1.png)
-![Debug Screenshot 2](/images/debug2.png)
+![Donkey Kong GIF](/screenshots/donkey-kong.gif)
+![Donkey Kong Screenshot](/screenshots/donkey-kong.png)
+![Super Mario Bros. Screenshot](/screenshots/super-mario-bros.png)
+![Pac-Man Screenshot](/screenshots/pac-man.png)
+![Debug Screenshot 1](/screenshots/debug1.png)
+![Debug Screenshot 2](/screenshots/debug2.png)
 
 ## Credits
 
