@@ -6,7 +6,9 @@ PPU::PPU() :
         ppuDataBuffer(0),
         writeLoAddr(false),
         mirroring(0),
-        totalCycles(0) {
+        totalCycles(0),
+        startTime(SDL_GetTicks64()),
+        stopTime(SDL_GetTicks64()) {
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
 }
@@ -25,6 +27,8 @@ void PPU::clear(bool mute) {
     writeLoAddr = false;
     mirroring = 0;
     totalCycles = 0;
+    startTime = SDL_GetTicks64();
+    stopTime = SDL_GetTicks64();
 
     if (!mute) {
         std::cout << "PPU was cleared\n";
@@ -408,6 +412,13 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
             renderer != nullptr && texture != nullptr &&
             op.frameNum % NUM_FRAME_TO_SKIP == 0) {
+        stopTime = SDL_GetTicks64();
+        Uint64 duration = stopTime - startTime;
+        if (duration < 16.667) {
+            SDL_Delay(16.667 - duration);
+        }
+        startTime = SDL_GetTicks64();
+        stopTime = SDL_GetTicks64();
         SDL_RenderClear(renderer);
         uint8_t* lockedPixels = nullptr;
         int pitch = 0;
@@ -478,7 +489,7 @@ void PPU::prepNextCycle() {
         ++op.cycle;
     }
 
-    if (op.frameNum == 4294967200) {
+    if (op.frameNum == 4294967280) {
         op.frameNum = 0;
     }
 }
@@ -669,6 +680,10 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     } else {
         localAddr -= 0x2000;
         vram[localAddr] = val;
+    }
+
+    if (addr == 0x202a && val == 0x3f) {
+        std::cout << op.frameNum << "\n";
     }
 
     if (!mute) {

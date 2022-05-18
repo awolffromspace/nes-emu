@@ -44,7 +44,7 @@ class MMC;
 #define LAST_CYCLE 340
 #define TOTAL_PIXELS_PER_SCANLINE 256
 #define PPU_CYCLES_PER_FRAME 341 * 262
-#define NUM_FRAME_TO_SKIP 200
+#define NUM_FRAME_TO_SKIP 290
 
 class PPU {
     public:
@@ -87,6 +87,8 @@ class PPU {
         bool writeLoAddr;
         unsigned int mirroring;
         unsigned int totalCycles;
+        Uint64 startTime;
+        Uint64 stopTime;
 
         void skipCycle0();
         void fetch(MMC& mmc);
