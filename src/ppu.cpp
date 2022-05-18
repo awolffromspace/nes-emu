@@ -682,10 +682,6 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
         vram[localAddr] = val;
     }
 
-    if (addr == 0x202a && val == 0x3f) {
-        std::cout << op.frameNum << "\n";
-    }
-
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
             "been written to the VRAM address 0x" << (unsigned int) addr <<
