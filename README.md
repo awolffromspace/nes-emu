@@ -67,4 +67,5 @@ Run debugger on an .NES file:
 ## Credits
 
 Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes)
+
 NESdev wiki for thorough documentation of the NES
