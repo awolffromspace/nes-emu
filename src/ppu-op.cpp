@@ -1,5 +1,7 @@
 #include "ppu-op.h"
 
+// Public Member Functions
+
 PPUOp::PPUOp() :
         nametableAddr(0x2000),
         nametableEntry(0),
@@ -13,11 +15,8 @@ PPUOp::PPUOp() :
         scanline(261),
         pixel(0),
         attributeQuadrant(0),
-        oddFrame(false),
-        frameNum(0),
         cycle(0),
-        status(0) {
-}
+        status(0) { }
 
 void PPUOp::clear() {
     nametableAddr = 0x2000;
@@ -39,8 +38,6 @@ void PPUOp::clear() {
     scanline = 261;
     pixel = 0;
     attributeQuadrant = 0;
-    oddFrame = false;
-    frameNum = 0;
     cycle = 0;
     status = 0;
 }

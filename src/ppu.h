@@ -4,7 +4,6 @@
 #pragma once
 class MMC;
 
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <SDL.h>
@@ -13,48 +12,55 @@ class MMC;
 #include "mmc.h"
 #include "ppu-op.h"
 
-#define PPU_REGISTER_SIZE 8
-#define PPUCTRL 0x2000
-#define PPUMASK 0x2001
-#define PPUSTATUS 0x2002
-#define OAMADDR 0x2003
-#define OAMDATA 0x2004
-#define PPUSCROLL 0x2005
-#define PPUADDR 0x2006
-#define PPUDATA 0x2007
-#define OAMDMA 0x4014
-#define OAM_SIZE 0x100
-#define SECONDARY_OAM_SIZE 0x20
-#define VRAM_SIZE 0x400 + 0x400 + 0x20
+#define ATTRIBUTE0_START 0x23c0
+#define BLACK 0xf
+#define FRAME_HEIGHT 240
 #define FRAME_SIZE 256 * 240 * 4
 #define FRAME_WIDTH 256
-#define FRAME_HEIGHT 240
-#define PALETTE_SIZE 0x40
 #define IMAGE_PALETTE_START 0x3f00
-#define SPRITE_PALETTE_START 0x3f10
+#define LAST_CYCLE 340
+#define LAST_RENDER_LINE 239
 #define NAMETABLE0_START 0x2000
 #define NAMETABLE1_START 0x2400
 #define NAMETABLE2_START 0x2800
 #define NAMETABLE3_START 0x2c00
-#define ATTRIBUTE0_START 0x23c0
-#define UNIVERSAL_BG_INDEX 0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000
-#define BLACK 0xf
-#define LAST_RENDER_LINE 239
-#define PRERENDER_LINE 261
-#define LAST_CYCLE 340
-#define TOTAL_PIXELS_PER_SCANLINE 256
-#define PPU_CYCLES_PER_FRAME 341 * 262
 #define NUM_FRAME_TO_SKIP 290
+#define OAM_SIZE 0x100
+#define OAMADDR 0x2003
+#define OAMDATA 0x2004
+#define OAMDMA 0x4014
+#define PALETTE_SIZE 0x40
+#define PPU_CYCLES_PER_FRAME 341 * 262
+#define PPU_REGISTER_SIZE 8
+#define PPUADDR 0x2006
+#define PPUCTRL 0x2000
+#define PPUDATA 0x2007
+#define PPUMASK 0x2001
+#define PPUSCROLL 0x2005
+#define PPUSTATUS 0x2002
+#define PRERENDER_LINE 261
+#define SECONDARY_OAM_SIZE 0x20
+#define SPRITE_PALETTE_START 0x3f10
+#define TOTAL_PIXELS_PER_SCANLINE 256
+#define UNIVERSAL_BG_INDEX 0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000
+#define VRAM_SIZE 0x400 + 0x400 + 0x20
+
+// Picture Processing Unit
+// Handles anything related to graphics. Stores data for addresses $2000 - $2007 (registers), $2008
+// - $3fff (mirrored addresses), and $4014 (OAMDMA) in the CPU memory map
 
 class PPU {
     public:
         PPU();
-        void clear(bool mute);
-        void step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
-            bool mute);
+        void clear();
+        void step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute);
+
+        // Read/Write I/O Functions
         uint8_t readIO(uint16_t addr, MMC& mmc, bool mute);
         void writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         void writeOAM(uint8_t addr, uint8_t val);
+
+        // Miscellaneous Functions
         bool isNMIActive(MMC& mmc, bool mute);
         unsigned int getTotalCycles() const;
         void setMirroring(unsigned int mirroring);
@@ -74,63 +80,95 @@ class PPU {
             uint8_t blue;
         };
 
+        // Main registers that are exposed to the CPU. $2000 - $2007 in the CPU memory map
         uint8_t registers[PPU_REGISTER_SIZE];
+        // Object Attribute Memory Direct Memory Access high-byte address. $4014 in the CPU memory
+        // map. When the CPU writes to this register, the CPU starts an OAM DMA transfer that copies
+        // data from $xx00 - $xxff to the PPU OAM where xx is the value of this register
         uint8_t oamDMA;
+        // Object Attribute Memory that contains data for up to 64 sprites. Each sprite is 4 bytes:
+        // https://www.nesdev.org/wiki/PPU_OAM
         uint8_t oam[OAM_SIZE];
+        // Secondary OAM that contains data for up to 8 sprites, which are the sprites that are
+        // rendered for the current scanline
         uint8_t secondaryOAM[SECONDARY_OAM_SIZE];
+        // Video RAM that includes nametables, attribute tables, and palettes. Makes up $2000 -
+        // $ffff in the PPU memory map. Doesn't include the pattern tables in the MMC, which are
+        // $0000 - $1fff
         uint8_t vram[VRAM_SIZE];
+        // Frame that SDL displays to the screen. Each 4 bytes is a pixel. The first byte is the
+        // blue value, the second is the green value, the third is the red value, and the fourth is
+        // the opacity
         uint8_t frame[FRAME_SIZE];
+        // Palette that contains the RGB values for displaying pixel colors
         struct RGBVal palette[PALETTE_SIZE];
+        // Current operation that holds info about the current pixel and scanline being rendered
         PPUOp op;
+        // Set to true if the current frame is odd (flips between true/false each frame)
+        bool oddFrame;
+        // The current VRAM address to read/write to, formed by two CPU writes to $2006
         uint16_t ppuAddr;
+        // PPUDATA read buffer:
+        // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppuDataBuffer;
+        // Set to true if the next CPU write to $2006 should replace the low byte of ppuAddr (flips
+        // between true/false each write to $2006)
         bool writeLoAddr;
+        // The mirroring that the game uses. Depends on enum Mirroring
         unsigned int mirroring;
-        unsigned int totalCycles;
-        Uint64 startTime;
-        Uint64 stopTime;
+        // Total number of cycles and rendered frames since initialization
+        unsigned int totalCycles, totalFrames;
+        // SDL timer values that are used for limiting framerate to 60 FPS
+        Uint64 startTime, stopTime;
 
+        // Cycle Skipping
         void skipCycle0();
+
+        // Fetching
         void fetch(MMC& mmc);
         void fetchSpriteEntry(MMC& mmc);
-        uint8_t getSpriteTileRowIndex(struct PPUOp::Sprite& sprite) const;
         void addTileRow();
+
+        // Sprite Computation
         void clearSecondaryOAM();
         void evaluateSprites();
+
+        // Rendering
         void setPixel(MMC& mmc);
         uint8_t getBGPixel() const;
-        uint8_t getSpritePixel(struct PPUOp::Sprite& sprite) const;
-        bool isSpriteChosen(struct PPUOp::Sprite& sprite, uint8_t bgPixel,
-            uint8_t spritePixel) const;
-        void setSprite0Hit(struct PPUOp::Sprite& sprite, uint8_t bgPixel);
+        uint8_t getPalette() const;
+        void setSprite0Hit(Sprite& sprite, uint8_t bgPixel);
         void setRGB(uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
-        void updateFlags(MMC& mmc, bool mute);
+
+        // Vertical Blanking Interval
+        void updateVblank(MMC& mmc);
+
+        // Preparation for Next Cycle
         void prepNextCycle();
         void updateNametableAddr();
         void updateAttributeAddr();
         void updateOpStatus();
+
+        // Read/Write Functions
         uint8_t readRegister(uint16_t addr, MMC& mmc);
         void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         uint8_t readVRAM(uint16_t addr, MMC& mmc) const;
         void writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
-        void updatePPUAddr(uint8_t val, bool mute);
+        void updatePPUAddr(uint8_t val);
+
+        // Mirrored Address Getters
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;
         uint16_t getFourScreenMirrorAddr(uint16_t addr) const;
+
+        // Miscellaneous Functions
         unsigned int getRenderLine() const;
         bool isRendering() const;
         bool isValidFetch() const;
-        uint8_t getPaletteFromAttribute() const;
-        unsigned int getSpriteRenderLineDiff(unsigned int yPos) const;
-        bool isSpriteYInRange(unsigned int yPos) const;
-        unsigned int getSpritePixelDiff(unsigned int xPos) const;
-        bool isSpriteXInRange(unsigned int xPos) const;
-        uint8_t getPaletteFromSpriteAttributes(uint8_t spriteAttributes) const;
-        bool isSpritePrioritized(uint8_t spriteAttributes) const;
-        bool isSpriteFlippedHorizontally(uint8_t spriteAttributes) const;
-        bool isSpriteFlippedVertically(uint8_t spriteAttributes) const;
+
+        // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;
         uint16_t getSpritePatternAddr() const;
@@ -149,6 +187,8 @@ class PPU {
         bool isSpriteOverflow() const;
         bool isSpriteZeroHit() const;
         bool isVblank() const;
+
+        // Color Palette Initialization
         void initializePalette();
 };
 

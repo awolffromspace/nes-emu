@@ -1,5 +1,7 @@
 #include "cpu-op.h"
 
+// Public Member Functions
+
 CPUOp::CPUOp() :
         inst(0),
         pc(0),
@@ -22,9 +24,7 @@ CPUOp::CPUOp() :
         reset(false),
         interruptPrologue(false),
         oamDMATransfer(false),
-        done(false) {
-
-}
+        done(false) { }
 
 void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
     inst = 0;
@@ -86,4 +86,14 @@ void CPUOp::clearInterruptFlags() {
 void CPUOp::clearDMA() {
     dmaCycle = 0;
     oamDMATransfer = false;
+}
+
+// When the CPU stores addresses into tempAddr and fixedAddr, it is done where tempAddr is formed as
+// two 1-byte values with wraparound on both, and fixedAddr is formed as one 2-byte value with
+// wraparound on only the entire 2-byte value. The high byte of the address represents the page, so
+// crossing a page boundary means that an instruction, such as a jump or branch, has a target
+// address with a different high byte or page
+
+bool CPUOp::crossedPageBoundary() const {
+    return tempAddr != fixedAddr;
 }

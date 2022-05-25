@@ -1,5 +1,7 @@
 #include "io.h"
 
+// Public Member Functions
+
 IO::IO() :
         strobe(false),
         currentButton(A),
@@ -10,11 +12,9 @@ IO::IO() :
         up(0),
         down(0),
         left(0),
-        right(0) {
+        right(0) { }
 
-}
-
-void IO::clear(bool mute) {
+void IO::clear() {
     memset(registers, 0, IO_REGISTER_SIZE);
     strobe = false;
     currentButton = A;
@@ -26,70 +26,113 @@ void IO::clear(bool mute) {
     down = 0;
     left = 0;
     right = 0;
-
-    if (!mute) {
-        std::cout << "IO was cleared\n";
-    }
 }
 
+// Handles I/O reads from the CPU
+
 uint8_t IO::readIO(uint16_t addr) {
-    if (addr == 0x4016 && strobe) {
-        registers[addr - 0x4016] &= 0xfe;
-        registers[addr - 0x4016] |= a;
-    } else if (addr == 0x4016 && !strobe) {
-        registers[addr - 0x4016] &= 0xfe;
+    addr = getLocalAddr(addr);
+    // If strobe mode is on, only return the status of the A button
+    if (addr == 0 && strobe) {
+        // Clear the primary controller status bit
+        registers[addr] &= 0xfe;
+        registers[addr] |= a;
+    // If strobe mode is off, cycle through each button on each CPU read
+    } else if (addr == 0 && !strobe) {
+        // Clear the primary controller status bit
+        registers[addr] &= 0xfe;
         switch (currentButton) {
             case A:
-                registers[addr - 0x4016] |= a;
+                registers[addr] |= a;
                 break;
             case B:
-                registers[addr - 0x4016] |= b;
+                registers[addr] |= b;
                 break;
             case Select:
-                registers[addr - 0x4016] |= select;
+                registers[addr] |= select;
                 break;
             case Start:
-                registers[addr - 0x4016] |= start;
+                registers[addr] |= start;
                 break;
             case Up:
-                registers[addr - 0x4016] |= up;
+                registers[addr] |= up;
                 break;
             case Down:
-                registers[addr - 0x4016] |= down;
+                registers[addr] |= down;
                 break;
             case Left:
-                registers[addr - 0x4016] |= left;
+                registers[addr] |= left;
                 break;
             case Right:
-                registers[addr - 0x4016] |= right;
+                registers[addr] |= right;
         }
         ++currentButton;
+        // Wraparound back to the A button
         if (currentButton > Right) {
             currentButton = A;
         }
     }
-
-    addr -= 0x4016;
     return registers[addr];
 }
 
-void IO::writeIO(uint16_t addr, uint8_t val, bool mute) {
-    uint16_t localAddr = addr - 0x4016;
-    registers[localAddr] = val;
+// Handles I/O writes from the CPU
 
-    if (addr == 0x4016) {
+void IO::writeIO(uint16_t addr, uint8_t val) {
+    addr = getLocalAddr(addr);
+    registers[addr] = val;
+
+    if (addr == 0) {
         if (val & 1) {
             strobe = true;
+            // Reset to the A button whenever strobe mode is set
             currentButton = A;
         } else {
             strobe = false;
         }
     }
+}
 
-    if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been written to the address 0x" << (unsigned int) addr <<
-            "\n--------------------------------------------------\n" <<
-            std::dec;
+// Whenever the runNESGame function in emulator.cpp receives a key press or release, this function
+// gets called. This function sets the first bit of the specified button, which later gets ORed with
+// joystick register to signify a button press
+
+void IO::updateButton(const SDL_Event& event) {
+    uint8_t pressed = 0;
+    if (event.type == SDL_KEYDOWN) {
+        pressed = 1;
     }
+    switch (event.key.keysym.sym) {
+        case SDLK_z:
+            a = pressed;
+            break;
+        case SDLK_x:
+            b = pressed;
+            break;
+        case SDLK_RSHIFT:
+            select = pressed;
+            break;
+        case SDLK_RETURN:
+            start = pressed;
+            break;
+        case SDLK_UP:
+            up = pressed;
+            break;
+        case SDLK_DOWN:
+            down = pressed;
+            break;
+        case SDLK_LEFT:
+            left = pressed;
+            break;
+        case SDLK_RIGHT:
+            right = pressed;
+    }
+}
+
+// Private Member Functions
+
+// Maps the CPU address to the I/O local field, registers
+
+uint16_t IO::getLocalAddr(uint16_t addr) const {
+    // Subtract by 0x4016 so that $4016 becomes 0 and $4017 becomes 1
+    return addr - 0x4016;
 }

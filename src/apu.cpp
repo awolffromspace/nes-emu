@@ -1,37 +1,41 @@
 #include "apu.h"
 
-APU::APU() {
+// Public Member Functions
 
-}
+APU::APU() { }
 
-void APU::clear(bool mute) {
+void APU::clear() {
     memset(registers, 0, APU_REGISTER_SIZE);
-
-    if (!mute) {
-        std::cout << "APU was cleared\n";
-    }
 }
+
+// Handles I/O reads from the CPU
 
 uint8_t APU::readIO(uint16_t addr) const {
-    if (addr > 0x4014) {
-        --addr;
-    }
-    addr &= 0x1f;
+    addr = getLocalAddr(addr);
     return registers[addr];
 }
 
-void APU::writeIO(uint16_t addr, uint8_t val, bool mute) {
-    uint16_t localAddr = addr;
-    if (localAddr > 0x4014) {
-        --localAddr;
-    }
-    localAddr &= 0x1f;
-    registers[localAddr] = val;
+// Handles I/O writes from the CPU
 
-    if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been written to the address 0x" << (unsigned int) addr <<
-            "\n--------------------------------------------------\n" <<
-            std::dec;
+void APU::writeIO(uint16_t addr, uint8_t val) {
+    addr = getLocalAddr(addr);
+    registers[addr] = val;
+}
+
+// Private Member Functions
+
+// Maps the CPU address to the APU's local field, registers
+
+uint16_t APU::getLocalAddr(uint16_t addr) const {
+    // The APU's first set of registers are contiguous from $4000 - $4013 in the CPU memory map.
+    // However, $4014 is one of the PPU's registers (OAMDMA), and $4016 is one of the I/O (joystick)
+    // registers. The APU has two more registers in-between them ($4015 and $4017). $4015 and $4017
+    // are decremented to keep the register array contiguous
+    if (addr == 0x4015) {
+        --addr;
+    } else if (addr == 0x4017) {
+        addr -= 2;
     }
+    // Clear out the upper bits so that $4000 becomes 0, $4001 becomes 1, etc.
+    return addr & 0x1f;
 }

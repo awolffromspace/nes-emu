@@ -3,6 +3,10 @@
 
 #include <cstdint>
 
+// CPU Operation
+// Holds info specific to the current operation (i.e., instructions, interrupt prologues, and DMA
+// transfers)
+
 class CPUOp {
     public:
         CPUOp();
@@ -11,6 +15,7 @@ class CPUOp {
             bool clearInterruptPrologue);
         void clearInterruptFlags();
         void clearDMA();
+        bool crossedPageBoundary() const;
 
     private:
         // Instruction
@@ -21,28 +26,28 @@ class CPUOp {
         uint8_t opcode;
         // Operand with the least significant byte
         uint8_t operandLo;
-        // Operand with the most significant byte
-        // OperandLo and OperandHi combine to form one expression
-        // e.g., AND $xxyy retrieves val from memory location yyxx
-        // where xx is operandLo and yy is operandHi
+        // Operand with the most significant byte. OperandLo and OperandHi combine to form one
+        // expression (e.g., AND $xxyy retrieves val from memory location yyxx where xx is operandLo
+        // and yy is operandHi)
         uint8_t operandHi;
         // Value to operate on
         uint8_t val;
         // Temporary address to hold when needed
         uint16_t tempAddr;
-        // Fixed version of the above temporary address in cases where the carry
-        // is supposed to affect the upper 8 bits of the address but has to be
-        // fixed in a later cycle
+        // Fixed version of the above temporary address in cases where the carry is supposed to
+        // affect the upper 8 bits of the address but has to be fixed in a later cycle
         uint16_t fixedAddr;
-        // Addressing mode that the operation uses
+        // Addressing mode that the operation uses. Depends on enum AddrMode
         unsigned int addrMode;
-        // Type of instruction (i.e., read, write, or read-modify-write)
-        // Depends on enum InstType
+        // Type of instruction (i.e., read, write, or read-modify-write). Depends on enum InstType
         unsigned int instType;
         // How many cycles the operation has taken thus far
         unsigned int cycle;
         // How many cycles the DMA transfer has taken thus far
         unsigned int dmaCycle;
+
+        // Status Flags
+
         // If read operations can modify a register
         bool modify;
         // If write operations can write to memory

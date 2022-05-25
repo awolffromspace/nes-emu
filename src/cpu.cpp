@@ -1,5 +1,7 @@
 #include "cpu.h"
 
+// Public Member Functions
+
 CPU::CPU() :
         sp(0xfd),
         a(0),
@@ -21,26 +23,30 @@ void CPU::clear() {
     y = 0;
     p = UnusedFlag | Break | InterruptDisable;
     op.clear(true, true);
-    ram.clear(mute);
-    ppu.clear(mute);
-    apu.clear(mute);
-    io.clear(mute);
-    mmc.clear(mute);
+    ram.clear();
+    ppu.clear();
+    apu.clear();
+    io.clear();
+    mmc.clear();
+    // Initialize PC to the reset vector
     pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
     totalCycles = 0;
     endOfProgram = false;
-
-    if (!mute) {
-        std::cout << "CPU was cleared\n";
-    }
 }
 
+// Executes exactly one CPU cycle
+
 void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
+    // This if statement performs the 6502's pipelined fetch
     if (op.done || totalCycles == 0) {
+        // Clear previous operation to set up the next operation. However, this doesn't clear
+        // interrupt or OAM DMA transfer statuses because they are triggered in the previous
+        // operation and must remain for the next operation in order for the interrupt or OAM DMA
+        // transfer to occur as the next operation
         op.clear(false, false);
 
-        // If any interrupts are flagged, start the interrupt prologue
-        // Ignore IRQ if the Interrupt Disable flag is set
+        // If any interrupts are flagged, start the interrupt prologue. Ignore IRQs if the Interrupt
+        // Disable flag is set
         if ((op.irq && !areInterruptsDisabled()) || op.nmi || op.reset) {
             op.interruptPrologue = true;
         }
@@ -51,6 +57,7 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
         op.opcode = op.inst;
     }
 
+    // Priority list of what to do next if there are multiple options
     if (op.oamDMATransfer) {
         oamDMATransfer();
     } else if (op.interruptPrologue && op.reset) {
@@ -61,10 +68,13 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
         prepareIRQ(false);
     } else {
         // Decode and execute
+        // Use the opcode to look up in the addressing mode and opcode arrays to get the two
+        // relevant functions
         (this->*addrModeArr[op.opcode])();
         (this->*opcodeArr[op.opcode])();
     }
 
+    // PPU executes 3 cycles for every CPU cycle
     for (unsigned int i = 0; i < 3; ++i) {
         ppu.step(mmc, renderer, texture, mute);
     }
@@ -73,64 +83,44 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
     ++totalCycles;
 }
 
-// Miscellaneous Functions
-
 void CPU::readInInst(const std::string& filename) {
+    // Addresses $4020 - $10000 belong in the cartridge, so pass it off to the MMC
     mmc.readInInst(filename);
 }
 
 void CPU::readInINES(const std::string& filename) {
+    // Addresses $4020 - $10000 belong in the cartridge, so pass it off to the MMC
     mmc.readInINES(filename, ppu);
     if (filename == "nestest.nes") {
+        // Use the start PC for an automated run of nestest.nes
         pc = 0xc000;
     } else {
+        // In all other cases, initialize PC to the reset vector
         pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
     }
 }
 
-void CPU::writeIO(const SDL_Event& event) {
-    uint8_t pressed = 0;
-    if (event.type == SDL_KEYDOWN) {
-        pressed = 1;
-    }
-    switch (event.key.keysym.sym) {
-        case SDLK_z:
-            io.a = pressed;
-            break;
-        case SDLK_x:
-            io.b = pressed;
-            break;
-        case SDLK_RSHIFT:
-            io.select = pressed;
-            break;
-        case SDLK_RETURN:
-            io.start = pressed;
-            break;
-        case SDLK_UP:
-            io.up = pressed;
-            break;
-        case SDLK_DOWN:
-            io.down = pressed;
-            break;
-        case SDLK_LEFT:
-            io.left = pressed;
-            break;
-        case SDLK_RIGHT:
-            io.right = pressed;
-    }
+void CPU::updateButton(const SDL_Event& event) {
+    io.updateButton(event);
 }
 
+// Compares the current registers and total cycles with a given CPU state
+
 bool CPU::compareState(struct CPU::State& state) const {
-    if (state.pc != pc || state.sp != sp || state.a != a || state.x != x ||
-            state.y != y || (state.p & 0xcf) != (p & 0xcf) ||
-            state.totalCycles != totalCycles) {
+    // Ignore bits 4 and 5 of the P register because they're always set
+    if (state.pc != pc || state.sp != sp || state.a != a || state.x != x || state.y != y ||
+            (state.p & 0xcf) != (p & 0xcf) || state.totalCycles != totalCycles) {
         return false;
     }
     return true;
 }
 
+// Used for comparing instructions with the nestest.log. Each line in the log is during the first
+// cycle of each instruction when the operands are usually unknown, so this function is specifically
+// for grabbing the operands in advance to ensure that they match with the log
+
 uint32_t CPU::getFutureInst() {
-    uint8_t operandLo = 0, operandHi = 0;
+    uint8_t operandLo, operandHi;
     uint32_t inst = op.inst;
     switch (op.addrMode) {
         case 1:
@@ -200,20 +190,8 @@ bool CPU::isHaltAtBrk() const {
     return haltAtBrk;
 }
 
-void CPU::setHaltAtBrk(bool h) {
-    haltAtBrk = h;
-}
-
-void CPU::setMute(bool m) {
-    mute = m;
-}
-
 unsigned int CPU::getOpCycles() const {
     return op.cycle;
-}
-
-unsigned int CPU::getTotalPPUCycles() const {
-    return ppu.getTotalCycles();
 }
 
 uint8_t CPU::getValidOpResult() const {
@@ -224,7 +202,17 @@ uint8_t CPU::getInvalidOpResult() const {
     return ram.read(3);
 }
 
-// Print Functions
+unsigned int CPU::getTotalPPUCycles() const {
+    return ppu.getTotalCycles();
+}
+
+void CPU::setHaltAtBrk(bool h) {
+    haltAtBrk = h;
+}
+
+void CPU::setMute(bool m) {
+    mute = m;
+}
 
 void CPU::print(bool isCycleDone) const {
     if (mute) {
@@ -241,18 +229,16 @@ void CPU::print(bool isCycleDone) const {
         ++inc;
         std::cout << "--------------------------------------------------\n";
     }
-    std::cout << "Cycle " << totalCycles + inc << ": " << time
-        << std::hex << "\n----------------------------\n"
-        "CPU Fields\n----------------------------\n"
+    std::cout << "Cycle " << totalCycles + inc << ": " << time << std::hex <<
+        "\n----------------------------\nCPU Fields\n----------------------------\n"
         "pc                = 0x" << (unsigned int) pc << "\n"
         "sp                = 0x" << (unsigned int) sp << "\n"
         "a                 = 0x" << (unsigned int) a << "\n"
         "x                 = 0x" << (unsigned int) x << "\n"
         "y                 = 0x" << (unsigned int) y << "\n"
         "p                 = " << binaryP << "\n"
-        "totalCycles       = " << std::dec << totalCycles <<
-        "\n----------------------------\n" << std::hex <<
-        "CPU Operation Fields\n----------------------------\n"
+        "totalCycles       = " << std::dec << totalCycles << std::hex <<
+        "\n----------------------------\nCPU Operation Fields\n----------------------------\n"
         "inst              = 0x" << (unsigned int) op.inst << "\n"
         "pc                = 0x" << (unsigned int) op.pc << "\n"
         "opcode            = 0x" << (unsigned int) op.opcode << "\n"
@@ -261,46 +247,46 @@ void CPU::print(bool isCycleDone) const {
         "val               = 0x" << (unsigned int) op.val << "\n"
         "tempAddr          = 0x" << (unsigned int) op.tempAddr << "\n"
         "fixedAddr         = 0x" << (unsigned int) op.fixedAddr << "\n"
-        << std::dec <<
-        "addrMode          = " << (unsigned int) op.addrMode << "\n"
-        "instType          = " << (unsigned int) op.instType << "\n"
+        "addrMode          = " << std::dec << op.addrMode << "\n"
+        "instType          = " << op.instType << "\n"
         "cycle             = " << op.cycle << "\n"
         "dmaCycle          = " << op.dmaCycle << "\n"
-        "modify            = " << (bool) op.modify << "\n"
-        "write             = " << (bool) op.write << "\n"
-        "writeUnmodified   = " << (bool) op.writeUnmodified << "\n"
-        "writeModified     = " << (bool) op.writeModified << "\n"
-        "irq               = " << (bool) op.irq << "\n"
-        "nmi               = " << (bool) op.nmi << "\n"
-        "reset             = " << (bool) op.reset << "\n"
-        "interruptPrologue = " << (bool) op.interruptPrologue << "\n"
-        "oamDMATransfer    = " << (bool) op.oamDMATransfer << "\n"
-        "done              = " << (bool) op.done <<
+        "modify            = " << op.modify << "\n"
+        "write             = " << op.write << "\n"
+        "writeUnmodified   = " << op.writeUnmodified << "\n"
+        "writeModified     = " << op.writeModified << "\n"
+        "irq               = " << op.irq << "\n"
+        "nmi               = " << op.nmi << "\n"
+        "reset             = " << op.reset << "\n"
+        "interruptPrologue = " << op.interruptPrologue << "\n"
+        "oamDMATransfer    = " << op.oamDMATransfer << "\n"
+        "done              = " << op.done <<
         "\n--------------------------------------------------\n";
 }
 
 void CPU::printUnknownOp() const {
     if (op.cycle == 2) {
         if (!mute) {
-            std::cout << std::hex << "NOTE: Opcode 0x" <<
-                (unsigned int) op.opcode <<
-                " has not been implemented yet"
-                "\n--------------------------------------------------\n" <<
-                std::dec;
+            std::cout << "NOTE: Opcode 0x" << std::hex << (unsigned int) op.opcode << " has not "
+            "been implemented yet\n--------------------------------------------------\n" <<
+            std::dec;
         }
     }
 }
 
+// Prints out the current state in the style of nestest.log
+
 void CPU::printStateInst(uint32_t inst) const {
-    std::cout << std::hex << (unsigned int) pc << "  " << (unsigned int) inst <<
-        "  A:" << (unsigned int) a << " X:" << (unsigned int) x << " Y:" <<
-        (unsigned int) y << " P:" << (unsigned int) p << " SP:" <<
-        (unsigned int) sp << " CYC:" << std::dec << totalCycles << "\n";
+    std::cout << std::hex << (unsigned int) pc << "  " << (unsigned int) inst << "  A:" <<
+        (unsigned int) a << " X:" << (unsigned int) x << " Y:" << (unsigned int) y << " P:" <<
+        (unsigned int) p << " SP:" << (unsigned int) sp << " CYC:" << std::dec << totalCycles <<
+        "\n";
 }
 
+// Private Member Functions
+
 // Addressing Modes
-// These functions prepare the operation functions as much as possible for
-// execution
+// These functions prepare the operation functions as much as possible for execution
 
 void CPU::abs() {
     switch (op.cycle) {
@@ -319,14 +305,12 @@ void CPU::abs() {
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
             ++pc;
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::WriteInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
                 pollInterrupts();
             }
             break;
         case 3:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             op.modify = true;
@@ -342,7 +326,7 @@ void CPU::abs() {
 }
 
 void CPU::abx() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::AbsoluteX;
@@ -351,6 +335,8 @@ void CPU::abx() {
         case 1:
             op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
+            // Add X to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary)
             temp = op.operandLo + x;
             op.tempAddr = temp;
             ++pc;
@@ -359,6 +345,7 @@ void CPU::abx() {
             op.operandHi = read(pc);
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
+            // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = x;
             op.fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
@@ -367,20 +354,20 @@ void CPU::abx() {
             ++pc;
             break;
         case 3:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (op.tempAddr == op.fixedAddr) {
-                op.modify = true;
-            } else {
+            // If the page boundary was crossed, use the address with the fixed high byte and delay
+            // the operation by one cycle (i.e., don't set modify to true until next cycle)
+            if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
+            } else {
+                op.modify = true;
             }
             break;
         case 4:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             if (!op.modify) {
@@ -398,7 +385,7 @@ void CPU::abx() {
 }
 
 void CPU::aby() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::AbsoluteY;
@@ -407,6 +394,8 @@ void CPU::aby() {
         case 1:
             op.operandLo = read(pc);
             op.inst = (op.inst << 16) | (op.operandLo << 8);
+            // Add Y to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary)
             temp = op.operandLo + y;
             op.tempAddr = temp;
             ++pc;
@@ -415,6 +404,7 @@ void CPU::aby() {
             op.operandHi = read(pc);
             op.inst |= op.operandHi;
             op.tempAddr |= op.operandHi << 8;
+            // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = y;
             op.fixedAddr += (op.operandHi << 8) + op.operandLo;
             if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
@@ -423,20 +413,20 @@ void CPU::aby() {
             ++pc;
             break;
         case 3:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (op.tempAddr == op.fixedAddr) {
-                op.modify = true;
-            } else {
+            // If the page boundary was crossed, use the address with the fixed high byte and delay
+            // the operation by one cycle (i.e., don't set modify to true until next cycle)
+            if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
+            } else {
+                op.modify = true;
             }
             break;
         case 4:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             if (!op.modify) {
@@ -496,7 +486,7 @@ void CPU::imp() {
 }
 
 void CPU::idr() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::Indirect;
@@ -524,7 +514,7 @@ void CPU::idr() {
 }
 
 void CPU::idx() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::IndirectX;
@@ -536,20 +526,22 @@ void CPU::idx() {
             ++pc;
             break;
         case 3:
+            // Add X to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary and escaping the zero page)
             temp = op.operandLo + x;
             op.tempAddr = read(temp);
             break;
         case 4:
+            // Add X + 1 to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary and escaping the zero page)
             temp = op.operandLo + x + 1;
             op.tempAddr |= read(temp) << 8;
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::WriteInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
                 pollInterrupts();
             }
             break;
         case 5:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             op.modify = true;
@@ -565,7 +557,7 @@ void CPU::idx() {
 }
 
 void CPU::idy() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::IndirectY;
@@ -577,12 +569,17 @@ void CPU::idy() {
             ++pc;
             break;
         case 2:
+            // Add Y to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary)
             temp = read(op.operandLo) + y;
             op.tempAddr = temp;
             break;
         case 3:
+            // Add 1 to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary and escaping the zero page)
             temp = op.operandLo + 1;
             op.tempAddr |= read(temp) << 8;
+            // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = y;
             op.fixedAddr += (read(temp) << 8) + read(op.operandLo);
             if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
@@ -590,20 +587,20 @@ void CPU::idy() {
             }
             break;
         case 4:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (op.tempAddr == op.fixedAddr) {
-                op.modify = true;
-            } else {
+            // If the page boundary was crossed, use the address with the fixed high byte and delay
+            // the operation by one cycle (i.e., don't set modify to true until next cycle)
+            if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
+            } else {
+                op.modify = true;
             }
             break;
         case 5:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             if (!op.modify) {
@@ -621,7 +618,7 @@ void CPU::idy() {
 }
 
 void CPU::rel() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::Relative;
@@ -634,20 +631,25 @@ void CPU::rel() {
             ++pc;
             break;
         case 2:
+            // Add the low byte of the PC to the low byte of the address in a 1-byte variable to
+            // match wraparound behavior (i.e., without crossing the page boundary)
             temp = (pc & 0xff) + op.operandLo;
             op.tempAddr = (pc & 0xff00) | temp;
+            // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = op.operandLo;
             if (op.fixedAddr & Negative) {
                 op.fixedAddr |= 0xff00;
             }
             op.fixedAddr += pc;
             op.modify = true;
-            if (op.tempAddr == op.fixedAddr) {
-                op.clearInterruptFlags();
-                op.done = true;
-            } else {
+            // If the page boundary was crossed, use the address with the fixed high byte and delay
+            // the operation by one cycle (i.e., don't set done to true until next cycle)
+            if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
+            } else {
+                op.clearInterruptFlags();
+                op.done = true;
             }
             break;
         case 3:
@@ -665,15 +667,13 @@ void CPU::zpg() {
             op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
             op.tempAddr = op.operandLo;
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::WriteInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
                 pollInterrupts();
             }
             ++pc;
             break;
         case 2:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             op.modify = true;
@@ -689,7 +689,7 @@ void CPU::zpg() {
 }
 
 void CPU::zpx() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::ZeroPageX;
@@ -698,19 +698,19 @@ void CPU::zpx() {
         case 1:
             op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
+            // Add X to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary)
             temp = op.operandLo + x;
             op.tempAddr = temp;
             ++pc;
             break;
         case 2:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::WriteInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
                 pollInterrupts();
             }
             break;
         case 3:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             op.modify = true;
@@ -726,7 +726,7 @@ void CPU::zpx() {
 }
 
 void CPU::zpy() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::ZeroPageY;
@@ -735,19 +735,19 @@ void CPU::zpy() {
         case 1:
             op.operandLo = read(pc);
             op.inst = (op.inst << 8) | op.operandLo;
+            // Add Y to the low byte of the address in a 1-byte variable to match wraparound
+            // behavior (i.e., without crossing the page boundary)
             temp = op.operandLo + y;
             op.tempAddr = temp;
             ++pc;
             break;
         case 2:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::WriteInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
                 pollInterrupts();
             }
             break;
         case 3:
-            if (op.instType == CPUOp::ReadInst ||
-                    op.instType == CPUOp::RMWInst) {
+            if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
             op.modify = true;
@@ -763,16 +763,19 @@ void CPU::zpy() {
 }
 
 // Operations
-// These functions perform any opcode-specific execution that can't be easily
-// done in the addressing mode functions
+// These functions perform any opcode-specific execution that can't be easily done in the addressing
+// mode functions
 
 void CPU::adc() {
     op.instType = CPUOp::ReadInst;
     if (op.modify) {
+        // Add in a 2-byte variable to see if the result becomes greater than 1 byte
         uint16_t temp = a + op.val + (p & Carry);
         uint8_t pastA = a;
         a += op.val + (p & Carry);
+        // If the result is greater than 1 byte, set the carry flag
         setCarryFlag(temp > 0xff);
+        // If two positive values resulted in a negative value, set the overflow flag
         setOverflowFlag((pastA ^ a) & (op.val ^ a) & Negative);
         updateZeroFlag(a);
         updateNegativeFlag(a);
@@ -822,10 +825,10 @@ void CPU::asl() {
         updateNegativeFlag(a);
         op.done = true;
     } else if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         setCarryFlag(op.val & Negative);
         op.val = op.val << 1;
         updateZeroFlag(op.val);
@@ -840,24 +843,30 @@ void CPU::axs() {
 
 void CPU::bcc() {
     if (op.cycle == 1 && isCarry()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && !isCarry()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
 
 void CPU::bcs() {
     if (op.cycle == 1 && !isCarry()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && isCarry()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
 
 void CPU::beq() {
     if (op.cycle == 1 && !isZero()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && isZero()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
@@ -875,24 +884,30 @@ void CPU::bit() {
 
 void CPU::bmi() {
     if (op.cycle == 1 && !isNegative()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && isNegative()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
 
 void CPU::bne() {
     if (op.cycle == 1 && isZero()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && !isZero()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
 
 void CPU::bpl() {
     if (op.cycle == 1 && isNegative()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && !isNegative()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
@@ -909,16 +924,20 @@ void CPU::brk() {
 
 void CPU::bvc() {
     if (op.cycle == 1 && isOverflow()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && !isOverflow()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
 
 void CPU::bvs() {
     if (op.cycle == 1 && !isOverflow()) {
+        // Branch not taken
         op.done = true;
     } else if (op.modify && isOverflow()) {
+        // Branch taken
         pc = op.tempAddr;
     }
 }
@@ -997,10 +1016,10 @@ void CPU::dcp() {
 void CPU::dec() {
     op.instType = CPUOp::RMWInst;
     if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         --op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -1038,10 +1057,10 @@ void CPU::eor() {
 void CPU::inc() {
     op.instType = CPUOp::RMWInst;
     if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         ++op.val;
         updateZeroFlag(op.val);
         updateNegativeFlag(op.val);
@@ -1077,35 +1096,30 @@ void CPU::isc() {
 }
 
 void CPU::jmp() {
-    switch (op.cycle) {
-        case 1:
-            if (op.addrMode == CPUOp::Absolute) {
-                pollInterrupts();
-            }
-            break;
-        case 2:
-            if (op.addrMode == CPUOp::Absolute) {
-                pc = op.tempAddr;
-                op.done = true;
-            }
-            break;
-        case 3:
-            if (op.addrMode == CPUOp::Indirect) {
-                pollInterrupts();
-            }
-            break;
-        case 4:
-            if (op.addrMode == CPUOp::Indirect) {
-                pc = op.tempAddr;
-                op.done = true;
-            }
+    if (op.addrMode == CPUOp::Absolute) {
+        if (op.cycle == 1) {
+            pollInterrupts();
+        } else if (op.cycle == 2) {
+            pc = op.tempAddr;
+            op.done = true;
+        }
+    } else {
+        // Indirect addressing mode
+        if (op.cycle == 3) {
+            pollInterrupts();
+        } else if (op.cycle == 4) {
+            pc = op.tempAddr;
+            op.done = true;
+        }
     }
 }
 
 void CPU::jsr() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 2:
+            // Absolute addressing mode increments the PC three times by default, but JSR only does
+            // it two times
             --pc;
             break;
         case 3:
@@ -1181,10 +1195,10 @@ void CPU::lsr() {
         updateNegativeFlag(a);
         op.done = true;
     } else if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         setCarryFlag(op.val & Carry);
         op.val = op.val >> 1;
         updateZeroFlag(op.val);
@@ -1221,7 +1235,7 @@ void CPU::pha() {
 }
 
 void CPU::php() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 1:
             pollInterrupts();
@@ -1285,10 +1299,10 @@ void CPU::rol() {
         updateNegativeFlag(a);
         op.done = true;
     } else if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         uint8_t temp = op.val << 1;
         if (isCarry()) {
             temp |= Carry;
@@ -1316,10 +1330,10 @@ void CPU::ror() {
         updateNegativeFlag(a);
         op.done = true;
     } else if (op.writeModified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         op.done = true;
     } else if (op.writeUnmodified) {
-        write(op.tempAddr, op.val, mute);
+        write(op.tempAddr, op.val);
         uint8_t temp = op.val >> 1;
         if (isCarry()) {
             temp |= Negative;
@@ -1375,7 +1389,7 @@ void CPU::rts() {
 void CPU::sax() {
     op.instType = CPUOp::WriteInst;
     if (op.write) {
-        write(op.tempAddr, a & x, mute);
+        write(op.tempAddr, a & x);
         op.done = true;
     }
 }
@@ -1442,7 +1456,7 @@ void CPU::sre() {
 void CPU::sta() {
     op.instType = CPUOp::WriteInst;
     if (op.write) {
-        write(op.tempAddr, a, mute);
+        write(op.tempAddr, a);
         op.done = true;
     }
 }
@@ -1455,7 +1469,7 @@ void CPU::stp() {
 void CPU::stx() {
     op.instType = CPUOp::WriteInst;
     if (op.write) {
-        write(op.tempAddr, x, mute);
+        write(op.tempAddr, x);
         op.done = true;
     }
 }
@@ -1463,7 +1477,7 @@ void CPU::stx() {
 void CPU::sty() {
     op.instType = CPUOp::WriteInst;
     if (op.write) {
-        write(op.tempAddr, y, mute);
+        write(op.tempAddr, y);
         op.done = true;
     }
 }
@@ -1530,7 +1544,7 @@ void CPU::xaa() {
     printUnknownOp();
 }
 
-// Read/Write Functions
+// Passes the read to the component that is responsible for the address range in the CPU memory map
 
 uint8_t CPU::read(uint16_t addr) {
     if (addr < PPUCTRL) {
@@ -1539,38 +1553,60 @@ uint8_t CPU::read(uint16_t addr) {
         return ppu.readIO(addr, mmc, mute);
     } else if (addr < JOY1) {
         return apu.readIO(addr);
-    } else if (addr == JOY2) {
-        return apu.readIO(addr) | io.readIO(addr);
-    } else if (addr < SAVE_WORK_RAM_START) {
+    } else if (addr <= JOY2) {
         return io.readIO(addr);
-    } else {
+    } else if (addr >= SAVE_WORK_RAM_START) {
         return mmc.readPRG(addr);
     }
+    // Only reached for disabled APU and I/O registers $4018 - $401f
+    return 0;
 }
 
-void CPU::write(uint16_t addr, uint8_t val, bool mute) {
+// Passes the write to the component that is responsible for the address range in the CPU memory map
+
+void CPU::write(uint16_t addr, uint8_t val) {
     if (addr < PPUCTRL) {
-        ram.write(addr, val, mute);
-    } else if (addr < SQ1_VOL) {
+        ram.write(addr, val);
+    } else if (addr < SQ1_VOL || addr == OAMDMA) {
         ppu.writeIO(addr, val, mmc, mute);
-    } else if (addr == OAMDMA) {
-        ppu.writeIO(addr, val, mmc, mute);
-        op.oamDMATransfer = true;
+        if (addr == OAMDMA) {
+            // Start the OAM DMA transfer
+            op.oamDMATransfer = true;
+        }
     } else if (addr < JOY1) {
-        apu.writeIO(addr, val, mute);
-    } else if (addr == JOY2) {
-        apu.writeIO(addr, val, mute);
-        io.writeIO(addr, val, mute);
-    } else if (addr < SAVE_WORK_RAM_START) {
-        io.writeIO(addr, val, mute);
-    } else {
-        mmc.writePRG(addr, val, mute);
+        apu.writeIO(addr, val);
+    } else if (addr <= JOY2) {
+        if (addr == JOY2) {
+            // This register is shared between the APU and I/O, so write the value to both to ensure
+            // that they're equal
+            apu.writeIO(addr, val);
+        }
+        io.writeIO(addr, val);
+    } else if (addr >= SAVE_WORK_RAM_START)  {
+        mmc.writePRG(addr, val);
+    }
+
+    if (!mute) {
+        std::cout << std::hex << "0x" << (unsigned int) val << " has been written to the address 0x"
+            << (unsigned int) addr << "\n--------------------------------------------------\n" <<
+            std::dec;
     }
 }
 
+// Performs an OAM DMA transfer to the PPU:
+// https://www.nesdev.org/wiki/PPU_registers#OAM_DMA_($4014)_%3E_write
+
 void CPU::oamDMATransfer() {
-    if (op.dmaCycle == 1 && totalCycles % 2 == 1) {
+    // OAM DMA transfer takes 1 extra cycle if the CPU cycle is odd after cycle 0 of the transfer
+    if (op.dmaCycle == 1 && totalCycles % 2) {
         --op.dmaCycle;
+    // Cycle 0 is a wait state cycle. Perform both a read and a write every other cycle. While the
+    // read and write should technically be done on separate cycles, it arguably doesn't matter
+    // because the CPU is suspended and can't write to the addresses that the transfer is reading
+    // from. However, there could be games that ignore best practice and perform OAM DMA transfers
+    // while the PPU is rendering and evaluating sprites, which would behave differently depending
+    // on the exact cycles that the writes are performed on. Could refactor to be more accurate, but
+    // it'll increase code complexity
     } else if (op.dmaCycle > 0 && op.dmaCycle % 2 == 0) {
         unsigned int oamAddr = op.dmaCycle / 2 - 1;
         uint16_t cpuBaseAddr = ppu.readIO(OAMDMA, mmc, mute) << 8;
@@ -1587,7 +1623,9 @@ void CPU::oamDMATransfer() {
     }
 }
 
-// Interrupt Functions
+// Asks the PPU if an NMI should be executed. This function is called on the second-to-last cycle of
+// every instruction, except for branch instructions:
+// https://www.nesdev.org/wiki/CPU_interrupts#Branch_instructions_and_interrupts
 
 void CPU::pollInterrupts() {
     op.clearInterruptFlags();
@@ -1596,8 +1634,11 @@ void CPU::pollInterrupts() {
     }
 }
 
+// Performs the interrupt prologue for maskable interrupts, which involves pushing the PC and P
+// registers to the stack and setting the Interrupt Disable flag
+
 void CPU::prepareIRQ(bool isBrk) {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.inst = 0;
@@ -1617,6 +1658,8 @@ void CPU::prepareIRQ(bool isBrk) {
         case 4:
             op.clearStatusFlags(false, true, true, false);
             temp = p | UnusedFlag;
+            // When pushing the P register to the stack, only set the Break flag if the IRQ was
+            // triggered by the BRK instruction
             if (!isBrk) {
                 temp &= ~Break;
             }
@@ -1635,8 +1678,11 @@ void CPU::prepareIRQ(bool isBrk) {
     }
 }
 
+// Performs the interrupt prologue for non-maskable interrupts, which involves pushing the PC and P
+// registers to the stack and setting the Interrupt Disable flag
+
 void CPU::prepareNMI() {
-    uint8_t temp = 0;
+    uint8_t temp;
     switch (op.cycle) {
         case 0:
             op.inst = 0;
@@ -1669,6 +1715,10 @@ void CPU::prepareNMI() {
     }
 }
 
+// Performs the interrupt prologue for reset interrupts, which involves attempting to push the PC
+// and P registers to the stack and setting the Interrupt Disable flag. Writes are surpressed, so
+// the values never get pushed to the stack. However, the SP register still gets decremented
+
 void CPU::prepareReset() {
     switch (op.cycle) {
         case 0:
@@ -1698,7 +1748,7 @@ void CPU::prepareReset() {
     }
 }
 
-// Processor Status Updates
+// Sets the Zero flag if the result is zero. Otherwise, clear it
 
 void CPU::updateZeroFlag(uint8_t result) {
     if (result == 0) {
@@ -1708,12 +1758,12 @@ void CPU::updateZeroFlag(uint8_t result) {
     }
 }
 
+// Sets the Negative flag if the result is negative. Otherwise, clear it
+
 void CPU::updateNegativeFlag(uint8_t result) {
     p &= ~Negative;
     p |= result & Negative;
 }
-
-// Processor Status Getters
 
 bool CPU::isCarry() const {
     return p & Carry;
@@ -1734,8 +1784,6 @@ bool CPU::isOverflow() const {
 bool CPU::isNegative() const {
     return p & Negative;
 }
-
-// Processor Status Setters
 
 void CPU::setCarryFlag(bool val) {
     if (val) {

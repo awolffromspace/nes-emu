@@ -1,19 +1,23 @@
 #include "ppu.h"
 
+// Public Member Functions
+
 PPU::PPU() :
         oamDMA(0),
+        oddFrame(false),
         ppuAddr(0),
         ppuDataBuffer(0),
         writeLoAddr(false),
         mirroring(0),
         totalCycles(0),
+        totalFrames(0),
         startTime(SDL_GetTicks64()),
         stopTime(SDL_GetTicks64()) {
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
 }
 
-void PPU::clear(bool mute) {
+void PPU::clear() {
     memset(registers, 0, PPU_REGISTER_SIZE);
     oamDMA = 0;
     memset(vram, 0, VRAM_SIZE);
@@ -22,21 +26,18 @@ void PPU::clear(bool mute) {
     memset(secondaryOAM, 0, SECONDARY_OAM_SIZE);
     memset(frame, 0, FRAME_SIZE);
     op.clear();
+    oddFrame = false;
     ppuAddr = 0;
     ppuDataBuffer = 0;
     writeLoAddr = false;
     mirroring = 0;
     totalCycles = 0;
+    totalFrames = 0;
     startTime = SDL_GetTicks64();
     stopTime = SDL_GetTicks64();
-
-    if (!mute) {
-        std::cout << "PPU was cleared\n";
-    }
 }
 
-void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
-        bool mute) {
+void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute) {
     skipCycle0();
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
         fetch(mmc);
@@ -46,7 +47,7 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture,
         setPixel(mmc);
         renderFrame(renderer, texture);
     }
-    updateFlags(mmc, mute);
+    updateVblank(mmc);
     prepNextCycle();
     ++totalCycles;
 }
@@ -113,13 +114,16 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "registers[6]      = 0x" << (unsigned int) registers[6] << "\n"
         "registers[7]      = 0x" << (unsigned int) registers[7] << "\n"
         "oamDMA            = 0x" << (unsigned int) oamDMA << "\n"
+        << std::dec <<
+        "oddFrame          = " << oddFrame << "\n"
         << std::hex <<
         "ppuAddr           = " << (unsigned int) ppuAddr << "\n"
         "ppuDataBuffer     = " << (unsigned int) ppuDataBuffer << "\n"
         << std::dec <<
-        "writeLoAddr       = " << (bool) writeLoAddr << "\n"
+        "writeLoAddr       = " << writeLoAddr << "\n"
         "mirroring         = " << mirroring << "\n"
         "totalCycles       = " << totalCycles <<
+        "totalFrames       = " << totalFrames << "\n"
         "\n----------------------------\n" << std::hex <<
         "PPU Operation Fields\n----------------------------\n"
         "nametableAddr     = 0x" << (unsigned int) op.nametableAddr << "\n"
@@ -132,15 +136,15 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "scanline          = " << op.scanline << "\n"
         "pixel             = " << op.pixel << "\n"
         "attributeQuadrant = " << op.attributeQuadrant << "\n"
-        "oddFrame          = " << (bool) op.oddFrame << "\n"
-        "frameNum          = " << op.frameNum << "\n"
         "cycle             = " << op.cycle << "\n"
         "status            = " << op.status <<
         "\n--------------------------------------------------\n";
 }
 
+// Private Member Functions
+
 void PPU::skipCycle0() {
-    if (op.cycle == 0 && op.oddFrame && (isBGShown() || areSpritesShown())) {
+    if (op.cycle == 0 && oddFrame && (isBGShown() || areSpritesShown())) {
         ++op.cycle;
     }
 }
@@ -160,13 +164,11 @@ void PPU::fetch(MMC& mmc) {
             op.attributeEntry = readVRAM(op.attributeAddr, mmc);
             break;
         case PPUOp::FetchPatternEntryLo:
-            addr = op.nametableEntry * 0x10 + (renderLine % 8) +
-                getBGPatternAddr();
+            addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr();
             op.patternEntryLo = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchPatternEntryHi:
-            addr = op.nametableEntry * 0x10 + (renderLine % 8) +
-                getBGPatternAddr() + 8;
+            addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr() + 8;
             op.patternEntryHi = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchSpriteEntryLo:
@@ -182,7 +184,7 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
         return;
     }
 
-    struct PPUOp::Sprite& sprite = op.nextSprites[op.spriteNum];
+    Sprite& sprite = op.nextSprites[op.spriteNum];
     uint16_t spritePatternAddr = getSpritePatternAddr();
     unsigned int spriteHeight = getSpriteHeight();
     uint8_t tileIndexNum = sprite.tileIndexNum;
@@ -198,7 +200,8 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
     }
 
     uint16_t addr = spritePatternAddr + tileIndexNum * patternEntriesPerSprite;
-    unsigned int tileRowIndex = getSpriteTileRowIndex(sprite);
+    unsigned int renderLine = getRenderLine();
+    unsigned int tileRowIndex = sprite.getTileRowIndex(renderLine, spriteHeight);
     addr += tileRowIndex;
     if (op.status == PPUOp::FetchSpriteEntryLo) {
         sprite.patternEntryLo = readVRAM(addr, mmc);
@@ -208,36 +211,10 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
     }
 }
 
-uint8_t PPU::getSpriteTileRowIndex(struct PPUOp::Sprite& sprite) const {
-    uint8_t index = 0;
-    unsigned int spriteHeight = getSpriteHeight();
-    unsigned int yPos = sprite.yPos;
-    unsigned int spriteRenderLineDiff = getSpriteRenderLineDiff(yPos);
-    if (isSpriteFlippedVertically(sprite.attributes)) {
-        index += 0x7;
-        if (spriteHeight == 16) {
-            index += 0x10;
-        }
-        if (spriteRenderLineDiff >= 8) {
-            index -= 0x10;
-            spriteRenderLineDiff -= 8;
-        }
-        index -= spriteRenderLineDiff;
-    } else {
-        if (spriteRenderLineDiff >= 8) {
-            index += 0x10;
-            spriteRenderLineDiff -= 8;
-        }
-        index += spriteRenderLineDiff;
-    }
-    return index;
-}
-
 void PPU::addTileRow() {
-    if (op.cycle % 2 == 0 && op.status == PPUOp::FetchPatternEntryHi &&
-            isValidFetch()) {
-        op.tileRows.push({op.nametableEntry, op.attributeEntry,
-            op.patternEntryLo, op.patternEntryHi, op.attributeQuadrant});
+    if (op.cycle % 2 == 0 && op.status == PPUOp::FetchPatternEntryHi && isValidFetch()) {
+        op.tileRows.push({op.nametableEntry, op.attributeEntry, op.patternEntryLo,
+            op.patternEntryHi, op.attributeQuadrant});
     }
 }
 
@@ -264,10 +241,13 @@ void PPU::evaluateSprites() {
     if (op.cycle % 2) {
         op.oamEntry = oam[op.spriteNum * 4 + op.oamEntryNum];
     } else {
-        if (op.oamEntryNum == 0 && isSpriteYInRange(op.oamEntry)) {
+        Sprite sprite(op.oamEntry, op.spriteNum);
+        unsigned int renderLine = getRenderLine();
+        unsigned int spriteHeight = getSpriteHeight();
+        if (op.oamEntryNum == 0 && sprite.isYInRange(renderLine, spriteHeight)) {
             unsigned int foundSpriteNum = op.nextSprites.size();
             secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
-            op.nextSprites.push_back({op.oamEntry, 0, 0, 0, 0, 0, op.spriteNum});
+            op.nextSprites.push_back(sprite);
             ++op.oamEntryNum;
         } else if (op.oamEntryNum == 1) {
             unsigned int foundSpriteNum = op.nextSprites.size() - 1;
@@ -300,13 +280,13 @@ void PPU::setPixel(MMC& mmc) {
     uint8_t bgPixelLower = bgPixel & 3;
     uint8_t spritePixel = 0;
     uint8_t spritePixelLower = 0;
-    struct PPUOp::Sprite currentSprite;
+    std::vector<Sprite>::iterator spriteIterator;
     unsigned int foundSpriteNum = 0;
     bool foundSprite = false;
-    for (; foundSpriteNum < op.currentSprites.size(); ++foundSpriteNum) {
-        currentSprite = op.currentSprites[foundSpriteNum];
-        if (isSpriteXInRange(currentSprite.xPos)) {
-            spritePixel = getSpritePixel(currentSprite);
+    for (spriteIterator = op.currentSprites.begin(); spriteIterator != op.currentSprites.end();
+            ++spriteIterator) {
+        if (spriteIterator->isXInRange(op.pixel)) {
+            spritePixel = spriteIterator->getPixel(op.pixel);
             spritePixelLower = spritePixel & 3;
             if (spritePixelLower) {
                 foundSprite = true;
@@ -314,21 +294,19 @@ void PPU::setPixel(MMC& mmc) {
             }
             spritePixel = 0;
         }
+        ++foundSpriteNum;
     }
 
     bool spriteChosen = false;
     if (foundSprite) {
-        spriteChosen = isSpriteChosen(currentSprite, bgPixelLower,
-            spritePixelLower);
+        spriteChosen = spriteIterator->isChosen(bgPixelLower, spritePixelLower);
     }
 
     uint8_t paletteEntry = 0;
-    if (spriteChosen && areSpritesShown() &&
-            (op.pixel > 7 || areSpritesLeftColShown())) {
+    if (spriteChosen && areSpritesShown() && (op.pixel > 7 || areSpritesLeftColShown())) {
         paletteEntry = readVRAM(SPRITE_PALETTE_START + spritePixel, mmc);
-        setSprite0Hit(currentSprite, bgPixel);
-    } else if (!spriteChosen && isBGShown() &&
-            (op.pixel > 7 || isBGLeftColShown())) {
+        setSprite0Hit(*spriteIterator, bgPixel);
+    } else if (!spriteChosen && isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
         paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPixel, mmc);
     } else {
         paletteEntry = readVRAM(IMAGE_PALETTE_START, mmc);
@@ -338,7 +316,7 @@ void PPU::setPixel(MMC& mmc) {
 
 uint8_t PPU::getBGPixel() const {
     struct PPUOp::TileRow tileRow = op.tileRows.front();
-    uint8_t upperPaletteBits = getPaletteFromAttribute();
+    uint8_t upperPaletteBits = getPalette();
     uint8_t bgPixel = 0;
     if (tileRow.patternEntryLo & (0x80 >> (op.pixel % 8))) {
         bgPixel |= 1;
@@ -355,44 +333,25 @@ uint8_t PPU::getBGPixel() const {
     return bgPixel;
 }
 
-uint8_t PPU::getSpritePixel(struct PPUOp::Sprite& sprite) const {
-    unsigned int spritePixelDiff = getSpritePixelDiff(sprite.xPos);
-    uint8_t pixelBit = 0x80 >> spritePixelDiff;
-    uint8_t upperPaletteBits = getPaletteFromSpriteAttributes(sprite.attributes);
-    uint8_t spritePixel = 0;
-    if (isSpriteFlippedHorizontally(sprite.attributes)) {
-        pixelBit = 1 << spritePixelDiff;
+uint8_t PPU::getPalette() const {
+    struct PPUOp::TileRow tileRow = op.tileRows.front();
+    unsigned int shiftNum = 0;
+    switch (tileRow.attributeQuadrant) {
+        case PPUOp::TopRight:
+            shiftNum = 2;
+            break;
+        case PPUOp::BottomLeft:
+            shiftNum = 4;
+            break;
+        case PPUOp::BottomRight:
+            shiftNum = 6;
     }
-    if (sprite.patternEntryLo & pixelBit) {
-        spritePixel |= 1;
-    }
-    if (sprite.patternEntryHi & pixelBit) {
-        spritePixel |= 2;
-    }
-    if (upperPaletteBits & 1) {
-        spritePixel |= 4;
-    }
-    if (upperPaletteBits & 2) {
-        spritePixel |= 8;
-    }
-    return spritePixel;
+    return (tileRow.attributeEntry >> shiftNum) & 3;
 }
 
-bool PPU::isSpriteChosen(struct PPUOp::Sprite& sprite, uint8_t bgPixel,
-        uint8_t spritePixel) const {
-    bool priority = isSpritePrioritized(sprite.attributes);
-    if (bgPixel && spritePixel && priority) {
-        return true;
-    } else if (!bgPixel && spritePixel) {
-        return true;
-    }
-    return false;
-}
-
-void PPU::setSprite0Hit(struct PPUOp::Sprite& sprite, uint8_t bgPixel) {
+void PPU::setSprite0Hit(Sprite& sprite, uint8_t bgPixel) {
     if (sprite.spriteNum == 0 && bgPixel && isBGShown() && op.pixel != 255 &&
-            (op.pixel > 7 ||
-                (isBGLeftColShown() && areSpritesLeftColShown()))) {
+            (op.pixel > 7 || (isBGLeftColShown() && areSpritesLeftColShown()))) {
         registers[2] |= 0x40;
     }
 }
@@ -409,9 +368,8 @@ void PPU::setRGB(uint8_t paletteEntry) {
 }
 
 void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
-    if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 &&
-            renderer != nullptr && texture != nullptr &&
-            op.frameNum % NUM_FRAME_TO_SKIP == 0) {
+    if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 && renderer != nullptr &&
+            texture != nullptr && totalFrames % NUM_FRAME_TO_SKIP == 0) {
         stopTime = SDL_GetTicks64();
         Uint64 duration = stopTime - startTime;
         if (duration < 16.667) {
@@ -430,13 +388,11 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
-void PPU::updateFlags(MMC& mmc, bool mute) {
+void PPU::updateVblank(MMC& mmc) {
     if (op.cycle == 1 && op.scanline == 241 && !isVblank()) {
-        uint8_t flags = readRegister(PPUSTATUS, mmc) | 0x80;
-        writeRegister(PPUSTATUS, flags, mmc, mute);
+        registers[2] |= 0x80;
     } else if (op.cycle == 1 && op.scanline == PRERENDER_LINE && isVblank()) {
-        uint8_t flags = readRegister(PPUSTATUS, mmc) & 0x7f;
-        writeRegister(PPUSTATUS, flags, mmc, mute);
+        registers[2] &= 0x7f;
     }
 }
 
@@ -449,8 +405,7 @@ void PPU::prepNextCycle() {
         if (op.status == PPUOp::FetchSpriteEntryHi) {
             ++op.spriteNum;
         }
-        if ((op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) &&
-                op.cycle < 337) {
+        if ((op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) && op.cycle < 337) {
             updateOpStatus();
         }
     }
@@ -477,20 +432,20 @@ void PPU::prepNextCycle() {
     if (op.scanline == PRERENDER_LINE && op.cycle == LAST_CYCLE) {
         registers[2] &= 0xbf;
         op.scanline = 0;
-        op.oddFrame = !op.oddFrame;
+        oddFrame = !oddFrame;
         op.cycle = 0;
-        ++op.frameNum;
+        ++totalFrames;
     } else if (op.cycle == LAST_CYCLE) {
         ++op.scanline;
-        op.oddFrame = !op.oddFrame;
+        oddFrame = !oddFrame;
         op.cycle = 0;
-        ++op.frameNum;
+        ++totalFrames;
     } else {
         ++op.cycle;
     }
 
-    if (op.frameNum == 4294967280) {
-        op.frameNum = 0;
+    if (totalFrames == 4294967280) {
+        totalFrames = 0;
     }
 }
 
@@ -538,8 +493,7 @@ void PPU::updateAttributeAddr() {
             if (op.nametableAddr == NAMETABLE0_START) {
                 op.attributeQuadrant = PPUOp::TopLeft;
                 op.attributeAddr = ATTRIBUTE0_START;
-            } else if (op.nametableAddr % 0x80 == 0 &&
-                    (renderLine + 1) % 32 == 0) {
+            } else if (op.nametableAddr % 0x80 == 0 && (renderLine + 1) % 32 == 0) {
                 op.attributeQuadrant = PPUOp::TopLeft;
                 ++op.attributeAddr;
             } else if (op.nametableAddr % 0x20 == 0) {
@@ -559,8 +513,7 @@ void PPU::updateOpStatus() {
         } else {
             op.status = PPUOp::FetchSpriteEntryLo;
         }
-    } else if (op.status == PPUOp::FetchPatternEntryHi ||
-            op.status == PPUOp::FetchSpriteEntryHi) {
+    } else if (op.status == PPUOp::FetchPatternEntryHi || op.status == PPUOp::FetchSpriteEntryHi) {
         op.status = PPUOp::FetchNametableEntry;
     } else {
         ++op.status;
@@ -598,17 +551,10 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 
     if (addr == PPUADDR) {
-        updatePPUAddr(val, mute);
+        updatePPUAddr(val);
     } else if (addr == PPUDATA) {
         writeVRAM(ppuAddr, val, mmc, mute);
         ppuAddr += getPPUAddrInc();
-    }
-
-    if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been written to the address 0x" << (unsigned int) addr <<
-            "\n--------------------------------------------------\n" <<
-            std::dec;
     }
 }
 
@@ -676,21 +622,20 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 
     if (localAddr < NAMETABLE0_START) {
-        mmc.writeCHR(localAddr, val, mute);
+        mmc.writeCHR(localAddr, val);
     } else {
         localAddr -= 0x2000;
         vram[localAddr] = val;
     }
 
     if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val << " has " <<
-            "been written to the VRAM address 0x" << (unsigned int) addr <<
-            "\n--------------------------------------------------\n" <<
-            std::dec;
+        std::cout << std::hex << "0x" << (unsigned int) val << " has been written to the VRAM "
+            "address 0x" << (unsigned int) addr <<
+            "\n--------------------------------------------------\n" << std::dec;
     }
 }
 
-void PPU::updatePPUAddr(uint8_t val, bool mute) {
+void PPU::updatePPUAddr(uint8_t val) {
     if (writeLoAddr) {
         ppuAddr &= 0xff00;
         ppuAddr |= val;
@@ -757,8 +702,7 @@ bool PPU::isRendering() const {
 }
 
 bool PPU::isValidFetch() const {
-    if (op.scanline < LAST_RENDER_LINE && (op.cycle < 241 || op.cycle > 320) &&
-            op.cycle < 337) {
+    if (op.scanline < LAST_RENDER_LINE && (op.cycle < 241 || op.cycle > 320) && op.cycle < 337) {
         return true;
     }
     if (op.scanline == LAST_RENDER_LINE && op.cycle < 241) {
@@ -768,64 +712,6 @@ bool PPU::isValidFetch() const {
         return true;
     }
     return false;
-}
-
-uint8_t PPU::getPaletteFromAttribute() const {
-    struct PPUOp::TileRow tileRow = op.tileRows.front();
-    unsigned int shiftNum = 0;
-    switch (tileRow.attributeQuadrant) {
-        case PPUOp::TopRight:
-            shiftNum = 2;
-            break;
-        case PPUOp::BottomLeft:
-            shiftNum = 4;
-            break;
-        case PPUOp::BottomRight:
-            shiftNum = 6;
-    }
-    return (tileRow.attributeEntry >> shiftNum) & 3;
-}
-
-unsigned int PPU::getSpriteRenderLineDiff(unsigned int yPos) const {
-    unsigned int renderLine = getRenderLine();
-    return renderLine - yPos;
-}
-
-bool PPU::isSpriteYInRange(unsigned int yPos) const {
-    unsigned int spriteRenderLineDiff = getSpriteRenderLineDiff(yPos);
-    unsigned int spriteHeight = getSpriteHeight();
-    if (spriteRenderLineDiff <= spriteHeight - 1) {
-        return true;
-    }
-    return false;
-}
-
-unsigned int PPU::getSpritePixelDiff(unsigned int xPos) const {
-    return op.pixel - xPos;
-}
-
-bool PPU::isSpriteXInRange(unsigned int xPos) const {
-    unsigned int spritePixelDiff = getSpritePixelDiff(xPos);
-    if (spritePixelDiff <= 7) {
-        return true;
-    }
-    return false;
-}
-
-uint8_t PPU::getPaletteFromSpriteAttributes(uint8_t spriteAttributes) const {
-    return spriteAttributes & 3;
-}
-
-bool PPU::isSpritePrioritized(uint8_t spriteAttributes) const {
-    return !(spriteAttributes & 0x20);
-}
-
-bool PPU::isSpriteFlippedHorizontally(uint8_t spriteAttributes) const {
-    return spriteAttributes & 0x40;
-}
-
-bool PPU::isSpriteFlippedVertically(uint8_t spriteAttributes) const {
-    return spriteAttributes & 0x80;
 }
 
 uint16_t PPU::getNametableBaseAddr() const {

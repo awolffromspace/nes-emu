@@ -13,7 +13,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
 void runNESTest(CPU& cpu);
 
-void runNESGame(CPU& cpu, const std::string& gameFilename);
+void runNESGame(CPU& cpu, const std::string& filename);
 
 int main(int argc, char* argv[]) {
     CPU cpu;
@@ -22,21 +22,20 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> filenames;
         readInFilenames(filenames);
         runTests(cpu, filenames);
+        cpu.clear();
         runNESTest(cpu);
     } else if (argc == 2) {
-        std::string gameFilename(argv[1]);
-        if (gameFilename.size() < 5) {
-            std::cerr << "Game filename is too short or missing its filename "
-                "extension\n";
+        std::string filename(argv[1]);
+        if (filename.size() < 5) {
+            std::cerr << "Game filename is too short or missing its filename extension\n";
             exit(1);
         }
-        std::string fileFormat = gameFilename.substr(gameFilename.size() - 4,
-            4);
+        std::string fileFormat = filename.substr(filename.size() - 4, 4);
         if (fileFormat != ".nes") {
             std::cerr << "Wrong filename extension\n";
             exit(1);
         }
-        runNESGame(cpu, gameFilename);
+        runNESGame(cpu, filename);
     } else if (argc == 3) {
         std::string debugStr = "debug";
         std::string arg(argv[2]);
@@ -54,16 +53,17 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+// Adds each filename in test/filenames to a vector
+
 void readInFilenames(std::vector<std::string>& filenames) {
     std::string filenameList = "test/filenames";
-    std::string line;
     std::ifstream file(filenameList.c_str());
-
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
         exit(1);
     }
 
+    std::string line;
     while (file.good()) {
         getline(file, line);
         if (line.at(line.size() - 1) == '\n') {
@@ -72,34 +72,34 @@ void readInFilenames(std::vector<std::string>& filenames) {
             filenames.push_back("test/" + line);
         }
     }
-
     file.close();
 }
 
+// For each unit test in the test directory, this function converts the test's .state file into a
+// State struct for comparing CPU states. Initially, the data is stored in an array so that the
+// while loop logic can be better generalized
+
 struct CPU::State readInState(const std::string& filename) {
-    struct CPU::State state;
-    uint16_t data[5];
-    unsigned int dataIndex = 0;
-    std::string line;
     std::string stateFilename = filename + ".state";
     std::ifstream file(stateFilename.c_str());
-
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
         exit(1);
     }
 
+    struct CPU::State state;
+    uint16_t data[5];
+    unsigned int dataIndex = 0;
+    std::string line;
     while (file.good()) {
         getline(file, line);
         std::string substring = "";
-
         for (char currentChar : line) {
             if (currentChar == '/' || currentChar == ' ') {
                 break;
             }
             substring += currentChar;
         }
-
         if (dataIndex == 5) {
             state.p = std::stoul(substring, nullptr, 2);
         } else if (dataIndex == 6) {
@@ -107,11 +107,9 @@ struct CPU::State readInState(const std::string& filename) {
         } else {
             data[dataIndex] = std::stoul(substring, nullptr, 16);
         }
-
         ++dataIndex;
         substring = "";
     }
-
     file.close();
 
     if (dataIndex < 7) {
@@ -124,31 +122,32 @@ struct CPU::State readInState(const std::string& filename) {
     state.a = data[2];
     state.x = data[3];
     state.y = data[4];
-
     return state;
 }
 
-void readInNESTestStates(std::vector<struct CPU::State>& states,
-        std::vector<uint32_t>& instructions,
-        std::vector<std::string>& testLogs) {
-    std::string filename = "nestest.log";
-    std::string line;
-    std::ifstream file(filename.c_str());
+// Converts each line in nestest.log to a State struct for comparing CPU states. The current
+// instruction for each line and the original line from nestest.log are also added to vectors for
+// easier debugging
 
+void readInNESTestStates(std::vector<struct CPU::State>& states,
+        std::vector<uint32_t>& instructions, std::vector<std::string>& testLogs) {
+    std::string filename = "nestest.log";
+    std::ifstream file(filename.c_str());
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
         exit(1);
     }
 
+    std::string line;
     while (file.good()) {
-        struct CPU::State state;
-        uint32_t inst = 0;
-        std::string substring;
         getline(file, line);
-
         if (line.size() <= 1) {
             break;
         }
+
+        struct CPU::State state;
+        uint32_t inst = 0;
+        std::string substring;
 
         substring = line.substr(0, 4);
         state.pc = std::stoul(substring, nullptr, 16) + 1;
@@ -190,9 +189,11 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
         instructions.push_back(inst);
         testLogs.push_back(line);
     }
-
     file.close();
 }
+
+// Runs the .NES or instruction file without graphics for debugging. "continue" input runs the
+// program until the BRK instruction is executed. "step" input runs the program for one CPU cycle
 
 void runProgram(CPU& cpu, const std::string& filename) {
     bool nesFile = false;
@@ -209,7 +210,6 @@ void runProgram(CPU& cpu, const std::string& filename) {
 
     std::string input;
     std::cin >> input;
-
     while (!cpu.isEndOfProgram()) {
         if (input == "c" || input == "continue") {
             cpu.setHaltAtBrk(true);
@@ -229,9 +229,11 @@ void runProgram(CPU& cpu, const std::string& filename) {
             exit(0);
         }
     }
-
     std::cout << "End of the program\n";
 }
+
+// Given the unit test filenames, this function runs all tests and compares the CPU's state with the
+// test's .state file. Any failed tests are printed out
 
 void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
@@ -242,9 +244,7 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         if (testNum > 0) {
             cpu.clear();
         }
-
         cpu.readInInst(currentFilename);
-
         if (currentFilename.size() >= 8) {
             std::string testType = currentFilename.substr(5, 3);
             if (testType == "brk") {
@@ -253,17 +253,15 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         }
 
         while ((cpu.isHaltAtBrk() && !cpu.isEndOfProgram()) ||
-                (!cpu.isHaltAtBrk() &&
-                cpu.getTotalCycles() < state.totalCycles)) {
+                (!cpu.isHaltAtBrk() && cpu.getTotalCycles() < state.totalCycles)) {
             cpu.step(nullptr, nullptr);
+        }
+        if (!cpu.compareState(state)) {
+            failedTests.push_back(testNum);
         }
 
         if (!cpu.isHaltAtBrk()) {
             cpu.setHaltAtBrk(true);
-        }
-
-        if (!cpu.compareState(state)) {
-            failedTests.push_back(testNum);
         }
     }
 
@@ -275,31 +273,29 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     for (unsigned int failedTest : failedTests) {
         std::string& currentFilename = filenames[failedTest];
         unsigned int sizeMinusDir = currentFilename.size() - 5;
-        std::cout << "Failed test \"" <<
-            currentFilename.substr(5, sizeMinusDir) << "\"\n";
+        std::cout << "Failed test \"" << currentFilename.substr(5, sizeMinusDir) << "\"\n";
     }
 }
+
+// Runs the nestest.nes system test and compares the CPU's state with the state of each line in
+// nestest.log. If a state doesn't match, it gets printed out
 
 void runNESTest(CPU& cpu) {
     std::string filename = "nestest.nes";
     std::vector<struct CPU::State> states;
     std::vector<uint32_t> instructions;
     std::vector<std::string> testLogs;
-    unsigned int instNum = 0;
-    bool passed = true;
-
-    cpu.clear();
-
     cpu.readInINES(filename);
     readInNESTestStates(states, instructions, testLogs);
 
+    unsigned int instNum = 0;
+    bool passed = true;
     while (!cpu.isEndOfProgram() && instNum < states.size()) {
         if (cpu.getOpCycles() == 1) {
             struct CPU::State state = states[instNum];
             uint32_t testInst = instructions[instNum];
             uint32_t inst = cpu.getFutureInst();
             std::string testLog = testLogs[instNum];
-
             if (!cpu.compareState(state) || inst != testInst) {
                 std::cout << "Test log: " << testLog << "\nEmulator: ";
                 cpu.printStateInst(inst);
@@ -312,38 +308,37 @@ void runNESTest(CPU& cpu) {
         cpu.step(nullptr, nullptr);
     }
 
+    // nestest.nes puts a nonzero value in the RAM address $0002 if any valid opcodes fail and in
+    // $0003 if any invalid/unofficial opcodes fail, so they get printed out as well if they're ever
+    // nonzero
     uint8_t validOpResult = cpu.getValidOpResult();
     uint8_t invalidOpResult = cpu.getInvalidOpResult();
-
     if (validOpResult != 0) {
-        std::cout << "0x2: " << std::hex << (unsigned int) validOpResult <<
-            "\n";
+        std::cout << "0x2: " << std::hex << (unsigned int) validOpResult << "\n";
         passed = false;
     }
-
     if (invalidOpResult != 0) {
-        std::cout << "0x3: " << (unsigned int) invalidOpResult << "\n" <<
-            std::dec;
+        std::cout << "0x3: " << (unsigned int) invalidOpResult << "\n" << std::dec;
         passed = false;
     }
-
     if (passed) {
         std::cout << "Passed nestest.nes\n";
     }
 }
 
-void runNESGame(CPU& cpu, const std::string& gameFilename) {
-    cpu.readInINES(gameFilename);
+// Runs the .NES file with graphics and I/O
+
+void runNESGame(CPU& cpu, const std::string& filename) {
+    cpu.readInINES(filename);
 
     SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED, FRAME_WIDTH, FRAME_HEIGHT, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        FRAME_WIDTH, FRAME_HEIGHT, SDL_WINDOW_OPENGL);
     if (window == nullptr) {
         std::cerr << "Could not create window\n" << SDL_GetError();
         exit(1);
     }
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
-        SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr) {
         std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);
@@ -359,6 +354,9 @@ void runNESGame(CPU& cpu, const std::string& gameFilename) {
     bool running = true;
     while (running) {
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
+        // Run CPU (and other components) for however many cycles it takes to render one frame
+        // without polling for I/O. I/O is polled only every frame rather than anything more
+        // frequent (e.g., every CPU cycle) to reduce the lag from calling SDL_PollEvent too much
         while (cpu.getTotalPPUCycles() < ppuCycles + PPU_CYCLES_PER_FRAME) {
             cpu.step(renderer, texture);
         }
@@ -366,10 +364,10 @@ void runNESGame(CPU& cpu, const std::string& gameFilename) {
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_KEYDOWN:
-                    cpu.writeIO(event);
+                    cpu.updateButton(event);
                     break;
                 case SDL_KEYUP:
-                    cpu.writeIO(event);
+                    cpu.updateButton(event);
                     break;
                 case SDL_QUIT:
                     running = false;
