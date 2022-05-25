@@ -12,6 +12,7 @@ class MMC;
 #include "mmc.h"
 #include "ppu-op.h"
 
+#define SIXTIETH_OF_A_SECOND 16.666667
 #define ATTRIBUTE0_START 0x23c0
 #define BLACK 0xf
 #define FRAME_HEIGHT 240
@@ -24,7 +25,6 @@ class MMC;
 #define NAMETABLE1_START 0x2400
 #define NAMETABLE2_START 0x2800
 #define NAMETABLE3_START 0x2c00
-#define NUM_FRAME_TO_SKIP 290
 #define OAM_SIZE 0x100
 #define OAMADDR 0x2003
 #define OAMDATA 0x2004
@@ -64,6 +64,7 @@ class PPU {
         bool isNMIActive(MMC& mmc, bool mute);
         unsigned int getTotalCycles() const;
         void setMirroring(unsigned int mirroring);
+        void clearTotalCycles();
         void print(bool isCycleDone, bool mute) const;
 
         enum Mirroring {
@@ -117,8 +118,8 @@ class PPU {
         bool writeLoAddr;
         // The mirroring that the game uses. Depends on enum Mirroring
         unsigned int mirroring;
-        // Total number of cycles and rendered frames since initialization
-        unsigned int totalCycles, totalFrames;
+        // Total number of cycles since initialization
+        unsigned int totalCycles;
         // SDL timer values that are used for limiting framerate to 60 FPS
         Uint64 startTime, stopTime;
 
@@ -136,9 +137,9 @@ class PPU {
 
         // Rendering
         void setPixel(MMC& mmc);
-        uint8_t getBGPixel() const;
         uint8_t getPalette() const;
-        void setSprite0Hit(Sprite& sprite, uint8_t bgPixel);
+        uint8_t getUpperPalette() const;
+        void setSprite0Hit(Sprite& sprite, uint8_t bgPalette);
         void setRGB(uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
 
@@ -167,6 +168,7 @@ class PPU {
         // Miscellaneous Functions
         unsigned int getRenderLine() const;
         bool isRendering() const;
+        bool isRenderingEnabled() const;
         bool isValidFetch() const;
 
         // Register Flag Getters

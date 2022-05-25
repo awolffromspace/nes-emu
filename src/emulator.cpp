@@ -1,3 +1,5 @@
+#include <climits>
+
 #include "cpu.h"
 
 void readInFilenames(std::vector<std::string>& filenames);
@@ -354,6 +356,12 @@ void runNESGame(CPU& cpu, const std::string& filename) {
     bool running = true;
     while (running) {
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
+        // Ensure that the total PPU cycles will always be less than ppuCycles +
+        // PPU_CYCLES_PER_FRAME
+        if (ppuCycles > UINT_MAX - PPU_CYCLES_PER_FRAME) {
+            cpu.clearTotalPPUCycles();
+            ppuCycles = cpu.getTotalPPUCycles();
+        }
         // Run CPU (and other components) for however many cycles it takes to render one frame
         // without polling for I/O. I/O is polled only every frame rather than anything more
         // frequent (e.g., every CPU cycle) to reduce the lag from calling SDL_PollEvent too much

@@ -12,8 +12,8 @@ class Sprite {
         uint8_t getTileRowIndex(unsigned int renderLine, unsigned int spriteHeight) const;
 
         // Rendering
-        uint8_t getPixel(unsigned int pixelNum) const;
-        bool isChosen(uint8_t bgPixel, uint8_t spritePixel) const;
+        uint8_t getPalette(unsigned int pixel) const;
+        bool isChosen(uint8_t bgPalette, uint8_t spritePalette) const;
 
         // Locating the Sprite in the Frame
         unsigned int getYDifference(unsigned int renderLine) const;
@@ -22,7 +22,7 @@ class Sprite {
         bool isXInRange(unsigned int pixel) const;
 
         // Attribute Getters
-        uint8_t getPalette() const;
+        uint8_t getUpperPalette() const;
         bool isPrioritized() const;
         bool isFlippedHorizontally() const;
         bool isFlippedVertically() const;

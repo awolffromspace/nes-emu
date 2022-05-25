@@ -54,6 +54,7 @@ class CPU {
         // Setters
         void setHaltAtBrk(bool h);
         void setMute(bool m);
+        void clearTotalPPUCycles();
 
         // Printing
         void print(bool isCycleDone) const;

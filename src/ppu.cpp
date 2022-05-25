@@ -10,7 +10,6 @@ PPU::PPU() :
         writeLoAddr(false),
         mirroring(0),
         totalCycles(0),
-        totalFrames(0),
         startTime(SDL_GetTicks64()),
         stopTime(SDL_GetTicks64()) {
     vram[UNIVERSAL_BG_INDEX] = BLACK;
@@ -32,7 +31,6 @@ void PPU::clear() {
     writeLoAddr = false;
     mirroring = 0;
     totalCycles = 0;
-    totalFrames = 0;
     startTime = SDL_GetTicks64();
     stopTime = SDL_GetTicks64();
 }
@@ -42,14 +40,37 @@ void PPU::clear() {
 void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute) {
     skipCycle0();
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
-        fetch(mmc);
-        addTileRow();
-        clearSecondaryOAM();
-        evaluateSprites();
-        setPixel(mmc);
-        renderFrame(renderer, texture);
+        // Memory accesses take 2 cycles, so the fetch only needs to be performed once every 2
+        // cycles
+        if (op.cycle % 2 == 0) {
+            fetch(mmc);
+
+            // The high byte of the pattern entry is the last fetch of the tile row, so that means
+            // all info is done being fetched
+            if (op.status == PPUOp::FetchPatternEntryHi && isValidFetch()) {
+                addTileRow();
+            }
+        }
+        if (op.scanline != PRERENDER_LINE) {
+            // Clearing the secondary OAM technically occurs over cycles 1 - 64, but it's redundant
+            // to clear repeatedly
+            if (op.cycle == 64) {
+                clearSecondaryOAM();
+            }
+            if (op.cycle >= 65 && op.cycle <= 256) {
+                evaluateSprites();
+            }
+        }
+        if (isRendering()) {
+            setPixel(mmc);
+        }
+        if (op.scanline == LAST_RENDER_LINE && op.cycle == 259) {
+            renderFrame(renderer, texture);
+        }
     }
-    updateVblank(mmc);
+    if (op.cycle == 1) {
+        updateVblank(mmc);
+    }
     prepNextCycle();
     ++totalCycles;
 }
@@ -98,6 +119,10 @@ void PPU::setMirroring(unsigned int mirroring) {
     this->mirroring = mirroring;
 }
 
+void PPU::clearTotalCycles() {
+    totalCycles = 0;
+}
+
 void PPU::print(bool isCycleDone, bool mute) const {
     if (mute) {
         return;
@@ -130,7 +155,6 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "writeLoAddr       = " << std::dec << writeLoAddr << "\n"
         "mirroring         = " << mirroring << "\n"
         "totalCycles       = " << totalCycles <<
-        "totalFrames       = " << totalFrames << "\n"
         "\n----------------------------\n" << std::hex <<
         "PPU Operation Fields\n----------------------------\n"
         "nametableAddr     = 0x" << (unsigned int) op.nametableAddr << "\n"
@@ -152,16 +176,15 @@ void PPU::print(bool isCycleDone, bool mute) const {
 // The first cycle is skipped on the first scanline if the frame is odd and rendering is enabled
 
 void PPU::skipCycle0() {
-    if (op.scanline == 0 && op.cycle == 0 && oddFrame && (isBGShown() || areSpritesShown())) {
+    if (op.scanline == 0 && op.cycle == 0 && oddFrame && isRenderingEnabled()) {
         ++op.cycle;
     }
 }
 
-void PPU::fetch(MMC& mmc) {
-    if (op.cycle % 2) {
-        return;
-    }
+// Fetches data from the nametables, attribute tables, and pattern tables, which is then used later
+// to form a palette index for a given pixel
 
+void PPU::fetch(MMC& mmc) {
     unsigned int renderLine = getRenderLine();
     uint16_t addr = 0;
     switch (op.status) {
@@ -172,178 +195,218 @@ void PPU::fetch(MMC& mmc) {
             op.attributeEntry = readVRAM(op.attributeAddr, mmc);
             break;
         case PPUOp::FetchPatternEntryLo:
+            // Nametable entries are tile numbers used to index into the pattern tables. Each 8x8
+            // tile takes up 0x10 entries in the pattern table. The render line mod 8 represents the
+            // tile row. The background pattern address is the default base address set by the CPU
             addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr();
             op.patternEntryLo = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchPatternEntryHi:
+            // Each tile row has a low pattern entry and a high pattern entry. The low entries are
+            // listed first (0 - 7) then the high entries are listed (8 - 0xf). E.g., the first tile
+            // row would be located at 0 and 8, the second would be 1 and 9, etc.
             addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr() + 8;
             op.patternEntryHi = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchSpriteEntryLo:
-            fetchSpriteEntry(mmc);
+            if (op.spriteNum < op.nextSprites.size()) {
+                fetchSpriteEntry(mmc);
+            }
             break;
         case PPUOp::FetchSpriteEntryHi:
-            fetchSpriteEntry(mmc);
+            if (op.spriteNum < op.nextSprites.size()) {
+                fetchSpriteEntry(mmc);
+            }
     }
 }
 
-void PPU::fetchSpriteEntry(MMC& mmc) {
-    if (op.spriteNum >= op.nextSprites.size()) {
-        return;
-    }
+// Fetches data from the pattern table for each sprite that was selected during sprite evaluation
 
+void PPU::fetchSpriteEntry(MMC& mmc) {
     Sprite& sprite = op.nextSprites[op.spriteNum];
-    uint16_t spritePatternAddr = getSpritePatternAddr();
+    uint16_t basePatternAddr = getSpritePatternAddr();
     unsigned int spriteHeight = getSpriteHeight();
     uint8_t tileIndexNum = sprite.tileIndexNum;
     unsigned int patternEntriesPerSprite = 0x10;
+    // This if statement prepares the fetch for 8x16 sprites:
+    // https://www.nesdev.org/wiki/PPU_OAM#Byte_1
     if (spriteHeight == 16) {
         if (tileIndexNum & 1) {
-            spritePatternAddr = 0x1000;
+            basePatternAddr = 0x1000;
         } else {
-            spritePatternAddr = 0;
+            basePatternAddr = 0;
         }
         tileIndexNum = tileIndexNum >> 1;
         patternEntriesPerSprite = 0x20;
     }
 
-    uint16_t addr = spritePatternAddr + tileIndexNum * patternEntriesPerSprite;
+    uint16_t addr = basePatternAddr + tileIndexNum * patternEntriesPerSprite;
     unsigned int renderLine = getRenderLine();
     unsigned int tileRowIndex = sprite.getTileRowIndex(renderLine, spriteHeight);
     addr += tileRowIndex;
     if (op.status == PPUOp::FetchSpriteEntryLo) {
         sprite.patternEntryLo = readVRAM(addr, mmc);
     } else {
+        // Each tile row has a low pattern entry and a high pattern entry. The low entries are
+        // listed first (0 - 7) then the high entries are listed (8 - 0xf). E.g., the first tile row
+        // would be located at 0 and 8, the second would be 1 and 9, etc.
         addr += 0x8;
         sprite.patternEntryHi = readVRAM(addr, mmc);
+        ++op.spriteNum;
     }
 }
+
+// Pushes the tile row that has all of its data fetched to the queue for future rendering
 
 void PPU::addTileRow() {
-    if (op.cycle % 2 == 0 && op.status == PPUOp::FetchPatternEntryHi && isValidFetch()) {
-        op.tileRows.push({op.nametableEntry, op.attributeEntry, op.patternEntryLo,
-            op.patternEntryHi, op.attributeQuadrant});
-    }
+    op.tileRows.push({op.nametableEntry, op.attributeEntry, op.patternEntryLo, op.patternEntryHi,
+        op.attributeQuadrant});
 }
+
+// Clears the secondary OAM before sprite evaluation
 
 void PPU::clearSecondaryOAM() {
-    if (op.cycle == 64 && op.scanline <= LAST_RENDER_LINE) {
-        memset(secondaryOAM, 0xff, SECONDARY_OAM_SIZE);
-    }
+    memset(secondaryOAM, 0xff, SECONDARY_OAM_SIZE);
 }
 
+// Scans through the 64 sprites in the OAM to find at most 8 sprites that are in range of the
+// current scanline: https://www.nesdev.org/wiki/PPU_sprite_evaluation
+
 void PPU::evaluateSprites() {
-    if (op.cycle < 65 || op.cycle > 256 || op.scanline > LAST_RENDER_LINE) {
-        return;
-    }
-    if (op.spriteNum >= 64) {
-        return;
-    }
-    if (op.nextSprites.size() >= 8 && op.oamEntryNum == 0) {
-        return;
-    }
-    if (!isBGShown() && !areSpritesShown()) {
+    // If all sprites have been checked, the max of 8 sprites have been reached, or rendering is
+    // disabled, then don't bother evaluating sprites
+    if (op.spriteNum >= 64 ||
+            (op.nextSprites.size() >= 8 && op.oamEntryNum == 0) ||
+            (!isRenderingEnabled())) {
         return;
     }
 
+    // Read from OAM on odd cycles
     if (op.cycle % 2) {
         op.oamEntry = oam[op.spriteNum * 4 + op.oamEntryNum];
-    } else {
-        Sprite sprite(op.oamEntry, op.spriteNum);
-        unsigned int renderLine = getRenderLine();
-        unsigned int spriteHeight = getSpriteHeight();
-        if (op.oamEntryNum == 0 && sprite.isYInRange(renderLine, spriteHeight)) {
-            unsigned int foundSpriteNum = op.nextSprites.size();
-            secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
-            op.nextSprites.push_back(sprite);
-            ++op.oamEntryNum;
-        } else if (op.oamEntryNum == 1) {
-            unsigned int foundSpriteNum = op.nextSprites.size() - 1;
+        return;
+    }
+
+    // Write to secondary OAM on even cycles
+    Sprite sprite(op.oamEntry, op.spriteNum);
+    unsigned int renderLine = getRenderLine();
+    unsigned int spriteHeight = getSpriteHeight();
+    unsigned int foundSpriteNum = op.nextSprites.size();
+    switch (op.oamEntryNum) {
+        case 0:
+            // If the sprite is in range of the current scanline, add it to the list and start
+            // collecting the remaining data for it. Otherwise, move on to the next sprite
+            if (sprite.isYInRange(renderLine, spriteHeight)) {
+                secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
+                op.nextSprites.push_back(sprite);
+                ++op.oamEntryNum;
+            } else {
+                ++op.spriteNum;
+            }
+            break;
+        case 1:
+            --foundSpriteNum;
             secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
             op.nextSprites.back().tileIndexNum = op.oamEntry;
             ++op.oamEntryNum;
-        } else if (op.oamEntryNum == 2) {
-            unsigned int foundSpriteNum = op.nextSprites.size() - 1;
+            break;
+        case 2:
+            --foundSpriteNum;
             secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
             op.nextSprites.back().attributes = op.oamEntry;
             ++op.oamEntryNum;
-        } else if (op.oamEntryNum == 3) {
-            unsigned int foundSpriteNum = op.nextSprites.size() - 1;
+            break;
+        case 3:
+            --foundSpriteNum;
             secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
             op.nextSprites.back().xPos = op.oamEntry;
+            // Done collecting data for the current sprite, so proceed with the next sprite
             op.oamEntryNum = 0;
             ++op.spriteNum;
-        } else {
-            ++op.spriteNum;
-        }
     }
 }
 
-void PPU::setPixel(MMC& mmc) {
-    if (!isRendering()) {
-        return;
-    }
+// Performs all rendering logic for the current pixel in the frame
 
-    uint8_t bgPixel = getBGPixel();
-    uint8_t bgPixelLower = bgPixel & 3;
-    uint8_t spritePixel = 0;
-    uint8_t spritePixelLower = 0;
+void PPU::setPixel(MMC& mmc) {
+    uint8_t bgPalette = getPalette();
+    uint8_t bgPaletteLower = bgPalette & 3;
+    uint8_t spritePalette = 0;
+    uint8_t spritePaletteLower = 0;
     std::vector<Sprite>::iterator spriteIterator;
-    unsigned int foundSpriteNum = 0;
     bool foundSprite = false;
     for (spriteIterator = op.currentSprites.begin(); spriteIterator != op.currentSprites.end();
             ++spriteIterator) {
+        // If the sprite is in range of the current pixel, then it needs to be considered for
+        // rendering. The first sprite found is used, even if there are other sprites in range. The
+        // sprites are prioritized in the order that they're listed in the OAM (sprite 0 being the
+        // most prioritized)
         if (spriteIterator->isXInRange(op.pixel)) {
-            spritePixel = spriteIterator->getPixel(op.pixel);
-            spritePixelLower = spritePixel & 3;
-            if (spritePixelLower) {
+            spritePalette = spriteIterator->getPalette(op.pixel);
+            spritePaletteLower = spritePalette & 3;
+            // If the lower 2 bits are nonzero, then the sprite palette is not transparent. In other
+            // words, a sprite has been found
+            if (spritePaletteLower) {
                 foundSprite = true;
                 break;
             }
-            spritePixel = 0;
         }
-        ++foundSpriteNum;
     }
 
     bool spriteChosen = false;
     if (foundSprite) {
-        spriteChosen = spriteIterator->isChosen(bgPixelLower, spritePixelLower);
+        // Determine whether to output the background pixel or the sprite pixel
+        spriteChosen = spriteIterator->isChosen(bgPaletteLower, spritePaletteLower);
     }
 
     uint8_t paletteEntry = 0;
+    // The palette is used as an index for retrieving the palette entry, which is associated with
+    // RGB values
     if (spriteChosen && areSpritesShown() && (op.pixel > 7 || areSpritesLeftColShown())) {
-        paletteEntry = readVRAM(SPRITE_PALETTE_START + spritePixel, mmc);
-        setSprite0Hit(*spriteIterator, bgPixel);
-    } else if (!spriteChosen && isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
-        paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPixel, mmc);
+        // Output the sprite pixel
+        paletteEntry = readVRAM(SPRITE_PALETTE_START + spritePalette, mmc);
+        setSprite0Hit(*spriteIterator, bgPalette);
+    } else if (isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
+        // Output the background pixel
+        paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPalette, mmc);
     } else {
+        // Output the universal background color:
+        // https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
         paletteEntry = readVRAM(IMAGE_PALETTE_START, mmc);
     }
     setRGB(paletteEntry);
 }
 
-uint8_t PPU::getBGPixel() const {
-    struct PPUOp::TileRow tileRow = op.tileRows.front();
-    uint8_t upperPaletteBits = getPalette();
-    uint8_t bgPixel = 0;
-    if (tileRow.patternEntryLo & (0x80 >> (op.pixel % 8))) {
-        bgPixel |= 1;
-    }
-    if (tileRow.patternEntryHi & (0x80 >> (op.pixel % 8))) {
-        bgPixel |= 2;
-    }
-    if (upperPaletteBits & 1) {
-        bgPixel |= 4;
-    }
-    if (upperPaletteBits & 2) {
-        bgPixel |= 8;
-    }
-    return bgPixel;
-}
+// Gets the background palette bits for the current pixel
 
 uint8_t PPU::getPalette() const {
     struct PPUOp::TileRow tileRow = op.tileRows.front();
+    uint8_t upperPaletteBits = getUpperPalette();
+    uint8_t bgPalette = 0;
+    // The current pixel number mod 8 represents the column in the tile row, which isolates the 8x1
+    // tile row to a single 1x1 pixel
+    if (tileRow.patternEntryLo & (0x80 >> (op.pixel % 8))) {
+        bgPalette |= 1;
+    }
+    if (tileRow.patternEntryHi & (0x80 >> (op.pixel % 8))) {
+        bgPalette |= 2;
+    }
+    if (upperPaletteBits & 1) {
+        bgPalette |= 4;
+    }
+    if (upperPaletteBits & 2) {
+        bgPalette |= 8;
+    }
+    return bgPalette;
+}
+
+// Gets the upper 2 bits of the background palette for the current pixel
+
+uint8_t PPU::getUpperPalette() const {
+    struct PPUOp::TileRow tileRow = op.tileRows.front();
     unsigned int shiftNum = 0;
+    // Which 2 bits to use out of the 8 bits in the attribute entry are determined by what the
+    // current quadrant is: https://www.nesdev.org/wiki/PPU_attribute_tables
     switch (tileRow.attributeQuadrant) {
         case PPUOp::TopRight:
             shiftNum = 2;
@@ -357,12 +420,17 @@ uint8_t PPU::getPalette() const {
     return (tileRow.attributeEntry >> shiftNum) & 3;
 }
 
-void PPU::setSprite0Hit(Sprite& sprite, uint8_t bgPixel) {
-    if (sprite.spriteNum == 0 && bgPixel && isBGShown() && op.pixel != 255 &&
+// Sets the sprite 0 hit flag in the PPUSTATUS register:
+// https://www.nesdev.org/wiki/PPU_OAM#Sprite_zero_hits
+
+void PPU::setSprite0Hit(Sprite& sprite, uint8_t bgPalette) {
+    if (sprite.spriteNum == 0 && bgPalette && isBGShown() && op.pixel != 255 &&
             (op.pixel > 7 || (isBGLeftColShown() && areSpritesLeftColShown()))) {
         registers[2] |= 0x40;
     }
 }
+
+// Sets the current pixel's RGB values in the frame
 
 void PPU::setRGB(uint8_t paletteEntry) {
     unsigned int renderLine = getRenderLine();
@@ -375,16 +443,19 @@ void PPU::setRGB(uint8_t paletteEntry) {
     frame[blueIndex + 3] = SDL_ALPHA_OPAQUE;
 }
 
+// Renders a frame 60 times a second via SDL
+
 void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
-    if (op.scanline <= LAST_RENDER_LINE && op.cycle == 240 && renderer != nullptr &&
-            texture != nullptr && totalFrames % NUM_FRAME_TO_SKIP == 0) {
+    if (renderer != nullptr && texture != nullptr) {
         stopTime = SDL_GetTicks64();
         Uint64 duration = stopTime - startTime;
-        if (duration < 16.667) {
-            SDL_Delay(16.667 - duration);
+        // If a 60th of a second hasn't passed since the last rendered frame, wait until it has
+        if (duration < SIXTIETH_OF_A_SECOND) {
+            SDL_Delay(SIXTIETH_OF_A_SECOND - duration);
         }
         startTime = SDL_GetTicks64();
         stopTime = SDL_GetTicks64();
+
         SDL_RenderClear(renderer);
         uint8_t* lockedPixels = nullptr;
         int pitch = 0;
@@ -396,22 +467,23 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
+// Sets the Vblank flag in the PPUSTATUS register
+
 void PPU::updateVblank(MMC& mmc) {
-    if (op.cycle == 1 && op.scanline == 241 && !isVblank()) {
+    if (op.scanline == 241 && !isVblank()) {
         registers[2] |= 0x80;
-    } else if (op.cycle == 1 && op.scanline == PRERENDER_LINE && isVblank()) {
+    } else if (op.scanline == PRERENDER_LINE && isVblank()) {
         registers[2] &= 0x7f;
     }
 }
+
+// Prepares anything else that needs to be updated for the next cycle
 
 void PPU::prepNextCycle() {
     if (op.cycle % 2 == 0 && op.cycle != 0) {
         if (isValidFetch()) {
             updateNametableAddr();
             updateAttributeAddr();
-        }
-        if (op.status == PPUOp::FetchSpriteEntryHi) {
-            ++op.spriteNum;
         }
         if ((op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) && op.cycle < 337) {
             updateOpStatus();
@@ -430,30 +502,24 @@ void PPU::prepNextCycle() {
 
     if (op.cycle == 256) {
         op.spriteNum = 0;
+        op.oamEntryNum = 0;
     } else if (op.cycle == 320) {
+        op.spriteNum = 0;
         op.currentSprites = op.nextSprites;
         op.nextSprites.clear();
-        op.spriteNum = 0;
-        op.oamEntryNum = 0;
     }
 
     if (op.scanline == PRERENDER_LINE && op.cycle == LAST_CYCLE) {
         registers[2] &= 0xbf;
+        oddFrame = !oddFrame;
         op.scanline = 0;
-        oddFrame = !oddFrame;
         op.cycle = 0;
-        ++totalFrames;
     } else if (op.cycle == LAST_CYCLE) {
-        ++op.scanline;
         oddFrame = !oddFrame;
+        ++op.scanline;
         op.cycle = 0;
-        ++totalFrames;
     } else {
         ++op.cycle;
-    }
-
-    if (totalFrames == 4294967280) {
-        totalFrames = 0;
     }
 }
 
@@ -707,6 +773,10 @@ bool PPU::isRendering() const {
         return true;
     }
     return false;
+}
+
+bool PPU::isRenderingEnabled() const {
+    return isBGShown() || areSpritesShown();
 }
 
 bool PPU::isValidFetch() const {

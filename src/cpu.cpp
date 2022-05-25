@@ -214,6 +214,10 @@ void CPU::setMute(bool m) {
     mute = m;
 }
 
+void CPU::clearTotalPPUCycles() {
+    ppu.clearTotalCycles();
+}
+
 void CPU::print(bool isCycleDone) const {
     if (mute) {
         return;

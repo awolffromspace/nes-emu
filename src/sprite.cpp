@@ -44,34 +44,34 @@ uint8_t Sprite::getTileRowIndex(unsigned int renderLine, unsigned int spriteHeig
     return index;
 }
 
-uint8_t Sprite::getPixel(unsigned int pixelNum) const {
-    unsigned int xDiff = getXDifference(pixelNum);
+uint8_t Sprite::getPalette(unsigned int pixel) const {
+    unsigned int xDiff = getXDifference(pixel);
     uint8_t pixelBit = 0x80 >> xDiff;
-    uint8_t upperPaletteBits = getPalette();
-    uint8_t pixel = 0;
+    uint8_t upperPaletteBits = getUpperPalette();
+    uint8_t palette = 0;
     if (isFlippedHorizontally()) {
         pixelBit = 1 << xDiff;
     }
     if (patternEntryLo & pixelBit) {
-        pixel |= 1;
+        palette |= 1;
     }
     if (patternEntryHi & pixelBit) {
-        pixel |= 2;
+        palette |= 2;
     }
     if (upperPaletteBits & 1) {
-        pixel |= 4;
+        palette |= 4;
     }
     if (upperPaletteBits & 2) {
-        pixel |= 8;
+        palette |= 8;
     }
-    return pixel;
+    return palette;
 }
 
-bool Sprite::isChosen(uint8_t bgPixel, uint8_t spritePixel) const {
+bool Sprite::isChosen(uint8_t bgPalette, uint8_t spritePalette) const {
     bool priority = isPrioritized();
-    if (bgPixel && spritePixel && priority) {
+    if (bgPalette && spritePalette && priority) {
         return true;
-    } else if (!bgPixel && spritePixel) {
+    } else if (!bgPalette && spritePalette) {
         return true;
     }
     return false;
@@ -101,7 +101,7 @@ bool Sprite::isXInRange(unsigned int pixel) const {
     return false;
 }
 
-uint8_t Sprite::getPalette() const {
+uint8_t Sprite::getUpperPalette() const {
     return attributes & 3;
 }
 
