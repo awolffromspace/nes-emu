@@ -37,6 +37,8 @@ void PPU::clear() {
     stopTime = SDL_GetTicks64();
 }
 
+// Executes exactly one PPU cycle
+
 void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute) {
     skipCycle0();
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
@@ -52,6 +54,8 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
     ++totalCycles;
 }
 
+// Handles I/O reads from the CPU
+
 uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
     uint8_t val = readRegister(addr, mmc);
     if (addr == PPUSTATUS) {
@@ -61,6 +65,8 @@ uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
     return val;
 }
 
+// Handles I/O writes from the CPU
+
 void PPU::writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     if (addr == PPUSTATUS) {
         return;
@@ -68,9 +74,13 @@ void PPU::writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     writeRegister(addr, val, mmc, mute);
 }
 
+// Allows the CPU to write to the PPU's OAM
+
 void PPU::writeOAM(uint8_t addr, uint8_t val) {
     oam[addr] = val;
 }
+
+// Tells the CPU when it should enter an NMI
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
     if (isNMIEnabled() && isVblank()) {
@@ -114,13 +124,10 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "registers[6]      = 0x" << (unsigned int) registers[6] << "\n"
         "registers[7]      = 0x" << (unsigned int) registers[7] << "\n"
         "oamDMA            = 0x" << (unsigned int) oamDMA << "\n"
-        << std::dec <<
-        "oddFrame          = " << oddFrame << "\n"
-        << std::hex <<
+        "oddFrame          = " << std::dec << oddFrame << std::hex << "\n"
         "ppuAddr           = " << (unsigned int) ppuAddr << "\n"
         "ppuDataBuffer     = " << (unsigned int) ppuDataBuffer << "\n"
-        << std::dec <<
-        "writeLoAddr       = " << writeLoAddr << "\n"
+        "writeLoAddr       = " << std::dec << writeLoAddr << "\n"
         "mirroring         = " << mirroring << "\n"
         "totalCycles       = " << totalCycles <<
         "totalFrames       = " << totalFrames << "\n"
@@ -132,8 +139,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "attributeEntry    = 0x" << (unsigned int) op.attributeEntry << "\n"
         "patternEntryLo    = 0x" << (unsigned int) op.patternEntryLo << "\n"
         "patternEntryHi    = 0x" << (unsigned int) op.patternEntryHi << "\n"
-        << std::dec <<
-        "scanline          = " << op.scanline << "\n"
+        "scanline          = " << std::dec << op.scanline << "\n"
         "pixel             = " << op.pixel << "\n"
         "attributeQuadrant = " << op.attributeQuadrant << "\n"
         "cycle             = " << op.cycle << "\n"
@@ -143,8 +149,10 @@ void PPU::print(bool isCycleDone, bool mute) const {
 
 // Private Member Functions
 
+// The first cycle is skipped on the first scanline if the frame is odd and rendering is enabled
+
 void PPU::skipCycle0() {
-    if (op.cycle == 0 && oddFrame && (isBGShown() || areSpritesShown())) {
+    if (op.scanline == 0 && op.cycle == 0 && oddFrame && (isBGShown() || areSpritesShown())) {
         ++op.cycle;
     }
 }

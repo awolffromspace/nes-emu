@@ -81,6 +81,7 @@ class PPU {
         };
 
         // Main registers that are exposed to the CPU. $2000 - $2007 in the CPU memory map
+        // https://www.nesdev.org/wiki/PPU_registers
         uint8_t registers[PPU_REGISTER_SIZE];
         // Object Attribute Memory Direct Memory Access high-byte address. $4014 in the CPU memory
         // map. When the CPU writes to this register, the CPU starts an OAM DMA transfer that copies
