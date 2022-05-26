@@ -84,12 +84,12 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
 }
 
 void CPU::readInInst(const std::string& filename) {
-    // Addresses $4020 - $10000 belong in the cartridge, so pass it off to the MMC
+    // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInInst(filename);
 }
 
 void CPU::readInINES(const std::string& filename) {
-    // Addresses $4020 - $10000 belong in the cartridge, so pass it off to the MMC
+    // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInINES(filename, ppu);
     if (filename == "nestest.nes") {
         // Use the start PC for an automated run of nestest.nes

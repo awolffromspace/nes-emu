@@ -135,11 +135,14 @@ class PPU {
         // Read/Write Functions
         uint8_t readRegister(uint16_t addr, MMC& mmc);
         void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
+        void updatePPUAddr(uint8_t val);
         uint8_t readVRAM(uint16_t addr, MMC& mmc) const;
         void writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
-        void updatePPUAddr(uint8_t val);
 
         // Mirrored Address Getters
+        uint16_t getLocalRegisterAddr(uint16_t addr) const;
+        uint16_t getLocalVRAMAddr(uint16_t addr, bool isRead) const;
+        uint16_t getUpperMirrorAddr(uint16_t addr) const;
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;

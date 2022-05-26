@@ -379,6 +379,8 @@ void PPU::setSprite0Hit(const Sprite& sprite, uint8_t bgPalette) {
 
 void PPU::setRGB(uint8_t paletteEntry) {
     unsigned int renderLine = op.getRenderLine();
+    // Each 4 bytes in the frame is a pixel. The first byte is the blue value, the second is the
+    // green value, the third is the red value, and the fourth is the opacity
     unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
@@ -412,7 +414,8 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
-// Sets the Vblank flag in the PPUSTATUS register
+// Sets the Vblank flag in the PPUSTATUS register:
+// https://www.nesdev.org/wiki/PPU_registers#Status_($2002)_%3C_read
 
 void PPU::updateVblank(MMC& mmc) {
     if (op.scanline == 241 && !isVblank()) {
@@ -422,49 +425,110 @@ void PPU::updateVblank(MMC& mmc) {
     }
 }
 
+// Handles register reads mainly from the CPU
+
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     if (addr == OAMDMA) {
         return oamDMA;
     }
+
+    // PPUDATA read buffer logic:
+    // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
     if (addr == PPUDATA) {
+        // If PPUADDR is in not in the palette, then the read is buffered
         if ((ppuAddr & 0x3fff) < IMAGE_PALETTE_START) {
             registers[7] = ppuDataBuffer;
+            ppuDataBuffer = readVRAM(ppuAddr, mmc);
+        // If PPUADDR is in the palette, then the read is immediate
         } else {
-            registers[7] = readVRAM(addr, mmc);
+            registers[7] = readVRAM(ppuAddr, mmc);
+            // Subtract by 0x1000 to stay in the nametable:
+            // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
+            ppuDataBuffer = readVRAM(ppuAddr - 0x1000, mmc);
         }
-        ppuDataBuffer = readVRAM(ppuAddr, mmc);
         ppuAddr += getPPUAddrInc();
     }
-    addr &= 7;
+
+    addr = getLocalRegisterAddr(addr);
     return registers[addr];
 }
 
+// Handles register writes mainly from the CPU
+
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == OAMDMA) {
-        oamDMA = val;
-    } else {
-        uint16_t localAddr = addr & 7;
-        registers[localAddr] = val;
-    }
-
-    if (addr != PPUSTATUS) {
-        registers[2] &= 0xe0;
-        registers[2] |= val & 0x1f;
-    }
-
     if (addr == PPUADDR) {
         updatePPUAddr(val);
     } else if (addr == PPUDATA) {
         writeVRAM(ppuAddr, val, mmc, mute);
         ppuAddr += getPPUAddrInc();
     }
+
+    if (addr == OAMDMA) {
+        oamDMA = val;
+    } else {
+        addr = getLocalRegisterAddr(addr);
+        registers[addr] = val;
+    }
+}
+
+void PPU::updatePPUAddr(uint8_t val) {
+    if (writeLoAddr) {
+        ppuAddr &= 0xff00;
+        ppuAddr |= val;
+        writeLoAddr = false;
+    } else {
+        ppuAddr &= 0xff;
+        ppuAddr |= val << 8;
+        writeLoAddr = true;
+    }
 }
 
 uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
-    addr &= 0x3fff;
+    uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
+    addr = getLocalVRAMAddr(addr, true);
+    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
+    // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
+    // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
+    // if it lies within $0000 - $1fff
+    if (upperMirrorAddr < NAMETABLE0_START) {
+        return mmc.readCHR(upperMirrorAddr);
+    }
+    return vram[addr];
+}
+
+void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
+    if (!mute) {
+        std::cout << std::hex << "0x" << (unsigned int) val << " has been written to the VRAM "
+            "address 0x" << (unsigned int) addr <<
+            "\n--------------------------------------------------\n" << std::dec;
+    }
+
+    uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
+    addr = getLocalVRAMAddr(addr, false);
+    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
+    // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
+    // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
+    // if it lies within $0000 - $1fff
+    if (upperMirrorAddr < NAMETABLE0_START) {
+        mmc.writeCHR(upperMirrorAddr, val);
+    } else {
+        vram[addr] = val;
+    }
+}
+
+uint16_t PPU::getLocalRegisterAddr(uint16_t addr) const {
+    // Addresses $2008 - $3fff in the CPU memory map are mirrors of $2000 - $2007, so only the lower
+    // 7 bits are needed
+    return addr & 7;
+}
+
+uint16_t PPU::getLocalVRAMAddr(uint16_t addr, bool isRead) const {
+    addr = getUpperMirrorAddr(addr);
     if (addr >= IMAGE_PALETTE_START) {
         addr &= 0x3f1f;
-        if (addr % 4 == 0) {
+        if (addr % 4 == 0 && isRead) {
+            addr = IMAGE_PALETTE_START;
+        } else if (addr == 0x3f10 && !isRead) {
             addr = IMAGE_PALETTE_START;
         }
         addr -= 0x1700;
@@ -487,66 +551,14 @@ uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
                 addr = getFourScreenMirrorAddr(addr);
         }
     }
-
-    if (addr < NAMETABLE0_START) {
-        return mmc.readCHR(addr);
-    }
-    addr -= 0x2000;
-    return vram[addr];
+    return addr - 0x2000;
 }
 
-void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    uint16_t localAddr = addr & 0x3fff;
-    if (localAddr >= IMAGE_PALETTE_START) {
-        localAddr &= 0x3f1f;
-        if (localAddr == 0x3f10) {
-            localAddr = IMAGE_PALETTE_START;
-        }
-        localAddr -= 0x1700;
-    } else if (localAddr >= NAMETABLE0_START) {
-        if (localAddr >= 0x3000) {
-            localAddr &= 0x2fff;
-        }
+// The upper addresses $4000 - $ffff are mirrors of $0000 - $3fff, so this function mirrors the
+// address to stay in the latter range
 
-        switch (mirroring) {
-            case PPU::Horizontal:
-                localAddr = getHorizontalMirrorAddr(localAddr);
-                break;
-            case PPU::Vertical:
-                localAddr = getVerticalMirrorAddr(localAddr);
-                break;
-            case PPU::SingleScreen:
-                localAddr = getSingleScreenMirrorAddr(localAddr);
-                break;
-            case PPU::FourScreen:
-                localAddr = getFourScreenMirrorAddr(localAddr);
-        }
-    }
-
-    if (localAddr < NAMETABLE0_START) {
-        mmc.writeCHR(localAddr, val);
-    } else {
-        localAddr -= 0x2000;
-        vram[localAddr] = val;
-    }
-
-    if (!mute) {
-        std::cout << std::hex << "0x" << (unsigned int) val << " has been written to the VRAM "
-            "address 0x" << (unsigned int) addr <<
-            "\n--------------------------------------------------\n" << std::dec;
-    }
-}
-
-void PPU::updatePPUAddr(uint8_t val) {
-    if (writeLoAddr) {
-        ppuAddr &= 0xff00;
-        ppuAddr |= val;
-        writeLoAddr = false;
-    } else {
-        ppuAddr &= 0xff;
-        ppuAddr |= val << 8;
-        writeLoAddr = true;
-    }
+uint16_t PPU::getUpperMirrorAddr(uint16_t addr) const {
+    return addr & 0x3fff;
 }
 
 uint16_t PPU::getHorizontalMirrorAddr(uint16_t addr) const {

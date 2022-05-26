@@ -154,44 +154,33 @@ void PPUOp::updateNametableAddr() {
 }
 
 void PPUOp::updateAttributeAddr() {
-    if (status != PPUOp::FetchPatternEntryHi || nametableAddr % 2) {
+    if (status != PPUOp::FetchPatternEntryHi) {
         return;
     }
 
-    unsigned int renderLine = getRenderLine();
-    switch (attributeQuadrant) {
-        case PPUOp::TopLeft:
-            attributeQuadrant = PPUOp::TopRight;
-            break;
-        case PPUOp::TopRight:
-            if (nametableAddr % 0x40 == 0 && (renderLine + 1) % 16 == 0) {
-                attributeQuadrant = PPUOp::BottomLeft;
-                attributeAddr &= 0xfff8;
-            } else if (nametableAddr % 0x20 == 0) {
-                attributeQuadrant = PPUOp::TopLeft;
-                attributeAddr &= 0xfff8;
-            } else {
-                attributeQuadrant = PPUOp::TopLeft;
-                ++attributeAddr;
-            }
-            break;
-        case PPUOp::BottomLeft:
-            attributeQuadrant = PPUOp::BottomRight;
-            break;
-        case PPUOp::BottomRight:
-            if (nametableAddr == NAMETABLE0_START) {
-                attributeQuadrant = PPUOp::TopLeft;
-                attributeAddr = ATTRIBUTE0_START;
-            } else if (nametableAddr % 0x80 == 0 && (renderLine + 1) % 32 == 0) {
-                attributeQuadrant = PPUOp::TopLeft;
-                ++attributeAddr;
-            } else if (nametableAddr % 0x20 == 0) {
-                attributeQuadrant = PPUOp::BottomLeft;
-                attributeAddr &= 0xfff8;
-            } else {
-                attributeQuadrant = PPUOp::BottomLeft;
-                ++attributeAddr;
-            }
+    unsigned int xTile = (nametableAddr - NAMETABLE0_START) % 0x20;
+    unsigned int yTile = (nametableAddr - NAMETABLE0_START) / 0x20;
+    unsigned int xAttribute = xTile / 4;
+    unsigned int yAttribute = yTile / 4;
+    attributeAddr = ATTRIBUTE0_START + xAttribute + yAttribute * 8;
+
+    bool right = false;
+    bool bottom = false;
+    if (nametableAddr & 2) {
+        right = true;
+    }
+    if (yTile & 2) {
+        bottom = true;
+    }
+
+    if (!right && !bottom) {
+        attributeQuadrant = PPUOp::TopLeft;
+    } else if (right && !bottom) {
+        attributeQuadrant = PPUOp::TopRight;
+    } else if (!right && bottom) {
+        attributeQuadrant = PPUOp::BottomLeft;
+    } else {
+        attributeQuadrant = PPUOp::BottomRight;
     }
 }
 
