@@ -13,18 +13,11 @@ class MMC;
 #include "ppu-op.h"
 
 #define SIXTIETH_OF_A_SECOND 16.666667
-#define ATTRIBUTE0_START 0x23c0
 #define BLACK 0xf
 #define FRAME_HEIGHT 240
 #define FRAME_SIZE 256 * 240 * 4
 #define FRAME_WIDTH 256
 #define IMAGE_PALETTE_START 0x3f00
-#define LAST_CYCLE 340
-#define LAST_RENDER_LINE 239
-#define NAMETABLE0_START 0x2000
-#define NAMETABLE1_START 0x2400
-#define NAMETABLE2_START 0x2800
-#define NAMETABLE3_START 0x2c00
 #define OAM_SIZE 0x100
 #define OAMADDR 0x2003
 #define OAMDATA 0x2004
@@ -38,10 +31,8 @@ class MMC;
 #define PPUMASK 0x2001
 #define PPUSCROLL 0x2005
 #define PPUSTATUS 0x2002
-#define PRERENDER_LINE 261
 #define SECONDARY_OAM_SIZE 0x20
 #define SPRITE_PALETTE_START 0x3f10
-#define TOTAL_PIXELS_PER_SCANLINE 256
 #define UNIVERSAL_BG_INDEX 0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000
 #define VRAM_SIZE 0x400 + 0x400 + 0x20
 
@@ -106,8 +97,6 @@ class PPU {
         struct RGBVal palette[PALETTE_SIZE];
         // Current operation that holds info about the current pixel and scanline being rendered
         PPUOp op;
-        // Set to true if the current frame is odd (flips between true/false each frame)
-        bool oddFrame;
         // The current VRAM address to read/write to, formed by two CPU writes to $2006
         uint16_t ppuAddr;
         // PPUDATA read buffer:
@@ -129,7 +118,6 @@ class PPU {
         // Fetching
         void fetch(MMC& mmc);
         void fetchSpriteEntry(MMC& mmc);
-        void addTileRow();
 
         // Sprite Computation
         void clearSecondaryOAM();
@@ -137,20 +125,12 @@ class PPU {
 
         // Rendering
         void setPixel(MMC& mmc);
-        uint8_t getPalette() const;
-        uint8_t getUpperPalette() const;
-        void setSprite0Hit(Sprite& sprite, uint8_t bgPalette);
+        void setSprite0Hit(const Sprite& sprite, uint8_t bgPalette);
         void setRGB(uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
 
         // Vertical Blanking Interval
         void updateVblank(MMC& mmc);
-
-        // Preparation for Next Cycle
-        void prepNextCycle();
-        void updateNametableAddr();
-        void updateAttributeAddr();
-        void updateOpStatus();
 
         // Read/Write Functions
         uint8_t readRegister(uint16_t addr, MMC& mmc);
@@ -165,12 +145,6 @@ class PPU {
         uint16_t getSingleScreenMirrorAddr(uint16_t addr) const;
         uint16_t getFourScreenMirrorAddr(uint16_t addr) const;
 
-        // Miscellaneous Functions
-        unsigned int getRenderLine() const;
-        bool isRendering() const;
-        bool isRenderingEnabled() const;
-        bool isValidFetch() const;
-
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
         unsigned int getPPUAddrInc() const;
@@ -184,6 +158,7 @@ class PPU {
         bool areSpritesLeftColShown() const;
         bool isBGShown() const;
         bool areSpritesShown() const;
+        bool isRenderingEnabled() const;
         bool isRedEmphasized() const;
         bool isGreenEmphasized() const;
         bool isBlueEmphasized() const;

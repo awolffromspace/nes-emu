@@ -4,7 +4,6 @@
 
 PPU::PPU() :
         oamDMA(0),
-        oddFrame(false),
         ppuAddr(0),
         ppuDataBuffer(0),
         writeLoAddr(false),
@@ -25,7 +24,6 @@ void PPU::clear() {
     memset(secondaryOAM, 0, SECONDARY_OAM_SIZE);
     memset(frame, 0, FRAME_SIZE);
     op.clear();
-    oddFrame = false;
     ppuAddr = 0;
     ppuDataBuffer = 0;
     writeLoAddr = false;
@@ -40,16 +38,8 @@ void PPU::clear() {
 void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute) {
     skipCycle0();
     if (op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) {
-        // Memory accesses take 2 cycles, so the fetch only needs to be performed once every 2
-        // cycles
-        if (op.cycle % 2 == 0) {
+        if (op.canFetch()) {
             fetch(mmc);
-
-            // The high byte of the pattern entry is the last fetch of the tile row, so that means
-            // all info is done being fetched
-            if (op.status == PPUOp::FetchPatternEntryHi && isValidFetch()) {
-                addTileRow();
-            }
         }
         if (op.scanline != PRERENDER_LINE) {
             // Clearing the secondary OAM technically occurs over cycles 1 - 64, but it's redundant
@@ -61,17 +51,20 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
                 evaluateSprites();
             }
         }
-        if (isRendering()) {
+        if (op.isRendering()) {
             setPixel(mmc);
         }
-        if (op.scanline == LAST_RENDER_LINE && op.cycle == 259) {
+        // If the current scanline is the last render line, and the current cycle is the last cycle
+        // to set a pixel in the frame, then the frame is ready to be rendered
+        if (op.scanline == LAST_RENDER_LINE && op.cycle == LAST_CYCLE_TO_OUTPUT_PIXEL) {
             renderFrame(renderer, texture);
         }
     }
+    // Vblank is only updated on cycle 1
     if (op.cycle == 1) {
         updateVblank(mmc);
     }
-    prepNextCycle();
+    op.prepNextCycle(registers[2]);
     ++totalCycles;
 }
 
@@ -149,9 +142,8 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "registers[6]      = 0x" << (unsigned int) registers[6] << "\n"
         "registers[7]      = 0x" << (unsigned int) registers[7] << "\n"
         "oamDMA            = 0x" << (unsigned int) oamDMA << "\n"
-        "oddFrame          = " << std::dec << oddFrame << std::hex << "\n"
-        "ppuAddr           = " << (unsigned int) ppuAddr << "\n"
-        "ppuDataBuffer     = " << (unsigned int) ppuDataBuffer << "\n"
+        "ppuAddr           = 0x" << (unsigned int) ppuAddr << "\n"
+        "ppuDataBuffer     = 0x" << (unsigned int) ppuDataBuffer << "\n"
         "writeLoAddr       = " << std::dec << writeLoAddr << "\n"
         "mirroring         = " << mirroring << "\n"
         "totalCycles       = " << totalCycles <<
@@ -166,6 +158,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "scanline          = " << std::dec << op.scanline << "\n"
         "pixel             = " << op.pixel << "\n"
         "attributeQuadrant = " << op.attributeQuadrant << "\n"
+        "oddFrame          = " << op.oddFrame << "\n"
         "cycle             = " << op.cycle << "\n"
         "status            = " << op.status <<
         "\n--------------------------------------------------\n";
@@ -176,7 +169,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
 // The first cycle is skipped on the first scanline if the frame is odd and rendering is enabled
 
 void PPU::skipCycle0() {
-    if (op.scanline == 0 && op.cycle == 0 && oddFrame && isRenderingEnabled()) {
+    if (op.scanline == 0 && op.cycle == 0 && op.oddFrame && isRenderingEnabled()) {
         ++op.cycle;
     }
 }
@@ -185,7 +178,7 @@ void PPU::skipCycle0() {
 // to form a palette index for a given pixel
 
 void PPU::fetch(MMC& mmc) {
-    unsigned int renderLine = getRenderLine();
+    unsigned int renderLine = op.getRenderLine();
     uint16_t addr = 0;
     switch (op.status) {
         case PPUOp::FetchNametableEntry:
@@ -207,6 +200,9 @@ void PPU::fetch(MMC& mmc) {
             // row would be located at 0 and 8, the second would be 1 and 9, etc.
             addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr() + 8;
             op.patternEntryHi = readVRAM(addr, mmc);
+            // The high byte of the pattern entry is the last fetch of the tile row, so that means
+            // all info is done being fetched
+            op.addTileRow();
             break;
         case PPUOp::FetchSpriteEntryLo:
             if (op.spriteNum < op.nextSprites.size()) {
@@ -241,7 +237,7 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
     }
 
     uint16_t addr = basePatternAddr + tileIndexNum * patternEntriesPerSprite;
-    unsigned int renderLine = getRenderLine();
+    unsigned int renderLine = op.getRenderLine();
     unsigned int tileRowIndex = sprite.getTileRowIndex(renderLine, spriteHeight);
     addr += tileRowIndex;
     if (op.status == PPUOp::FetchSpriteEntryLo) {
@@ -256,13 +252,6 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
     }
 }
 
-// Pushes the tile row that has all of its data fetched to the queue for future rendering
-
-void PPU::addTileRow() {
-    op.tileRows.push({op.nametableEntry, op.attributeEntry, op.patternEntryLo, op.patternEntryHi,
-        op.attributeQuadrant});
-}
-
 // Clears the secondary OAM before sprite evaluation
 
 void PPU::clearSecondaryOAM() {
@@ -275,8 +264,7 @@ void PPU::clearSecondaryOAM() {
 void PPU::evaluateSprites() {
     // If all sprites have been checked, the max of 8 sprites have been reached, or rendering is
     // disabled, then don't bother evaluating sprites
-    if (op.spriteNum >= 64 ||
-            (op.nextSprites.size() >= 8 && op.oamEntryNum == 0) ||
+    if (op.spriteNum >= 64 || (op.nextSprites.size() >= 8 && op.oamEntryNum == 0) ||
             (!isRenderingEnabled())) {
         return;
     }
@@ -289,7 +277,7 @@ void PPU::evaluateSprites() {
 
     // Write to secondary OAM on even cycles
     Sprite sprite(op.oamEntry, op.spriteNum);
-    unsigned int renderLine = getRenderLine();
+    unsigned int renderLine = op.getRenderLine();
     unsigned int spriteHeight = getSpriteHeight();
     unsigned int foundSpriteNum = op.nextSprites.size();
     switch (op.oamEntryNum) {
@@ -329,7 +317,7 @@ void PPU::evaluateSprites() {
 // Performs all rendering logic for the current pixel in the frame
 
 void PPU::setPixel(MMC& mmc) {
-    uint8_t bgPalette = getPalette();
+    uint8_t bgPalette = op.getPalette();
     uint8_t bgPaletteLower = bgPalette & 3;
     uint8_t spritePalette = 0;
     uint8_t spritePaletteLower = 0;
@@ -377,53 +365,10 @@ void PPU::setPixel(MMC& mmc) {
     setRGB(paletteEntry);
 }
 
-// Gets the background palette bits for the current pixel
-
-uint8_t PPU::getPalette() const {
-    struct PPUOp::TileRow tileRow = op.tileRows.front();
-    uint8_t upperPaletteBits = getUpperPalette();
-    uint8_t bgPalette = 0;
-    // The current pixel number mod 8 represents the column in the tile row, which isolates the 8x1
-    // tile row to a single 1x1 pixel
-    if (tileRow.patternEntryLo & (0x80 >> (op.pixel % 8))) {
-        bgPalette |= 1;
-    }
-    if (tileRow.patternEntryHi & (0x80 >> (op.pixel % 8))) {
-        bgPalette |= 2;
-    }
-    if (upperPaletteBits & 1) {
-        bgPalette |= 4;
-    }
-    if (upperPaletteBits & 2) {
-        bgPalette |= 8;
-    }
-    return bgPalette;
-}
-
-// Gets the upper 2 bits of the background palette for the current pixel
-
-uint8_t PPU::getUpperPalette() const {
-    struct PPUOp::TileRow tileRow = op.tileRows.front();
-    unsigned int shiftNum = 0;
-    // Which 2 bits to use out of the 8 bits in the attribute entry are determined by what the
-    // current quadrant is: https://www.nesdev.org/wiki/PPU_attribute_tables
-    switch (tileRow.attributeQuadrant) {
-        case PPUOp::TopRight:
-            shiftNum = 2;
-            break;
-        case PPUOp::BottomLeft:
-            shiftNum = 4;
-            break;
-        case PPUOp::BottomRight:
-            shiftNum = 6;
-    }
-    return (tileRow.attributeEntry >> shiftNum) & 3;
-}
-
 // Sets the sprite 0 hit flag in the PPUSTATUS register:
 // https://www.nesdev.org/wiki/PPU_OAM#Sprite_zero_hits
 
-void PPU::setSprite0Hit(Sprite& sprite, uint8_t bgPalette) {
+void PPU::setSprite0Hit(const Sprite& sprite, uint8_t bgPalette) {
     if (sprite.spriteNum == 0 && bgPalette && isBGShown() && op.pixel != 255 &&
             (op.pixel > 7 || (isBGLeftColShown() && areSpritesLeftColShown()))) {
         registers[2] |= 0x40;
@@ -433,7 +378,7 @@ void PPU::setSprite0Hit(Sprite& sprite, uint8_t bgPalette) {
 // Sets the current pixel's RGB values in the frame
 
 void PPU::setRGB(uint8_t paletteEntry) {
-    unsigned int renderLine = getRenderLine();
+    unsigned int renderLine = op.getRenderLine();
     unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
@@ -474,123 +419,6 @@ void PPU::updateVblank(MMC& mmc) {
         registers[2] |= 0x80;
     } else if (op.scanline == PRERENDER_LINE && isVblank()) {
         registers[2] &= 0x7f;
-    }
-}
-
-// Prepares anything else that needs to be updated for the next cycle
-
-void PPU::prepNextCycle() {
-    if (op.cycle % 2 == 0 && op.cycle != 0) {
-        if (isValidFetch()) {
-            updateNametableAddr();
-            updateAttributeAddr();
-        }
-        if ((op.scanline <= LAST_RENDER_LINE || op.scanline == PRERENDER_LINE) && op.cycle < 337) {
-            updateOpStatus();
-        }
-    }
-
-    if (isRendering()) {
-        ++op.pixel;
-        if (op.pixel % 8 == 0) {
-            op.tileRows.pop();
-        }
-        if (op.pixel == TOTAL_PIXELS_PER_SCANLINE) {
-            op.pixel = 0;
-        }
-    }
-
-    if (op.cycle == 256) {
-        op.spriteNum = 0;
-        op.oamEntryNum = 0;
-    } else if (op.cycle == 320) {
-        op.spriteNum = 0;
-        op.currentSprites = op.nextSprites;
-        op.nextSprites.clear();
-    }
-
-    if (op.scanline == PRERENDER_LINE && op.cycle == LAST_CYCLE) {
-        registers[2] &= 0xbf;
-        oddFrame = !oddFrame;
-        op.scanline = 0;
-        op.cycle = 0;
-    } else if (op.cycle == LAST_CYCLE) {
-        oddFrame = !oddFrame;
-        ++op.scanline;
-        op.cycle = 0;
-    } else {
-        ++op.cycle;
-    }
-}
-
-void PPU::updateNametableAddr() {
-    if (op.status == PPUOp::FetchPatternEntryHi) {
-        ++op.nametableAddr;
-
-        unsigned int renderLine = getRenderLine();
-        if (op.cycle == 240 && (renderLine + 1) % 8 != 0) {
-            op.nametableAddr -= 32;
-        }
-    }
-
-    if (op.nametableAddr == ATTRIBUTE0_START) {
-        op.nametableAddr = NAMETABLE0_START;
-    }
-}
-
-void PPU::updateAttributeAddr() {
-    if (op.status != PPUOp::FetchPatternEntryHi || op.nametableAddr % 2) {
-        return;
-    }
-
-    unsigned int renderLine = getRenderLine();
-    switch (op.attributeQuadrant) {
-        case PPUOp::TopLeft:
-            op.attributeQuadrant = PPUOp::TopRight;
-            break;
-        case PPUOp::TopRight:
-            if (op.nametableAddr % 0x40 == 0 && (renderLine + 1) % 16 == 0) {
-                op.attributeQuadrant = PPUOp::BottomLeft;
-                op.attributeAddr &= 0xfff8;
-            } else if (op.nametableAddr % 0x20 == 0) {
-                op.attributeQuadrant = PPUOp::TopLeft;
-                op.attributeAddr &= 0xfff8;
-            } else {
-                op.attributeQuadrant = PPUOp::TopLeft;
-                ++op.attributeAddr;
-            }
-            break;
-        case PPUOp::BottomLeft:
-            op.attributeQuadrant = PPUOp::BottomRight;
-            break;
-        case PPUOp::BottomRight:
-            if (op.nametableAddr == NAMETABLE0_START) {
-                op.attributeQuadrant = PPUOp::TopLeft;
-                op.attributeAddr = ATTRIBUTE0_START;
-            } else if (op.nametableAddr % 0x80 == 0 && (renderLine + 1) % 32 == 0) {
-                op.attributeQuadrant = PPUOp::TopLeft;
-                ++op.attributeAddr;
-            } else if (op.nametableAddr % 0x20 == 0) {
-                op.attributeQuadrant = PPUOp::BottomLeft;
-                op.attributeAddr &= 0xfff8;
-            } else {
-                op.attributeQuadrant = PPUOp::BottomLeft;
-                ++op.attributeAddr;
-            }
-    }
-}
-
-void PPU::updateOpStatus() {
-    if (op.status == PPUOp::FetchAttributeEntry) {
-        if (op.cycle < 257 || op.cycle > 320) {
-            op.status = PPUOp::FetchPatternEntryLo;
-        } else {
-            op.status = PPUOp::FetchSpriteEntryLo;
-        }
-    } else if (op.status == PPUOp::FetchPatternEntryHi || op.status == PPUOp::FetchSpriteEntryHi) {
-        op.status = PPUOp::FetchNametableEntry;
-    } else {
-        ++op.status;
     }
 }
 
@@ -757,41 +585,6 @@ uint16_t PPU::getFourScreenMirrorAddr(uint16_t addr) const {
     return getHorizontalMirrorAddr(addr);
 }
 
-unsigned int PPU::getRenderLine() const {
-    if (op.cycle <= 320) {
-        return op.scanline;
-    }
-    if (op.scanline == PRERENDER_LINE) {
-        return 0;
-    } else {
-        return op.scanline + 1;
-    }
-}
-
-bool PPU::isRendering() const {
-    if (op.scanline <= LAST_RENDER_LINE && op.cycle >= 4 && op.cycle <= 259) {
-        return true;
-    }
-    return false;
-}
-
-bool PPU::isRenderingEnabled() const {
-    return isBGShown() || areSpritesShown();
-}
-
-bool PPU::isValidFetch() const {
-    if (op.scanline < LAST_RENDER_LINE && (op.cycle < 241 || op.cycle > 320) && op.cycle < 337) {
-        return true;
-    }
-    if (op.scanline == LAST_RENDER_LINE && op.cycle < 241) {
-        return true;
-    }
-    if (op.scanline == PRERENDER_LINE && op.cycle > 320 && op.cycle < 337) {
-        return true;
-    }
-    return false;
-}
-
 uint16_t PPU::getNametableBaseAddr() const {
     uint8_t flag = registers[0] & 3;
     switch (flag) {
@@ -863,6 +656,10 @@ bool PPU::isBGShown() const {
 
 bool PPU::areSpritesShown() const {
     return registers[1] & 0x10;
+}
+
+bool PPU::isRenderingEnabled() const {
+    return isBGShown() || areSpritesShown();
 }
 
 bool PPU::isRedEmphasized() const {

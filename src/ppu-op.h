@@ -6,9 +6,22 @@
 
 #include "sprite.h"
 
+#define ATTRIBUTE0_START 0x23c0
+#define FIRST_CYCLE_TO_OUTPUT_PIXEL 4
+#define LAST_CYCLE 340
+#define LAST_CYCLE_TO_OUTPUT_PIXEL 4 + 255
+#define LAST_RENDER_LINE 239
+#define NAMETABLE0_START 0x2000
+#define NAMETABLE1_START 0x2400
+#define NAMETABLE2_START 0x2800
+#define NAMETABLE3_START 0x2c00
+#define PRERENDER_LINE 261
+#define TOTAL_PIXELS_PER_SCANLINE 256
+
 // PPU Operation
-// Holds info specific to the current operation (i.e., rendering the current pixel of the current
-// scanline)
+// PPUOp holds more stateful, temporary data for the current operation (i.e., rendering the current
+// pixel of the current scanline), whereas the PPU class includes more general, broader actions,
+// such as fetching, evaluating sprites, rendering, and reading/writing
 
 class PPUOp {
     public:
@@ -58,10 +71,29 @@ class PPUOp {
         unsigned int pixel;
         // Current quadrant of the attribute table byte
         unsigned int attributeQuadrant;
+        // Set to true if the current frame is odd (flips between true/false each frame)
+        bool oddFrame;
         // How many cycles the PPU has taken to render the current scanline (max 340)
         unsigned int cycle;
         // Indicates any cycle-relevant info about the operation. Depends on the enum Status
         unsigned int status;
+
+        // Backgrounds
+        void addTileRow();
+        uint8_t getPalette() const;
+        uint8_t getUpperPalette() const;
+
+        // Preparation for Next Cycle
+        void prepNextCycle(uint8_t& ppuStatus);
+        void updateNametableAddr();
+        void updateAttributeAddr();
+        void updateStatus();
+
+        // Miscellaneous Functions
+        unsigned int getRenderLine() const;
+        bool isRendering() const;
+        bool canFetch() const;
+        bool isFetchingBG() const;
 
         friend class PPU;
 
