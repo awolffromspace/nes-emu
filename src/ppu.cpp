@@ -603,17 +603,11 @@ void PPU::switchVerticalNametable() {
 // Handles register reads mainly from the CPU
 
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
-    if (addr == OAMDMA) {
-        return oamDMA;
-    }
-
     if (addr == PPUSTATUS) {
         w = false;
-    }
-
     // PPUDATA read buffer logic:
     // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
-    if (addr == PPUDATA) {
+    } else if (addr == PPUDATA) {
         // If the v register is in not in the palette, then the read is buffered
         if ((v & 0x3fff) < IMAGE_PALETTE_START) {
             registers[7] = ppuDataBuffer;
@@ -626,6 +620,8 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
             ppuDataBuffer = readVRAM(v - 0x1000, mmc);
         }
         v += getVRAMAddrInc();
+    } else if (addr == OAMDMA) {
+        return oamDMA;
     }
 
     addr = getLocalRegisterAddr(addr);
