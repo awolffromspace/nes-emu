@@ -1,7 +1,7 @@
 #ifndef PPUOP_H
 #define PPUOP_H
 
-#include <queue>
+#include <deque>
 #include <vector>
 
 #include "sprite.h"
@@ -54,7 +54,7 @@ class PPUOp {
         // rows in advance before rendering. Additionally, rendering doesn't start until cycle 4
         // while fetching a third tile row, so this queue will only ever contain a max of 3 tile
         // rows at a time
-        std::queue<struct TileRow> tileRows;
+        std::deque<struct TileRow> tileRows;
         // OAM byte that has info about the current sprite
         uint8_t oamEntry;
         // Current sprite number out of the 64 sprites in the OAM (0 - 63)
@@ -80,13 +80,10 @@ class PPUOp {
 
         // Backgrounds
         void addTileRow();
-        uint8_t getPalette() const;
-        uint8_t getUpperPalette() const;
+        uint8_t getPalette(uint8_t x);
+        uint8_t getUpperPalette(const struct TileRow& tileRow) const;
 
         // Preparation for Next Cycle
-        void prepNextCycle(uint8_t& ppuStatus);
-        void updateNametableAddr();
-        void updateAttributeAddr();
         void updateStatus();
 
         // Miscellaneous Functions

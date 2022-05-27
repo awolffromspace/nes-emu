@@ -340,7 +340,8 @@ void runNESGame(CPU& cpu, const std::string& filename) {
         std::cerr << "Could not create window\n" << SDL_GetError();
         exit(1);
     }
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED |
+        SDL_RENDERER_PRESENTVSYNC);
     if (renderer == nullptr) {
         std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);

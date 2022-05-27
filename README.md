@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, scrolling, audio, and mappers other than mapper 0 have not been implemented.
+This is a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, audio and mappers other than mapper 0 have not been implemented. Also, VSync with a 60 Hz monitor is currently required for proper frame timing.
 
 ## Installation
 

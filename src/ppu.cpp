@@ -4,13 +4,13 @@
 
 PPU::PPU() :
         oamDMA(0),
-        ppuAddr(0),
+        v(0),
+        t(0),
+        x(0),
+        w(false),
         ppuDataBuffer(0),
-        writeLoAddr(false),
         mirroring(0),
-        totalCycles(0),
-        startTime(SDL_GetTicks64()),
-        stopTime(SDL_GetTicks64()) {
+        totalCycles(0) {
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
 }
@@ -18,19 +18,19 @@ PPU::PPU() :
 void PPU::clear() {
     memset(registers, 0, PPU_REGISTER_SIZE);
     oamDMA = 0;
+    v = 0;
+    t = 0;
+    x = 0;
+    w = false;
     memset(vram, 0, VRAM_SIZE);
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     memset(oam, 0, OAM_SIZE);
     memset(secondaryOAM, 0, SECONDARY_OAM_SIZE);
     memset(frame, 0, FRAME_SIZE);
     op.clear();
-    ppuAddr = 0;
     ppuDataBuffer = 0;
-    writeLoAddr = false;
     mirroring = 0;
     totalCycles = 0;
-    startTime = SDL_GetTicks64();
-    stopTime = SDL_GetTicks64();
 }
 
 // Executes exactly one PPU cycle
@@ -60,11 +60,10 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
             renderFrame(renderer, texture);
         }
     }
-    // Vblank is only updated on cycle 1
     if (op.cycle == 1) {
-        updateVblank(mmc);
+        updatePPUStatus(mmc);
     }
-    op.prepNextCycle(registers[2]);
+    prepNextCycle();
     ++totalCycles;
 }
 
@@ -142,10 +141,12 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "registers[6]      = 0x" << (unsigned int) registers[6] << "\n"
         "registers[7]      = 0x" << (unsigned int) registers[7] << "\n"
         "oamDMA            = 0x" << (unsigned int) oamDMA << "\n"
-        "ppuAddr           = 0x" << (unsigned int) ppuAddr << "\n"
-        "ppuDataBuffer     = 0x" << (unsigned int) ppuDataBuffer << "\n"
-        "writeLoAddr       = " << std::dec << writeLoAddr << "\n"
-        "mirroring         = " << mirroring << "\n"
+        "v                 = 0x" << (unsigned int) v << "\n"
+        "t                 = 0x" << (unsigned int) t << "\n"
+        "x                 = 0x" << (unsigned int) x << "\n"
+        "w                 = " << std::dec << w << "\n"
+        "ppuDataBuffer     = 0x" << std::hex << (unsigned int) ppuDataBuffer << "\n"
+        "mirroring         = " << std::dec << mirroring << "\n"
         "totalCycles       = " << totalCycles <<
         "\n----------------------------\n" << std::hex <<
         "PPU Operation Fields\n----------------------------\n"
@@ -178,27 +179,29 @@ void PPU::skipCycle0() {
 // to form a palette index for a given pixel
 
 void PPU::fetch(MMC& mmc) {
-    unsigned int renderLine = op.getRenderLine();
+    unsigned int fineYScroll = getFineYScroll();
     uint16_t addr = 0;
     switch (op.status) {
         case PPUOp::FetchNametableEntry:
+            op.nametableAddr = getNametableAddr();
             op.nametableEntry = readVRAM(op.nametableAddr, mmc);
             break;
         case PPUOp::FetchAttributeEntry:
+            updateAttribute();
             op.attributeEntry = readVRAM(op.attributeAddr, mmc);
             break;
         case PPUOp::FetchPatternEntryLo:
             // Nametable entries are tile numbers used to index into the pattern tables. Each 8x8
             // tile takes up 0x10 entries in the pattern table. The render line mod 8 represents the
             // tile row. The background pattern address is the default base address set by the CPU
-            addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr();
+            addr = op.nametableEntry * 0x10 + fineYScroll + getBGPatternAddr();
             op.patternEntryLo = readVRAM(addr, mmc);
             break;
         case PPUOp::FetchPatternEntryHi:
             // Each tile row has a low pattern entry and a high pattern entry. The low entries are
             // listed first (0 - 7) then the high entries are listed (8 - 0xf). E.g., the first tile
             // row would be located at 0 and 8, the second would be 1 and 9, etc.
-            addr = op.nametableEntry * 0x10 + (renderLine % 8) + getBGPatternAddr() + 8;
+            addr = op.nametableEntry * 0x10 + fineYScroll + getBGPatternAddr() + 8;
             op.patternEntryHi = readVRAM(addr, mmc);
             // The high byte of the pattern entry is the last fetch of the tile row, so that means
             // all info is done being fetched
@@ -213,6 +216,61 @@ void PPU::fetch(MMC& mmc) {
             if (op.spriteNum < op.nextSprites.size()) {
                 fetchSpriteEntry(mmc);
             }
+    }
+}
+
+uint16_t PPU::getNametableAddr() const {
+    unsigned int coarseXScroll = getCoarseXScroll();
+    unsigned int coarseYScroll = getCoarseYScroll();
+    unsigned int nametableBaseAddr = getNametableSelectAddr();
+    return nametableBaseAddr + coarseXScroll + coarseYScroll * 0x20;
+}
+
+uint16_t PPU::getNametableSelectAddr() const {
+    unsigned int nametableSelect = getNametableSelect();
+    uint16_t nametableBaseAddr;
+    switch (nametableSelect) {
+        case 0:
+            nametableBaseAddr = 0x2000;
+            break;
+        case 1:
+            nametableBaseAddr = 0x2400;
+            break;
+        case 2:
+            nametableBaseAddr = 0x2800;
+            break;
+        case 3:
+            nametableBaseAddr = 0x2c00;
+
+    }
+    return nametableBaseAddr;
+}
+
+void PPU::updateAttribute() {
+    unsigned int nametableBaseAddr = getNametableSelectAddr();
+    unsigned int xTile = (op.nametableAddr - nametableBaseAddr) % 0x20;
+    unsigned int yTile = (op.nametableAddr - nametableBaseAddr) / 0x20;
+    unsigned int xAttribute = xTile / 4;
+    unsigned int yAttribute = yTile / 4;
+    op.attributeAddr = nametableBaseAddr + 0x3c0 + xAttribute + yAttribute * 8;
+
+    bool right = false;
+    bool bottom = false;
+    if (op.nametableAddr & 2) {
+        right = true;
+    }
+    if (yTile & 2) {
+        bottom = true;
+    }
+
+    if (!right && !bottom) {
+        op.attributeQuadrant = PPUOp::TopLeft;
+    } else if (right && !bottom) {
+        op.attributeQuadrant = PPUOp::TopRight;
+    } else if (!right && bottom) {
+        op.attributeQuadrant = PPUOp::BottomLeft;
+    } else {
+        op.attributeQuadrant = PPUOp::BottomRight;
     }
 }
 
@@ -317,7 +375,7 @@ void PPU::evaluateSprites() {
 // Performs all rendering logic for the current pixel in the frame
 
 void PPU::setPixel(MMC& mmc) {
-    uint8_t bgPalette = op.getPalette();
+    uint8_t bgPalette = op.getPalette(x);
     uint8_t bgPaletteLower = bgPalette & 3;
     uint8_t spritePalette = 0;
     uint8_t spritePaletteLower = 0;
@@ -390,19 +448,10 @@ void PPU::setRGB(uint8_t paletteEntry) {
     frame[blueIndex + 3] = SDL_ALPHA_OPAQUE;
 }
 
-// Renders a frame 60 times a second via SDL
+// Renders a frame via SDL
 
 void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     if (renderer != nullptr && texture != nullptr) {
-        stopTime = SDL_GetTicks64();
-        Uint64 duration = stopTime - startTime;
-        // If a 60th of a second hasn't passed since the last rendered frame, wait until it has
-        if (duration < SIXTIETH_OF_A_SECOND) {
-            SDL_Delay(SIXTIETH_OF_A_SECOND - duration);
-        }
-        startTime = SDL_GetTicks64();
-        stopTime = SDL_GetTicks64();
-
         SDL_RenderClear(renderer);
         uint8_t* lockedPixels = nullptr;
         int pitch = 0;
@@ -414,14 +463,140 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
-// Sets the Vblank flag in the PPUSTATUS register:
-// https://www.nesdev.org/wiki/PPU_registers#Status_($2002)_%3C_read
-
-void PPU::updateVblank(MMC& mmc) {
+void PPU::updatePPUStatus(MMC& mmc) {
     if (op.scanline == 241 && !isVblank()) {
         registers[2] |= 0x80;
-    } else if (op.scanline == PRERENDER_LINE && isVblank()) {
-        registers[2] &= 0x7f;
+    } else if (op.scanline == PRERENDER_LINE) {
+        registers[2] &= 0xbf;
+        if (isVblank()) {
+            registers[2] &= 0x7f;
+        }
+    }
+}
+
+// Prepares anything else that needs to be updated for the next cycle
+
+void PPU::prepNextCycle() {
+    if (op.canFetch()) {
+        if (op.cycle == 320 && !op.tileRows.empty()) {
+            op.tileRows.clear();
+        }
+        if (op.status == PPUOp::FetchPatternEntryHi) {
+            if (isRenderingEnabled()) {
+                incrementCoarseXScroll();
+            }
+        }
+        op.updateStatus();
+    }
+
+    // TODO: move scrolling into its own function
+    if (isRenderingEnabled()) {
+        if (op.cycle == 256 && op.scanline <= LAST_RENDER_LINE) {
+            incrementYScroll();
+        } else if (op.cycle == 257 && (op.scanline <= LAST_RENDER_LINE ||
+                op.scanline == PRERENDER_LINE)) {
+            setCoarseXScroll(getTempCoarseXScroll());
+
+            unsigned int nametableSelect = getNametableSelect();
+            unsigned int tempNametableSelect = getTempNametableSelect();
+            // TODO: refactor this if statement
+            if (((nametableSelect == 0 || nametableSelect == 1) &&
+                    (tempNametableSelect == 2 || tempNametableSelect == 3)) ||
+                    ((nametableSelect == 2 || nametableSelect == 3) &&
+                    (tempNametableSelect == 0 || tempNametableSelect == 1))) {
+                switchHorizontalNametable();
+            } else {
+                setNametableSelect(tempNametableSelect);
+            }
+        } else if (op.scanline == PRERENDER_LINE && op.cycle >= 280 && op.cycle <= 304) {
+            setCoarseYScroll(getTempCoarseYScroll());
+            setFineYScroll(getTempFineYScroll());
+            setNametableSelect(getTempNametableSelect());
+        }
+    }
+
+    if (op.isRendering()) {
+        ++op.pixel;
+        if (op.pixel % 8 == 0) {
+            op.tileRows.pop_front();
+        }
+        if (op.pixel == TOTAL_PIXELS_PER_SCANLINE) {
+            op.pixel = 0;
+        }
+    }
+
+    if (op.cycle == 256) {
+        op.spriteNum = 0;
+        op.oamEntryNum = 0;
+    } else if (op.cycle == 320) {
+        op.spriteNum = 0;
+        op.currentSprites = op.nextSprites;
+        op.nextSprites.clear();
+    }
+
+    if (op.scanline == PRERENDER_LINE && op.cycle == LAST_CYCLE) {
+        op.oddFrame = !op.oddFrame;
+        op.scanline = 0;
+        op.cycle = 0;
+    } else if (op.cycle == LAST_CYCLE) {
+        op.oddFrame = !op.oddFrame;
+        ++op.scanline;
+        op.cycle = 0;
+    } else {
+        ++op.cycle;
+    }
+}
+
+// Increments the coarse X scroll in the v register. Credit to the NESdev wiki for this function:
+// https://www.nesdev.org/wiki/PPU_scrolling#Coarse_X_increment
+
+void PPU::incrementCoarseXScroll() {
+    unsigned int coarseXScroll = getCoarseXScroll();
+    if (coarseXScroll == 31) {
+        setCoarseXScroll(0);
+        switchHorizontalNametable();
+    } else {
+        setCoarseXScroll(coarseXScroll + 1);
+    }
+}
+
+// Increments the fine Y scroll and coarse Y scroll in the v register. Credit to the NESdev wiki for
+// this function: https://www.nesdev.org/wiki/PPU_scrolling#Y_increment
+
+void PPU::incrementYScroll() {
+    unsigned int fineYScroll = getFineYScroll();
+    if (fineYScroll < 7) {
+        setFineYScroll(fineYScroll + 1);
+    } else {
+        setFineYScroll(0);
+
+        unsigned int coarseYScroll = getCoarseYScroll();
+        if (coarseYScroll == 29) {
+            setCoarseYScroll(0);
+            switchVerticalNametable();
+        } else if (coarseYScroll == 31) {
+            setCoarseYScroll(0);
+        } else {
+            setCoarseYScroll(coarseYScroll + 1);
+        }
+    }
+}
+
+void PPU::switchHorizontalNametable() {
+    unsigned int nametableSelect = getNametableSelect();
+    if (nametableSelect == 0 || nametableSelect == 2) {
+        setNametableSelect(nametableSelect + 1);
+    } else {
+        setNametableSelect(nametableSelect - 1);
+    }
+}
+
+void PPU::switchVerticalNametable() {
+    unsigned int nametableSelect = getNametableSelect();
+    if (nametableSelect == 0 || nametableSelect == 1) {
+        setNametableSelect(nametableSelect + 2);
+    } else {
+        setNametableSelect(nametableSelect - 2);
     }
 }
 
@@ -432,21 +607,25 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
         return oamDMA;
     }
 
+    if (addr == PPUSTATUS) {
+        w = false;
+    }
+
     // PPUDATA read buffer logic:
     // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
     if (addr == PPUDATA) {
-        // If PPUADDR is in not in the palette, then the read is buffered
-        if ((ppuAddr & 0x3fff) < IMAGE_PALETTE_START) {
+        // If the v register is in not in the palette, then the read is buffered
+        if ((v & 0x3fff) < IMAGE_PALETTE_START) {
             registers[7] = ppuDataBuffer;
-            ppuDataBuffer = readVRAM(ppuAddr, mmc);
-        // If PPUADDR is in the palette, then the read is immediate
+            ppuDataBuffer = readVRAM(v, mmc);
+        // If the v register is in the palette, then the read is immediate
         } else {
-            registers[7] = readVRAM(ppuAddr, mmc);
+            registers[7] = readVRAM(v, mmc);
             // Subtract by 0x1000 to stay in the nametable:
             // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
-            ppuDataBuffer = readVRAM(ppuAddr - 0x1000, mmc);
+            ppuDataBuffer = readVRAM(v - 0x1000, mmc);
         }
-        ppuAddr += getPPUAddrInc();
+        v += getVRAMAddrInc();
     }
 
     addr = getLocalRegisterAddr(addr);
@@ -456,11 +635,15 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
 // Handles register writes mainly from the CPU
 
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == PPUADDR) {
-        updatePPUAddr(val);
+    if (addr == PPUCTRL) {
+        setTempNametableSelect(val & 3);
+    } else if (addr == PPUSCROLL) {
+        writePPUScroll(val);
+    } else if (addr == PPUADDR) {
+        writePPUAddr(val);
     } else if (addr == PPUDATA) {
-        writeVRAM(ppuAddr, val, mmc, mute);
-        ppuAddr += getPPUAddrInc();
+        writeVRAM(v, val, mmc, mute);
+        v += getVRAMAddrInc();
     }
 
     if (addr == OAMDMA) {
@@ -471,15 +654,28 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 }
 
-void PPU::updatePPUAddr(uint8_t val) {
-    if (writeLoAddr) {
-        ppuAddr &= 0xff00;
-        ppuAddr |= val;
-        writeLoAddr = false;
+void PPU::writePPUScroll(uint8_t val) {
+    if (w) {
+        setTempCoarseYScroll(val >> 3);
+        setTempFineYScroll(val & 7);
+        w = false;
     } else {
-        ppuAddr &= 0xff;
-        ppuAddr |= val << 8;
-        writeLoAddr = true;
+        setTempCoarseXScroll(val >> 3);
+        x = val & 7;
+        w = true;
+    }
+}
+
+void PPU::writePPUAddr(uint8_t val) {
+    if (w) {
+        t &= 0xff00;
+        t |= val;
+        v = t;
+        w = false;
+    } else {
+        t &= 0xff;
+        t |= (val & 0x3f) << 8;
+        w = true;
     }
 }
 
@@ -610,7 +806,7 @@ uint16_t PPU::getNametableBaseAddr() const {
     return NAMETABLE3_START;
 }
 
-unsigned int PPU::getPPUAddrInc() const {
+unsigned int PPU::getVRAMAddrInc() const {
     uint8_t flag = registers[0] & 4;
     if (flag) {
         return 0x20;
@@ -696,6 +892,78 @@ bool PPU::isSpriteZeroHit() const {
 
 bool PPU::isVblank() const {
     return registers[2] & 0x80;
+}
+
+unsigned int PPU::getCoarseXScroll() const {
+    return v & 0x1f;
+}
+
+unsigned int PPU::getTempCoarseXScroll() const {
+    return t & 0x1f;
+}
+
+unsigned int PPU::getCoarseYScroll() const {
+    return (v & 0x3e0) >> 5;
+}
+
+unsigned int PPU::getTempCoarseYScroll() const {
+    return (t & 0x3e0) >> 5;
+}
+
+unsigned int PPU::getNametableSelect() const {
+    return (v & 0xc00) >> 10;
+}
+
+unsigned int PPU::getTempNametableSelect() const {
+    return (t & 0xc00) >> 10;
+}
+
+unsigned int PPU::getFineYScroll() const {
+    return (v & 0x7000) >> 12;
+}
+
+unsigned int PPU::getTempFineYScroll() const {
+    return (t & 0x7000) >> 12;
+}
+
+void PPU::setCoarseXScroll(unsigned int val) {
+    v &= 0x7fe0;
+    v |= val & 0x1f;
+}
+
+void PPU::setTempCoarseXScroll(unsigned int val) {
+    t &= 0x7fe0;
+    t |= val & 0x1f;
+}
+
+void PPU::setCoarseYScroll(unsigned int val) {
+    v &= 0x7c1f;
+    v |= (val & 0x1f) << 5;
+}
+
+void PPU::setTempCoarseYScroll(unsigned int val) {
+    t &= 0x7c1f;
+    t |= (val & 0x1f) << 5;
+}
+
+void PPU::setNametableSelect(unsigned int val) {
+    v &= 0x73ff;
+    v |= (val & 3) << 10;
+}
+
+void PPU::setTempNametableSelect(unsigned int val) {
+    t &= 0x73ff;
+    t |= (val & 3) << 10;
+}
+
+void PPU::setFineYScroll(unsigned int val) {
+    v &= 0xfff;
+    v |= (val & 7) << 12;
+}
+
+void PPU::setTempFineYScroll(unsigned int val) {
+    t &= 0xfff;
+    t |= (val & 7) << 12;
 }
 
 void PPU::initializePalette() {

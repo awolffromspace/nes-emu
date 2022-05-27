@@ -26,11 +26,7 @@ void PPUOp::clear() {
     attributeEntry = 0;
     patternEntryLo = 0;
     patternEntryHi = 0;
-
-    while (!tileRows.empty()) {
-        tileRows.pop();
-    }
-
+    tileRows.clear();
     oamEntry = 0;
     spriteNum = 0;
     oamEntryNum = 0;
@@ -47,22 +43,23 @@ void PPUOp::clear() {
 // Pushes the tile row that has all of its data fetched to the queue for future rendering
 
 void PPUOp::addTileRow() {
-    tileRows.push({nametableEntry, attributeEntry, patternEntryLo, patternEntryHi,
+    tileRows.push_back({nametableEntry, attributeEntry, patternEntryLo, patternEntryHi,
         attributeQuadrant});
 }
 
 // Gets the background palette bits for the current pixel
 
-uint8_t PPUOp::getPalette() const {
-    const struct TileRow& tileRow = tileRows.front();
-    uint8_t upperPaletteBits = getUpperPalette();
+uint8_t PPUOp::getPalette(uint8_t x) {
+    std::deque<TileRow>::iterator tileRowIterator = tileRows.begin();
+    if (pixel % 8 + x > 7) {
+        ++tileRowIterator;
+    }
+    uint8_t upperPaletteBits = getUpperPalette(*tileRowIterator);
     uint8_t bgPalette = 0;
-    // The current pixel number mod 8 represents the column in the tile row, which isolates the 8x1
-    // tile row to a single 1x1 pixel
-    if (tileRow.patternEntryLo & (0x80 >> (pixel % 8))) {
+    if (tileRowIterator->patternEntryLo & (0x80 >> ((pixel + x) % 8))) {
         bgPalette |= 1;
     }
-    if (tileRow.patternEntryHi & (0x80 >> (pixel % 8))) {
+    if (tileRowIterator->patternEntryHi & (0x80 >> ((pixel + x) % 8))) {
         bgPalette |= 2;
     }
     if (upperPaletteBits & 1) {
@@ -76,8 +73,7 @@ uint8_t PPUOp::getPalette() const {
 
 // Gets the upper 2 bits of the background palette for the current pixel
 
-uint8_t PPUOp::getUpperPalette() const {
-    const struct TileRow& tileRow = tileRows.front();
+uint8_t PPUOp::getUpperPalette(const struct TileRow& tileRow) const {
     unsigned int shiftNum = 0;
     // Which 2 bits to use out of the 8 bits in the attribute entry are determined by what the
     // current quadrant is: https://www.nesdev.org/wiki/PPU_attribute_tables
@@ -92,96 +88,6 @@ uint8_t PPUOp::getUpperPalette() const {
             shiftNum = 6;
     }
     return (tileRow.attributeEntry >> shiftNum) & 3;
-}
-
-// Prepares anything else that needs to be updated for the next cycle
-
-void PPUOp::prepNextCycle(uint8_t& ppuStatus) {
-    if (canFetch()) {
-        if (isFetchingBG()) {
-            updateNametableAddr();
-            updateAttributeAddr();
-        }
-        updateStatus();
-    }
-
-    if (isRendering()) {
-        ++pixel;
-        if (pixel % 8 == 0) {
-            tileRows.pop();
-        }
-        if (pixel == TOTAL_PIXELS_PER_SCANLINE) {
-            pixel = 0;
-        }
-    }
-
-    if (cycle == 256) {
-        spriteNum = 0;
-        oamEntryNum = 0;
-    } else if (cycle == 320) {
-        spriteNum = 0;
-        currentSprites = nextSprites;
-        nextSprites.clear();
-    }
-
-    if (scanline == PRERENDER_LINE && cycle == LAST_CYCLE) {
-        ppuStatus &= 0xbf;
-        oddFrame = !oddFrame;
-        scanline = 0;
-        cycle = 0;
-    } else if (cycle == LAST_CYCLE) {
-        oddFrame = !oddFrame;
-        ++scanline;
-        cycle = 0;
-    } else {
-        ++cycle;
-    }
-}
-
-void PPUOp::updateNametableAddr() {
-    if (status == PPUOp::FetchPatternEntryHi) {
-        ++nametableAddr;
-
-        unsigned int renderLine = getRenderLine();
-        if (cycle == 240 && (renderLine + 1) % 8 != 0) {
-            nametableAddr -= 32;
-        }
-    }
-
-    if (nametableAddr == ATTRIBUTE0_START) {
-        nametableAddr = NAMETABLE0_START;
-    }
-}
-
-void PPUOp::updateAttributeAddr() {
-    if (status != PPUOp::FetchPatternEntryHi) {
-        return;
-    }
-
-    unsigned int xTile = (nametableAddr - NAMETABLE0_START) % 0x20;
-    unsigned int yTile = (nametableAddr - NAMETABLE0_START) / 0x20;
-    unsigned int xAttribute = xTile / 4;
-    unsigned int yAttribute = yTile / 4;
-    attributeAddr = ATTRIBUTE0_START + xAttribute + yAttribute * 8;
-
-    bool right = false;
-    bool bottom = false;
-    if (nametableAddr & 2) {
-        right = true;
-    }
-    if (yTile & 2) {
-        bottom = true;
-    }
-
-    if (!right && !bottom) {
-        attributeQuadrant = PPUOp::TopLeft;
-    } else if (right && !bottom) {
-        attributeQuadrant = PPUOp::TopRight;
-    } else if (!right && bottom) {
-        attributeQuadrant = PPUOp::BottomLeft;
-    } else {
-        attributeQuadrant = PPUOp::BottomRight;
-    }
 }
 
 void PPUOp::updateStatus() {
@@ -221,7 +127,7 @@ bool PPUOp::canFetch() const {
     if (cycle % 2 || cycle == 0) {
         return false;
     }
-    if (scanline < LAST_RENDER_LINE && (cycle < 241 || cycle > 256) && cycle < 337) {
+    if (scanline < LAST_RENDER_LINE && (cycle < 249 || cycle > 256) && cycle < 337) {
         return true;
     }
     if (scanline == LAST_RENDER_LINE && cycle < 241) {

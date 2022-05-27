@@ -4,6 +4,7 @@
 #pragma once
 class MMC;
 
+#include <cmath> // remove if not used
 #include <cstring>
 #include <iostream>
 #include <SDL.h>
@@ -12,7 +13,6 @@ class MMC;
 #include "mmc.h"
 #include "ppu-op.h"
 
-#define SIXTIETH_OF_A_SECOND 16.666667
 #define BLACK 0xf
 #define FRAME_HEIGHT 240
 #define FRAME_SIZE 256 * 240 * 4
@@ -79,6 +79,10 @@ class PPU {
         // map. When the CPU writes to this register, the CPU starts an OAM DMA transfer that copies
         // data from $xx00 - $xxff to the PPU OAM where xx is the value of this register
         uint8_t oamDMA;
+        uint16_t v;
+        uint16_t t;
+        uint8_t x;
+        bool w;
         // Object Attribute Memory that contains data for up to 64 sprites. Each sprite is 4 bytes:
         // https://www.nesdev.org/wiki/PPU_OAM
         uint8_t oam[OAM_SIZE];
@@ -97,26 +101,22 @@ class PPU {
         struct RGBVal palette[PALETTE_SIZE];
         // Current operation that holds info about the current pixel and scanline being rendered
         PPUOp op;
-        // The current VRAM address to read/write to, formed by two CPU writes to $2006
-        uint16_t ppuAddr;
         // PPUDATA read buffer:
         // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppuDataBuffer;
-        // Set to true if the next CPU write to $2006 should replace the low byte of ppuAddr (flips
-        // between true/false each write to $2006)
-        bool writeLoAddr;
         // The mirroring that the game uses. Depends on enum Mirroring
         unsigned int mirroring;
         // Total number of cycles since initialization
         unsigned int totalCycles;
-        // SDL timer values that are used for limiting framerate to 60 FPS
-        Uint64 startTime, stopTime;
 
         // Cycle Skipping
         void skipCycle0();
 
         // Fetching
         void fetch(MMC& mmc);
+        uint16_t getNametableAddr() const;
+        uint16_t getNametableSelectAddr() const;
+        void updateAttribute();
         void fetchSpriteEntry(MMC& mmc);
 
         // Sprite Computation
@@ -125,17 +125,29 @@ class PPU {
 
         // Rendering
         void setPixel(MMC& mmc);
+        uint8_t getPalette();
+        uint8_t getUpperPalette(const struct TileRow& tileRow) const;
         void setSprite0Hit(const Sprite& sprite, uint8_t bgPalette);
         void setRGB(uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
 
-        // Vertical Blanking Interval
-        void updateVblank(MMC& mmc);
+        // Update Flags
+        void updatePPUStatus(MMC& mmc);
+
+        // Preparation for Next Cycle
+        void prepNextCycle();
+
+        // Scrolling
+        void incrementCoarseXScroll();
+        void incrementYScroll();
+        void switchHorizontalNametable();
+        void switchVerticalNametable();
 
         // Read/Write Functions
         uint8_t readRegister(uint16_t addr, MMC& mmc);
         void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
-        void updatePPUAddr(uint8_t val);
+        void writePPUScroll(uint8_t val);
+        void writePPUAddr(uint8_t val);
         uint8_t readVRAM(uint16_t addr, MMC& mmc) const;
         void writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
 
@@ -150,7 +162,7 @@ class PPU {
 
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
-        unsigned int getPPUAddrInc() const;
+        unsigned int getVRAMAddrInc() const;
         uint16_t getSpritePatternAddr() const;
         uint16_t getBGPatternAddr() const;
         unsigned int getSpriteHeight() const;
@@ -168,6 +180,24 @@ class PPU {
         bool isSpriteOverflow() const;
         bool isSpriteZeroHit() const;
         bool isVblank() const;
+        unsigned int getCoarseXScroll() const;
+        unsigned int getTempCoarseXScroll() const;
+        unsigned int getCoarseYScroll() const;
+        unsigned int getTempCoarseYScroll() const;
+        unsigned int getNametableSelect() const;
+        unsigned int getTempNametableSelect() const;
+        unsigned int getFineYScroll() const;
+        unsigned int getTempFineYScroll() const;
+
+        // Register Flag Setters
+        void setCoarseXScroll(unsigned int val);
+        void setTempCoarseXScroll(unsigned int val);
+        void setCoarseYScroll(unsigned int val);
+        void setTempCoarseYScroll(unsigned int val);
+        void setNametableSelect(unsigned int val);
+        void setTempNametableSelect(unsigned int val);
+        void setFineYScroll(unsigned int val);
+        void setTempFineYScroll(unsigned int val);
 
         // Color Palette Initialization
         void initializePalette();

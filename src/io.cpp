@@ -71,6 +71,8 @@ uint8_t IO::readIO(uint16_t addr) {
         if (currentButton > Right) {
             currentButton = A;
         }
+    } else if (addr == 1) {
+        registers[addr] = 0;
     }
     return registers[addr];
 }
