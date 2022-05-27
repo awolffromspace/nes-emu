@@ -4,7 +4,6 @@
 #pragma once
 class MMC;
 
-#include <cmath> // remove if not used
 #include <cstring>
 #include <iostream>
 #include <SDL.h>
