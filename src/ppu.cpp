@@ -619,7 +619,7 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
             // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
             ppuDataBuffer = readVRAM(v - 0x1000, mmc);
         }
-        v += getVRAMAddrInc();
+        v += getPPUAddrInc();
     } else if (addr == OAMDMA) {
         return oamDMA;
     }
@@ -639,7 +639,7 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
         writePPUAddr(val);
     } else if (addr == PPUDATA) {
         writeVRAM(v, val, mmc, mute);
-        v += getVRAMAddrInc();
+        v += getPPUAddrInc();
     }
 
     if (addr == OAMDMA) {
@@ -802,7 +802,7 @@ uint16_t PPU::getNametableBaseAddr() const {
     return NAMETABLE3_START;
 }
 
-unsigned int PPU::getVRAMAddrInc() const {
+unsigned int PPU::getPPUAddrInc() const {
     uint8_t flag = registers[0] & 4;
     if (flag) {
         return 0x20;

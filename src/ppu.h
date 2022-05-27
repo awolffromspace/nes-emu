@@ -161,7 +161,7 @@ class PPU {
 
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
-        unsigned int getVRAMAddrInc() const;
+        unsigned int getPPUAddrInc() const;
         uint16_t getSpritePatternAddr() const;
         uint16_t getBGPatternAddr() const;
         unsigned int getSpriteHeight() const;
