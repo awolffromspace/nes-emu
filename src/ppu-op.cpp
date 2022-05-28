@@ -90,15 +90,57 @@ uint8_t PPUOp::getUpperPalette(const struct TileRow& tileRow) const {
     return (tileRow.attributeEntry >> shiftNum) & 3;
 }
 
-void PPUOp::updateStatus() {
-    if (status == PPUOp::FetchAttributeEntry) {
-        if (isFetchingBG()) {
-            status = PPUOp::FetchPatternEntryLo;
-        } else {
-            status = PPUOp::FetchSpriteEntryLo;
+// Prepares anything else that needs to be updated for the next cycle
+
+void PPUOp::prepNextCycle() {
+    if (canFetch()) {
+        if (cycle == 320 && !tileRows.empty()) {
+            tileRows.clear();
         }
-    } else if (status == PPUOp::FetchPatternEntryHi || status == PPUOp::FetchSpriteEntryHi) {
-        status = PPUOp::FetchNametableEntry;
+        updateStatus();
+    }
+
+    if (isRendering()) {
+        ++pixel;
+        if (pixel % 8 == 0) {
+            tileRows.pop_front();
+        }
+        if (pixel == TOTAL_PIXELS_PER_SCANLINE) {
+            pixel = 0;
+        }
+    }
+
+    if (cycle == 256) {
+        spriteNum = 0;
+        oamEntryNum = 0;
+    } else if (cycle == 320) {
+        spriteNum = 0;
+        currentSprites = nextSprites;
+        nextSprites.clear();
+    }
+
+    if (scanline == PRERENDER_LINE && cycle == LAST_CYCLE) {
+        oddFrame = !oddFrame;
+        scanline = 0;
+        cycle = 0;
+    } else if (cycle == LAST_CYCLE) {
+        oddFrame = !oddFrame;
+        ++scanline;
+        cycle = 0;
+    } else {
+        ++cycle;
+    }
+}
+
+void PPUOp::updateStatus() {
+    if (status == FetchAttributeEntry) {
+        if (isFetchingBG()) {
+            status = FetchPatternEntryLo;
+        } else {
+            status = FetchSpriteEntryLo;
+        }
+    } else if (status == FetchPatternEntryHi || status == FetchSpriteEntryHi) {
+        status = FetchNametableEntry;
     } else {
         ++status;
     }

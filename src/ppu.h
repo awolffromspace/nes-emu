@@ -12,11 +12,16 @@ class MMC;
 #include "mmc.h"
 #include "ppu-op.h"
 
+#define ATTRIBUTE_OFFSET 0x3c0
 #define BLACK 0xf
 #define FRAME_HEIGHT 240
 #define FRAME_SIZE 256 * 240 * 4
 #define FRAME_WIDTH 256
 #define IMAGE_PALETTE_START 0x3f00
+#define NAMETABLE0_START 0x2000
+#define NAMETABLE1_START 0x2400
+#define NAMETABLE2_START 0x2800
+#define NAMETABLE3_START 0x2c00
 #define OAM_SIZE 0x100
 #define OAMADDR 0x2003
 #define OAMDATA 0x2004
@@ -32,6 +37,7 @@ class MMC;
 #define PPUSTATUS 0x2002
 #define SECONDARY_OAM_SIZE 0x20
 #define SPRITE_PALETTE_START 0x3f10
+#define TILES_PER_ROW 0x20
 #define UNIVERSAL_BG_INDEX 0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000
 #define VRAM_SIZE 0x400 + 0x400 + 0x20
 
@@ -130,17 +136,15 @@ class PPU {
         void setRGB(uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
 
-        // Update Flags
-        void updatePPUStatus(MMC& mmc);
-
-        // Preparation for Next Cycle
-        void prepNextCycle();
-
         // Scrolling
+        void updateScroll();
         void incrementCoarseXScroll();
         void incrementYScroll();
         void switchHorizontalNametable();
         void switchVerticalNametable();
+
+        // Update Flags
+        void updatePPUStatus(MMC& mmc);
 
         // Read/Write Functions
         uint8_t readRegister(uint16_t addr, MMC& mmc);

@@ -60,10 +60,13 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
             renderFrame(renderer, texture);
         }
     }
+    if (isRenderingEnabled()) {
+        updateScroll();
+    }
     if (op.cycle == 1) {
         updatePPUStatus(mmc);
     }
-    prepNextCycle();
+    op.prepNextCycle();
     ++totalCycles;
 }
 
@@ -223,7 +226,7 @@ uint16_t PPU::getNametableAddr() const {
     unsigned int coarseXScroll = getCoarseXScroll();
     unsigned int coarseYScroll = getCoarseYScroll();
     unsigned int nametableBaseAddr = getNametableSelectAddr();
-    return nametableBaseAddr + coarseXScroll + coarseYScroll * 0x20;
+    return nametableBaseAddr + coarseXScroll + coarseYScroll * TILES_PER_ROW;
 }
 
 uint16_t PPU::getNametableSelectAddr() const {
@@ -231,28 +234,27 @@ uint16_t PPU::getNametableSelectAddr() const {
     uint16_t nametableBaseAddr;
     switch (nametableSelect) {
         case 0:
-            nametableBaseAddr = 0x2000;
+            nametableBaseAddr = NAMETABLE0_START;
             break;
         case 1:
-            nametableBaseAddr = 0x2400;
+            nametableBaseAddr = NAMETABLE1_START;
             break;
         case 2:
-            nametableBaseAddr = 0x2800;
+            nametableBaseAddr = NAMETABLE2_START;
             break;
         case 3:
-            nametableBaseAddr = 0x2c00;
-
+            nametableBaseAddr = NAMETABLE3_START;
     }
     return nametableBaseAddr;
 }
 
 void PPU::updateAttribute() {
     unsigned int nametableBaseAddr = getNametableSelectAddr();
-    unsigned int xTile = (op.nametableAddr - nametableBaseAddr) % 0x20;
-    unsigned int yTile = (op.nametableAddr - nametableBaseAddr) / 0x20;
+    unsigned int xTile = (op.nametableAddr - nametableBaseAddr) % TILES_PER_ROW;
+    unsigned int yTile = (op.nametableAddr - nametableBaseAddr) / TILES_PER_ROW;
     unsigned int xAttribute = xTile / 4;
     unsigned int yAttribute = yTile / 4;
-    op.attributeAddr = nametableBaseAddr + 0x3c0 + xAttribute + yAttribute * 8;
+    op.attributeAddr = nametableBaseAddr + ATTRIBUTE_OFFSET + xAttribute + yAttribute * 8;
 
     bool right = false;
     bool bottom = false;
@@ -463,87 +465,29 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
-void PPU::updatePPUStatus(MMC& mmc) {
-    if (op.scanline == 241 && !isVblank()) {
-        registers[2] |= 0x80;
-    } else if (op.scanline == PRERENDER_LINE) {
-        registers[2] &= 0xbf;
-        if (isVblank()) {
-            registers[2] &= 0x7f;
-        }
-    }
-}
-
-// Prepares anything else that needs to be updated for the next cycle
-
-void PPU::prepNextCycle() {
-    if (op.canFetch()) {
-        if (op.cycle == 320 && !op.tileRows.empty()) {
-            op.tileRows.clear();
-        }
-        if (op.status == PPUOp::FetchPatternEntryHi) {
-            if (isRenderingEnabled()) {
-                incrementCoarseXScroll();
-            }
-        }
-        op.updateStatus();
+void PPU::updateScroll() {
+    if (op.status == PPUOp::FetchPatternEntryHi && op.canFetch()) {
+        incrementCoarseXScroll();
     }
 
-    // TODO: move scrolling into its own function
-    if (isRenderingEnabled()) {
-        if (op.cycle == 256 && op.scanline <= LAST_RENDER_LINE) {
-            incrementYScroll();
-        } else if (op.cycle == 257 && (op.scanline <= LAST_RENDER_LINE ||
-                op.scanline == PRERENDER_LINE)) {
-            setCoarseXScroll(getTempCoarseXScroll());
+    if (op.cycle == 256 && op.scanline <= LAST_RENDER_LINE) {
+        incrementYScroll();
+    } else if (op.cycle == 257 && (op.scanline <= LAST_RENDER_LINE ||
+            op.scanline == PRERENDER_LINE)) {
+        setCoarseXScroll(getTempCoarseXScroll());
 
-            unsigned int nametableSelect = getNametableSelect();
-            unsigned int tempNametableSelect = getTempNametableSelect();
-            // TODO: refactor this if statement
-            if (((nametableSelect == 0 || nametableSelect == 1) &&
-                    (tempNametableSelect == 2 || tempNametableSelect == 3)) ||
-                    ((nametableSelect == 2 || nametableSelect == 3) &&
-                    (tempNametableSelect == 0 || tempNametableSelect == 1))) {
-                switchHorizontalNametable();
-            } else {
-                setNametableSelect(tempNametableSelect);
-            }
-        } else if (op.scanline == PRERENDER_LINE && op.cycle >= 280 && op.cycle <= 304) {
-            setCoarseYScroll(getTempCoarseYScroll());
-            setFineYScroll(getTempFineYScroll());
-            setNametableSelect(getTempNametableSelect());
+        unsigned int nametableSelect = getNametableSelect();
+        unsigned int tempNametableSelect = getTempNametableSelect();
+        if ((nametableSelect < 2 && tempNametableSelect > 1) ||
+                (nametableSelect > 1 && tempNametableSelect < 2)) {
+            switchHorizontalNametable();
+        } else {
+            setNametableSelect(tempNametableSelect);
         }
-    }
-
-    if (op.isRendering()) {
-        ++op.pixel;
-        if (op.pixel % 8 == 0) {
-            op.tileRows.pop_front();
-        }
-        if (op.pixel == TOTAL_PIXELS_PER_SCANLINE) {
-            op.pixel = 0;
-        }
-    }
-
-    if (op.cycle == 256) {
-        op.spriteNum = 0;
-        op.oamEntryNum = 0;
-    } else if (op.cycle == 320) {
-        op.spriteNum = 0;
-        op.currentSprites = op.nextSprites;
-        op.nextSprites.clear();
-    }
-
-    if (op.scanline == PRERENDER_LINE && op.cycle == LAST_CYCLE) {
-        op.oddFrame = !op.oddFrame;
-        op.scanline = 0;
-        op.cycle = 0;
-    } else if (op.cycle == LAST_CYCLE) {
-        op.oddFrame = !op.oddFrame;
-        ++op.scanline;
-        op.cycle = 0;
-    } else {
-        ++op.cycle;
+    } else if (op.cycle >= 280 && op.cycle <= 304 && op.scanline == PRERENDER_LINE) {
+        setCoarseYScroll(getTempCoarseYScroll());
+        setFineYScroll(getTempFineYScroll());
+        setNametableSelect(getTempNametableSelect());
     }
 }
 
@@ -597,6 +541,17 @@ void PPU::switchVerticalNametable() {
         setNametableSelect(nametableSelect + 2);
     } else {
         setNametableSelect(nametableSelect - 2);
+    }
+}
+
+void PPU::updatePPUStatus(MMC& mmc) {
+    if (op.scanline == 241 && !isVblank()) {
+        registers[2] |= 0x80;
+    } else if (op.scanline == PRERENDER_LINE) {
+        registers[2] &= 0xbf;
+        if (isVblank()) {
+            registers[2] &= 0x7f;
+        }
     }
 }
 

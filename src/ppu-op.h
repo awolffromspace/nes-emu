@@ -6,15 +6,10 @@
 
 #include "sprite.h"
 
-#define ATTRIBUTE0_START 0x23c0
 #define FIRST_CYCLE_TO_OUTPUT_PIXEL 4
 #define LAST_CYCLE 340
 #define LAST_CYCLE_TO_OUTPUT_PIXEL 4 + 255
 #define LAST_RENDER_LINE 239
-#define NAMETABLE0_START 0x2000
-#define NAMETABLE1_START 0x2400
-#define NAMETABLE2_START 0x2800
-#define NAMETABLE3_START 0x2c00
 #define PRERENDER_LINE 261
 #define TOTAL_PIXELS_PER_SCANLINE 256
 
@@ -84,6 +79,7 @@ class PPUOp {
         uint8_t getUpperPalette(const struct TileRow& tileRow) const;
 
         // Preparation for Next Cycle
+        void prepNextCycle();
         void updateStatus();
 
         // Miscellaneous Functions
