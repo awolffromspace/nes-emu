@@ -9,7 +9,6 @@ PPU::PPU() :
         x(0),
         w(false),
         ppuDataBuffer(0),
-        mirroring(0),
         totalCycles(0) {
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
@@ -29,7 +28,6 @@ void PPU::clear() {
     memset(frame, 0, FRAME_SIZE);
     op.clear();
     ppuDataBuffer = 0;
-    mirroring = 0;
     totalCycles = 0;
 }
 
@@ -74,9 +72,12 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
 
 uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
     uint8_t val = readRegister(addr, mmc);
-    if (addr == PPUSTATUS) {
-        uint8_t clearedVblank = val & 0x7f;
-        writeRegister(PPUSTATUS, clearedVblank, mmc, mute);
+    uint16_t localAddr = getLocalRegisterAddr(addr);
+    if (localAddr == 2) {
+        registers[2] &= 0x7f;
+        if ((op.cycle == 0 || op.cycle == 1) && op.scanline == 241) {
+            op.suppressNMI = true;
+        }
     }
     return val;
 }
@@ -84,7 +85,8 @@ uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
 // Handles I/O writes from the CPU
 
 void PPU::writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == PPUSTATUS) {
+    uint16_t localAddr = getLocalRegisterAddr(addr);
+    if (localAddr == 2) {
         return;
     }
     writeRegister(addr, val, mmc, mute);
@@ -99,8 +101,8 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 // Tells the CPU when it should enter an NMI
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
-    if (isNMIEnabled() && isVblank()) {
-        readIO(PPUSTATUS, mmc, mute);
+    if (isNMIEnabled() && isVblank() && !op.suppressNMI) {
+        op.suppressNMI = true;
         return true;
     }
     return false;
@@ -108,10 +110,6 @@ bool PPU::isNMIActive(MMC& mmc, bool mute) {
 
 unsigned int PPU::getTotalCycles() const {
     return totalCycles;
-}
-
-void PPU::setMirroring(unsigned int mirroring) {
-    this->mirroring = mirroring;
 }
 
 void PPU::clearTotalCycles() {
@@ -149,8 +147,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "x                 = 0x" << (unsigned int) x << "\n"
         "w                 = " << std::dec << w << "\n"
         "ppuDataBuffer     = 0x" << std::hex << (unsigned int) ppuDataBuffer << "\n"
-        "mirroring         = " << std::dec << mirroring << "\n"
-        "totalCycles       = " << totalCycles <<
+        "totalCycles       = " << std::dec << totalCycles <<
         "\n----------------------------\n" << std::hex <<
         "PPU Operation Fields\n----------------------------\n"
         "nametableAddr     = 0x" << (unsigned int) op.nametableAddr << "\n"
@@ -163,6 +160,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "pixel             = " << op.pixel << "\n"
         "attributeQuadrant = " << op.attributeQuadrant << "\n"
         "oddFrame          = " << op.oddFrame << "\n"
+        "suppressNMI       = " << op.suppressNMI << "\n"
         "cycle             = " << op.cycle << "\n"
         "status            = " << op.status <<
         "\n--------------------------------------------------\n";
@@ -417,6 +415,9 @@ void PPU::setPixel(MMC& mmc) {
     } else if (isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
         // Output the background pixel
         paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPalette, mmc);
+        if (foundSprite && areSpritesShown()) {
+            setSprite0Hit(*spriteIterator, bgPalette);
+        }
     } else {
         // Output the universal background color:
         // https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
@@ -478,9 +479,12 @@ void PPU::updateScroll() {
 
         unsigned int nametableSelect = getNametableSelect();
         unsigned int tempNametableSelect = getTempNametableSelect();
-        if ((nametableSelect < 2 && tempNametableSelect > 1) ||
-                (nametableSelect > 1 && tempNametableSelect < 2)) {
-            switchHorizontalNametable();
+        if ((nametableSelect == 1 && tempNametableSelect == 2) ||
+                (nametableSelect == 0 && tempNametableSelect == 3)) {
+            setNametableSelect(tempNametableSelect - 2);
+        } else if ((nametableSelect == 3 && tempNametableSelect == 0) ||
+                (nametableSelect == 2 && tempNametableSelect == 1)) {
+            setNametableSelect(tempNametableSelect + 2);
         } else {
             setNametableSelect(tempNametableSelect);
         }
@@ -545,24 +549,22 @@ void PPU::switchVerticalNametable() {
 }
 
 void PPU::updatePPUStatus(MMC& mmc) {
-    if (op.scanline == 241 && !isVblank()) {
+    if (op.scanline == 241 && !op.suppressNMI) {
         registers[2] |= 0x80;
     } else if (op.scanline == PRERENDER_LINE) {
-        registers[2] &= 0xbf;
-        if (isVblank()) {
-            registers[2] &= 0x7f;
-        }
+        registers[2] &= 0x3f;
     }
 }
 
 // Handles register reads mainly from the CPU
 
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
-    if (addr == PPUSTATUS) {
+    uint16_t localAddr = getLocalRegisterAddr(addr);
+    if (localAddr == 2) {
         w = false;
     // PPUDATA read buffer logic:
     // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
-    } else if (addr == PPUDATA) {
+    } else if (localAddr == 7) {
         // If the v register is in not in the palette, then the read is buffered
         if ((v & 0x3fff) < IMAGE_PALETTE_START) {
             registers[7] = ppuDataBuffer;
@@ -578,21 +580,20 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     } else if (addr == OAMDMA) {
         return oamDMA;
     }
-
-    addr = getLocalRegisterAddr(addr);
-    return registers[addr];
+    return registers[localAddr];
 }
 
 // Handles register writes mainly from the CPU
 
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    if (addr == PPUCTRL) {
+    uint16_t localAddr = getLocalRegisterAddr(addr);
+    if (localAddr == 0) {
         setTempNametableSelect(val & 3);
-    } else if (addr == PPUSCROLL) {
+    } else if (localAddr == 5) {
         writePPUScroll(val);
-    } else if (addr == PPUADDR) {
+    } else if (localAddr == 6) {
         writePPUAddr(val);
-    } else if (addr == PPUDATA) {
+    } else if (localAddr == 7) {
         writeVRAM(v, val, mmc, mute);
         v += getPPUAddrInc();
     }
@@ -600,8 +601,7 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     if (addr == OAMDMA) {
         oamDMA = val;
     } else {
-        addr = getLocalRegisterAddr(addr);
-        registers[addr] = val;
+        registers[localAddr] = val;
     }
 }
 
@@ -632,7 +632,7 @@ void PPU::writePPUAddr(uint8_t val) {
 
 uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
     uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
-    addr = getLocalVRAMAddr(addr, true);
+    addr = getLocalVRAMAddr(addr, mmc, true);
     // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
     // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
     // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
@@ -651,7 +651,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 
     uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
-    addr = getLocalVRAMAddr(addr, false);
+    addr = getLocalVRAMAddr(addr, mmc, false);
     // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
     // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
     // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
@@ -669,7 +669,7 @@ uint16_t PPU::getLocalRegisterAddr(uint16_t addr) const {
     return addr & 7;
 }
 
-uint16_t PPU::getLocalVRAMAddr(uint16_t addr, bool isRead) const {
+uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
     addr = getUpperMirrorAddr(addr);
     if (addr >= IMAGE_PALETTE_START) {
         addr &= 0x3f1f;
@@ -684,17 +684,20 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, bool isRead) const {
             addr &= 0x2fff;
         }
 
-        switch (mirroring) {
-            case PPU::Horizontal:
+        switch (mmc.getMirroring()) {
+            case MMC::Horizontal:
                 addr = getHorizontalMirrorAddr(addr);
                 break;
-            case PPU::Vertical:
+            case MMC::Vertical:
                 addr = getVerticalMirrorAddr(addr);
                 break;
-            case PPU::SingleScreen:
+            case MMC::SingleScreenLowerBank:
                 addr = getSingleScreenMirrorAddr(addr);
                 break;
-            case PPU::FourScreen:
+            case MMC::SingleScreenUpperBank:
+                addr = getSingleScreenMirrorAddr(addr);
+                break;
+            case MMC::FourScreen:
                 addr = getFourScreenMirrorAddr(addr);
         }
     }
@@ -740,8 +743,9 @@ uint16_t PPU::getSingleScreenMirrorAddr(uint16_t addr) const {
 }
 
 uint16_t PPU::getFourScreenMirrorAddr(uint16_t addr) const {
-    // TODO: Implement CHR memory banks
-    return getHorizontalMirrorAddr(addr);
+    std::cerr << "Four-screen mirroring is not implemented\n";
+    exit(1);
+    return 0;
 }
 
 uint16_t PPU::getNametableBaseAddr() const {
@@ -854,27 +858,27 @@ unsigned int PPU::getTempCoarseXScroll() const {
 }
 
 unsigned int PPU::getCoarseYScroll() const {
-    return (v & 0x3e0) >> 5;
+    return (v >> 5) & 0x1f;
 }
 
 unsigned int PPU::getTempCoarseYScroll() const {
-    return (t & 0x3e0) >> 5;
+    return (t >> 5) & 0x1f;
 }
 
 unsigned int PPU::getNametableSelect() const {
-    return (v & 0xc00) >> 10;
+    return (v >> 10) & 3;
 }
 
 unsigned int PPU::getTempNametableSelect() const {
-    return (t & 0xc00) >> 10;
+    return (t >> 10) & 3;
 }
 
 unsigned int PPU::getFineYScroll() const {
-    return (v & 0x7000) >> 12;
+    return (v >> 12) & 7;
 }
 
 unsigned int PPU::getTempFineYScroll() const {
-    return (t & 0x7000) >> 12;
+    return (t >> 12) & 7;
 }
 
 void PPU::setCoarseXScroll(unsigned int val) {

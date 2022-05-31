@@ -1,5 +1,3 @@
-#include <climits>
-
 #include "cpu.h"
 
 void readInFilenames(std::vector<std::string>& filenames);

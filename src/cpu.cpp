@@ -65,7 +65,7 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
     } else if (op.interruptPrologue && op.nmi) {
         prepareNMI();
     } else if (op.interruptPrologue && op.irq) {
-        prepareIRQ(false);
+        prepareIRQ();
     } else {
         // Decode and execute
         // Use the opcode to look up in the addressing mode and opcode arrays to get the two
@@ -86,6 +86,7 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
 void CPU::readInInst(const std::string& filename) {
     // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInInst(filename);
+    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
 }
 
 void CPU::readInINES(const std::string& filename) {
@@ -260,6 +261,7 @@ void CPU::print(bool isCycleDone) const {
         "writeUnmodified   = " << op.writeUnmodified << "\n"
         "writeModified     = " << op.writeModified << "\n"
         "irq               = " << op.irq << "\n"
+        "brk               = " << op.brk << "\n"
         "nmi               = " << op.nmi << "\n"
         "reset             = " << op.reset << "\n"
         "interruptPrologue = " << op.interruptPrologue << "\n"
@@ -921,8 +923,8 @@ void CPU::brk() {
         endOfProgram = true;
     } else {
         op.irq = true;
-        op.interruptPrologue = true;
-        prepareIRQ(true);
+        op.brk = true;
+        prepareIRQ();
     }
 }
 
@@ -1245,7 +1247,7 @@ void CPU::php() {
             pollInterrupts();
             break;
         case 2:
-            temp = p | Break | UnusedFlag;
+            temp = p;
             ram.push(sp, temp, mute);
             op.done = true;
     }
@@ -1587,7 +1589,7 @@ void CPU::write(uint16_t addr, uint8_t val) {
         }
         io.writeIO(addr, val);
     } else if (addr >= SAVE_WORK_RAM_START)  {
-        mmc.writePRG(addr, val);
+        mmc.writePRG(addr, val, totalCycles);
     }
 
     if (!mute) {
@@ -1641,7 +1643,7 @@ void CPU::pollInterrupts() {
 // Performs the interrupt prologue for maskable interrupts, which involves pushing the PC and P
 // registers to the stack and setting the Interrupt Disable flag
 
-void CPU::prepareIRQ(bool isBrk) {
+void CPU::prepareIRQ() {
     uint8_t temp;
     switch (op.cycle) {
         case 0:
@@ -1649,7 +1651,9 @@ void CPU::prepareIRQ(bool isBrk) {
             op.opcode = 0;
             break;
         case 1:
-            ++pc;
+            if (op.brk) {
+                ++pc;
+            }
             break;
         case 2:
             temp = (pc & 0xff00) >> 8;
@@ -1660,14 +1664,14 @@ void CPU::prepareIRQ(bool isBrk) {
             ram.push(sp, temp, mute);
             break;
         case 4:
-            op.clearStatusFlags(false, true, true, false);
-            temp = p | UnusedFlag;
+            temp = p;
             // When pushing the P register to the stack, only set the Break flag if the IRQ was
             // triggered by the BRK instruction
-            if (!isBrk) {
+            if (!op.brk) {
                 temp &= ~Break;
             }
             ram.push(sp, temp, mute);
+            op.clearStatusFlags(false, false, true, true, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_IRQ_ADDR);
@@ -1701,10 +1705,12 @@ void CPU::prepareNMI() {
             ram.push(sp, temp, mute);
             break;
         case 4:
-            op.clearStatusFlags(true, false, true, false);
-            temp = p | UnusedFlag;
-            temp = p & ~Break;
+            temp = p;
+            if (!op.brk) {
+                temp &= ~Break;
+            }
             ram.push(sp, temp, mute);
+            op.clearStatusFlags(true, true, false, true, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_NMI_ADDR);
@@ -1736,8 +1742,8 @@ void CPU::prepareReset() {
             --sp;
             break;
         case 4:
-            op.clearStatusFlags(true, true, false, false);
             --sp;
+            op.clearStatusFlags(true, true, true, false, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_RESET_ADDR);

@@ -4,6 +4,7 @@
 #pragma once
 class PPU;
 
+#include <climits>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -12,7 +13,7 @@ class PPU;
 
 #include "ppu.h"
 
-#define CHR_BANK_SIZE 0x2000
+#define CHR_BANK_SIZE 0x1000
 #define HEADER_SIZE 0x10
 #define LOWER_RESET_ADDR 0xfffc
 #define PRG_BANK_SIZE 0x4000
@@ -32,11 +33,20 @@ class MMC {
         MMC();
         void clear();
         uint8_t readPRG(uint16_t addr) const;
-        void writePRG(uint16_t addr, uint8_t val);
+        void writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles);
         uint8_t readCHR(uint16_t addr) const;
         void writeCHR(uint16_t addr, uint8_t val);
         void readInInst(const std::string& filename);
         void readInINES(const std::string& filename, PPU& ppu);
+        unsigned int getMirroring() const;
+
+        enum Mirroring {
+            Horizontal = 0,
+            Vertical = 1,
+            SingleScreenLowerBank = 2,
+            SingleScreenUpperBank = 3,
+            FourScreen = 4
+        };
 
     private:
         // Battery Backed Save (aka SRAM) or Work RAM (aka Expansion ROM)
@@ -53,9 +63,22 @@ class MMC {
         // Number of CHR banks
         unsigned int chrMemorySize;
         // Mapper ID: https://www.nesdev.org/wiki/Mapper
-        uint8_t mapperID;
+        unsigned int mapperID;
+        uint8_t shiftRegister;
+        unsigned int mirroring;
+        unsigned int prgBankMode;
+        unsigned int chrBankMode;
+        unsigned int prgBank;
+        unsigned int chrBank0;
+        unsigned int chrBank1;
+        bool prgRAM;
+        bool chrRAM;
+        unsigned int lastWriteCycle;
+        bool testMode;
 
-        uint16_t getLocalPRGAddr(uint16_t addr) const;
+        unsigned int getLocalPRGAddr(unsigned int addr) const;
+        unsigned int getLocalCHRAddr(unsigned int addr) const;
+        void updateSettings(uint16_t addr);
 };
 
 #endif

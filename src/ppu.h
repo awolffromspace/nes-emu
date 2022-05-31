@@ -59,16 +59,8 @@ class PPU {
         // Miscellaneous Functions
         bool isNMIActive(MMC& mmc, bool mute);
         unsigned int getTotalCycles() const;
-        void setMirroring(unsigned int mirroring);
         void clearTotalCycles();
         void print(bool isCycleDone, bool mute) const;
-
-        enum Mirroring {
-            Horizontal = 0,
-            Vertical = 1,
-            SingleScreen = 2,
-            FourScreen = 3
-        };
 
     private:
         struct RGBVal {
@@ -109,8 +101,6 @@ class PPU {
         // PPUDATA read buffer:
         // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppuDataBuffer;
-        // The mirroring that the game uses. Depends on enum Mirroring
-        unsigned int mirroring;
         // Total number of cycles since initialization
         unsigned int totalCycles;
 
@@ -156,7 +146,7 @@ class PPU {
 
         // Mirrored Address Getters
         uint16_t getLocalRegisterAddr(uint16_t addr) const;
-        uint16_t getLocalVRAMAddr(uint16_t addr, bool isRead) const;
+        uint16_t getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const;
         uint16_t getUpperMirrorAddr(uint16_t addr) const;
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;

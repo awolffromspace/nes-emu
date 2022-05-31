@@ -1,7 +1,13 @@
 nes-emu
 src/*.o
+balloon-fight.nes
+bomberman.nes
+castlevania2.nes
 donkey-kong.nes
+final-fantasy.nes
 galaga.nes
 ice-climber.nes
+legend-of-zelda.nes
+metroid.nes
 pac-man.nes
 super-mario-bros.nes

@@ -262,7 +262,7 @@ class CPU {
 
         // Interrupts
         void pollInterrupts();
-        void prepareIRQ(bool isBrk);
+        void prepareIRQ();
         void prepareNMI();
         void prepareReset();
 

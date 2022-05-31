@@ -20,6 +20,7 @@ CPUOp::CPUOp() :
         writeUnmodified(false),
         writeModified(false),
         irq(false),
+        brk(false),
         nmi(false),
         reset(false),
         interruptPrologue(false),
@@ -45,6 +46,7 @@ void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
     writeModified = false;
     if (clearInterrupts) {
         irq = false;
+        brk = false;
         nmi = false;
         reset = false;
     }
@@ -55,7 +57,7 @@ void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
     done = false;
 }
 
-void CPUOp::clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
+void CPUOp::clearStatusFlags(bool clearIRQ, bool clearBRK, bool clearNMI, bool clearReset,
         bool clearInterruptPrologue) {
     modify = false;
     write = false;
@@ -63,6 +65,9 @@ void CPUOp::clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
     writeModified = false;
     if (clearIRQ) {
         irq = false;
+    }
+    if (clearBRK) {
+        brk = false;
     }
     if (clearNMI) {
         nmi = false;
@@ -79,6 +84,7 @@ void CPUOp::clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
 
 void CPUOp::clearInterruptFlags() {
     irq = false;
+    brk = false;
     nmi = false;
     reset = false;
 }

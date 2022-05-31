@@ -11,7 +11,7 @@ class CPUOp {
     public:
         CPUOp();
         void clear(bool clearInterrupts, bool clearDMA);
-        void clearStatusFlags(bool clearIRQ, bool clearNMI, bool clearReset,
+        void clearStatusFlags(bool clearIRQ, bool clearBRK, bool clearNMI, bool clearReset,
             bool clearInterruptPrologue);
         void clearInterruptFlags();
         void clearDMA();
@@ -58,6 +58,7 @@ class CPUOp {
         bool writeModified;
         // If an IRQ or maskable interrupt was triggered
         bool irq;
+        bool brk;
         // If an NMI or non-maskable interrupt was triggered
         bool nmi;
         // If a reset interrupt was triggered
