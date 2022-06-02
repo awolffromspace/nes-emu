@@ -69,7 +69,7 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
     ++totalCycles;
 }
 
-// Handles register reads mainly from the CPU
+// Handles register reads from the CPU
 
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
@@ -105,7 +105,7 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     return registers[localAddr];
 }
 
-// Handles register writes mainly from the CPU
+// Handles register writes from the CPU
 
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
