@@ -17,16 +17,16 @@ class PPU;
 #define HEADER_SIZE 0x10
 #define LOWER_RESET_ADDR 0xfffc
 #define PRG_BANK_SIZE 0x4000
-#define PRG_MEMORY_START 0x8000
-#define SAVE_WORK_RAM_SIZE 0x8000 - 0x4020
-#define SAVE_WORK_RAM_START 0x4020
+#define PRG_RAM_SIZE 0x8000 - 0x4020
+#define PRG_RAM_START 0x4020
+#define PRG_ROM_START 0x8000
 #define TRAINER_SIZE 0x200
 #define UPPER_RESET_ADDR 0xfffd
 
 // Memory Management Controller (Mapper)
-// Handles anything related to the cartridge. Stores data for addresses $4020 - $7fff (Save or Work
-// RAM) and $8000 - $ffff (PRG memory) in the CPU memory map as well as addresses $0000 - $1fff (CHR
-// memory or pattern tables) in the PPU memory map
+// Handles anything related to the cartridge. Stores data for addresses $4020 - $7fff (PRG-RAM) and
+// $8000 - $ffff (PRG-ROM) in the CPU memory map as well as addresses $0000 - $1fff (CHR memory or
+// pattern tables) in the PPU memory map
 
 class MMC {
     public:
@@ -49,17 +49,15 @@ class MMC {
         };
 
     private:
-        // Battery Backed Save (aka SRAM) or Work RAM (aka Expansion ROM)
-        uint8_t saveWorkRAM[SAVE_WORK_RAM_SIZE];
-        // PRG-ROM (i.e., the program) and PRG-RAM (i.e., additional workspace for the program).
-        // Made up of banks, the number of which is determined by the mapper ID
-        std::vector<uint8_t> prgMemory;
+        // PRG-RAM (i.e., additional workspace for the program)
+        uint8_t prgRAM[PRG_RAM_SIZE];
+        // PRG-ROM (i.e., the program)
+        std::vector<uint8_t> prgROM;
         // CHR-ROM (i.e., character data, which are pattern tables) and CHR-RAM (i.e., additional
-        // work space or modifiable pattern tables). Made up of banks, the number of which is
-        // determined by the mapper ID
+        // work space or modifiable pattern tables)
         std::vector<uint8_t> chrMemory;
         // Number of PRG banks
-        unsigned int prgMemorySize;
+        unsigned int prgROMSize;
         // Number of CHR banks
         unsigned int chrMemorySize;
         // Mapper ID: https://www.nesdev.org/wiki/Mapper
@@ -71,7 +69,6 @@ class MMC {
         unsigned int prgBank;
         unsigned int chrBank0;
         unsigned int chrBank1;
-        bool prgRAM;
         bool chrRAM;
         unsigned int lastWriteCycle;
         bool testMode;

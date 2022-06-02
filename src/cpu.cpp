@@ -1644,7 +1644,7 @@ uint8_t CPU::read(uint16_t addr) {
         return apu.readRegister(addr);
     } else if (addr <= JOY2) {
         return io.readRegister(addr);
-    } else if (addr >= SAVE_WORK_RAM_START) {
+    } else if (addr >= PRG_RAM_START) {
         return mmc.readPRG(addr);
     }
     // Only reached for disabled APU and I/O registers $4018 - $401f
@@ -1671,7 +1671,7 @@ void CPU::write(uint16_t addr, uint8_t val) {
             apu.writeRegister(addr, val);
         }
         io.writeRegister(addr, val);
-    } else if (addr >= SAVE_WORK_RAM_START)  {
+    } else if (addr >= PRG_RAM_START)  {
         mmc.writePRG(addr, val, totalCycles);
     }
 

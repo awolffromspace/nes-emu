@@ -3,9 +3,9 @@
 // Public Member Functions
 
 MMC::MMC() :
-        prgMemory(PRG_BANK_SIZE * 2, 0),
+        prgROM(PRG_BANK_SIZE * 2, 0),
         chrMemory(CHR_BANK_SIZE * 2, 0),
-        prgMemorySize(2),
+        prgROMSize(2),
         chrMemorySize(2),
         mapperID(0),
         shiftRegister(0x10),
@@ -15,21 +15,20 @@ MMC::MMC() :
         prgBank(0),
         chrBank0(0),
         chrBank1(0),
-        prgRAM(false),
         lastWriteCycle(0),
         testMode(false) { }
 
 void MMC::clear() {
-    memset(saveWorkRAM, 0, SAVE_WORK_RAM_SIZE);
-    prgMemory.resize(PRG_BANK_SIZE * 2);
-    for (uint8_t& entry : prgMemory) {
+    memset(prgRAM, 0, PRG_RAM_SIZE);
+    prgROM.resize(PRG_BANK_SIZE * 2);
+    for (uint8_t& entry : prgROM) {
         entry = 0;
     }
     chrMemory.resize(CHR_BANK_SIZE * 2);
     for (uint8_t& entry : chrMemory) {
         entry = 0;
     }
-    prgMemorySize = 2;
+    prgROMSize = 2;
     chrMemorySize = 2;
     mapperID = 0;
     shiftRegister = 0x10;
@@ -39,34 +38,31 @@ void MMC::clear() {
     prgBank = 0;
     chrBank0 = 0;
     chrBank1 = 0;
-    prgRAM = false;
     lastWriteCycle = 0;
     testMode = false;
 }
 
-// Handles I/O reads from the CPU
+// Handles reads from the CPU
 
 uint8_t MMC::readPRG(uint16_t addr) const {
     unsigned int localAddr = getLocalPRGAddr(addr);
-    if (addr < PRG_MEMORY_START) {
-        return saveWorkRAM[localAddr];
+    if (addr < PRG_ROM_START) {
+        return prgRAM[localAddr];
     }
-    return prgMemory[localAddr];
+    return prgROM[localAddr];
 }
 
-// Handles I/O writes from the CPU
+// Handles writes from the CPU
 
 void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
     unsigned int localAddr = getLocalPRGAddr(addr);
-    if (addr < PRG_MEMORY_START) {
-        if ((addr >= 0x6000 && prgRAM) || testMode) {
-            saveWorkRAM[localAddr] = val;
-        }
+    if (addr < PRG_ROM_START) {
+        prgRAM[localAddr] = val;
         return;
     }
 
     if (testMode) {
-        prgMemory[localAddr] = val;
+        prgROM[localAddr] = val;
         return;
     }
 
@@ -95,14 +91,14 @@ void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
     }
 }
 
-// Handles I/O reads from the PPU
+// Handles reads from the PPU
 
 uint8_t MMC::readCHR(uint16_t addr) const {
     unsigned int localAddr = getLocalCHRAddr(addr);
     return chrMemory[localAddr];
 }
 
-// Handles I/O writes from the PPU
+// Handles writes from the PPU
 
 void MMC::writeCHR(uint16_t addr, uint8_t val) {
     unsigned int localAddr = getLocalCHRAddr(addr);
@@ -137,7 +133,7 @@ void MMC::readInInst(const std::string& filename) {
 
             // Every two characters in an instruction file represents a byte
             if (i % 2) {
-                prgMemory[addr] = std::stoul(substring, nullptr, 16);
+                prgROM[addr] = std::stoul(substring, nullptr, 16);
                 ++addr;
                 substring = "";
             }
@@ -148,7 +144,7 @@ void MMC::readInInst(const std::string& filename) {
     testMode = true;
     // Set the reset vector to $8000, the beginning of the PRG-ROM lower bank. This is where test
     // programs will start at
-    prgMemory[UPPER_RESET_ADDR - PRG_MEMORY_START] = 0x80;
+    prgROM[UPPER_RESET_ADDR - PRG_ROM_START] = 0x80;
 }
 
 // Reads in an .NES file: https://www.nesdev.org/wiki/INES
@@ -167,8 +163,8 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
         file.read((char*) &readInByte, 1);
 
         if (i == 4) {
-            prgMemorySize = readInByte;
-            prgMemory.resize(prgMemorySize * PRG_BANK_SIZE);
+            prgROMSize = readInByte;
+            prgROM.resize(prgROMSize * PRG_BANK_SIZE);
         } else if (i == 5) {
             chrMemorySize = readInByte;
             chrMemory.resize(chrMemorySize * CHR_BANK_SIZE * 2);
@@ -200,8 +196,8 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
     }
 
     // Read in PRG-ROM
-    for (unsigned int i = 0; i < prgMemorySize * PRG_BANK_SIZE; ++i) {
-        file.read((char*) &prgMemory[i], 1);
+    for (unsigned int i = 0; i < prgROMSize * PRG_BANK_SIZE; ++i) {
+        file.read((char*) &prgROM[i], 1);
     }
 
     // Read in CHR-ROM
@@ -213,7 +209,6 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
 
     if (mapperID == 1) {
         prgBankMode = 3;
-        prgBank = prgMemorySize - 1;
     }
 
     if (chrMemorySize == 0) {
@@ -228,15 +223,15 @@ unsigned int MMC::getMirroring() const {
 
 // Private Member Functions
 
-// Maps the CPU address to the MMC's local fields, saveWorkRAM and prgMemory
+// Maps the CPU address to the MMC's local fields, prgRAM and prgROM
 
 unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
-    if (addr < PRG_MEMORY_START) {
+    if (addr < PRG_ROM_START) {
         // The cartridge space is from $4020 - $ffff in the CPU memory map. The address is
         // subtracted by 0x4020 so that $4020 becomes 0, $4021 becomes 1, etc.
-        return addr - SAVE_WORK_RAM_START;
+        return addr - PRG_RAM_START;
     }
-    if (prgMemorySize == 1) {
+    if (prgROMSize == 1) {
         // If there is only one PRG bank, then $c000 - $ffff is a mirror of $8000 - $bfff. This
         // operation clears out the upper bits that set the address to a value higher than $bfff, so
         // the result is a mirrored address
@@ -252,13 +247,13 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
             if (addr < 0xc000) {
                 addr += prgBank * PRG_BANK_SIZE;
             } else {
-                addr += (prgMemorySize - 2) * PRG_BANK_SIZE;
+                addr += (prgROMSize - 2) * PRG_BANK_SIZE;
             }
         }
     }
-    // PRG memory starts at $8000. The address is subtracted by 0x8000 so that $8000 becomes 0,
-    // $8001 becomes 1, etc.
-    return addr - PRG_MEMORY_START;
+    // PRG-ROM starts at $8000. The address is subtracted by 0x8000 so that $8000 becomes 0, $8001
+    // becomes 1, etc.
+    return addr - PRG_ROM_START;
 }
 
 unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
@@ -296,7 +291,6 @@ void MMC::updateSettings(uint16_t addr) {
         chrBank1 = shiftRegister & 0x1f;
     } else {
         prgBank = shiftRegister & 0xf;
-        prgRAM = !((shiftRegister >> 4) & 1);
     }
     shiftRegister = 0x10;
 }
