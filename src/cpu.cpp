@@ -58,6 +58,7 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 
     // Priority list of what to do next if there are multiple options
+    // TODO: Allow interrupts to occur during an OAM DMA transfer
     if (op.oamDMATransfer) {
         oamDMATransfer();
     } else if (op.interruptPrologue && op.reset) {
