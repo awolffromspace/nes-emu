@@ -43,6 +43,7 @@ class CPU {
 
         // Getters
         uint32_t getFutureInst();
+        uint16_t getPC() const;
         unsigned int getTotalCycles() const;
         bool isEndOfProgram() const;
         bool isHaltAtBrk() const;
@@ -60,6 +61,7 @@ class CPU {
         void print(bool isCycleDone) const;
         void printUnknownOp() const;
         void printStateInst(uint32_t inst) const;
+        void printPPU() const;
 
     private:
         uint16_t pc; // Program Counter

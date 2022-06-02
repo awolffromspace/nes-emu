@@ -68,6 +68,7 @@ class PPUOp {
         unsigned int attributeQuadrant;
         // Set to true if the current frame is odd (flips between true/false each frame)
         bool oddFrame;
+        bool nmiOccurred;
         bool suppressNMI;
         // How many cycles the PPU has taken to render the current scanline (max 340)
         unsigned int cycle;

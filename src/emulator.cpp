@@ -9,6 +9,8 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
 
 void runProgram(CPU& cpu, const std::string& filename);
 
+void stepAndPrint(CPU& cpu, bool showPPU);
+
 void runTests(CPU& cpu, std::vector<std::string>& filenames);
 
 void runNESTest(CPU& cpu);
@@ -100,22 +102,20 @@ struct CPU::State readInState(const std::string& filename) {
             }
             substring += currentChar;
         }
-        if (dataIndex == 5) {
+        if (dataIndex < 5) {
+            data[dataIndex] = std::stoul(substring, nullptr, 16);
+        } else if (dataIndex == 5) {
             state.p = std::stoul(substring, nullptr, 2);
         } else if (dataIndex == 6) {
             state.totalCycles = std::stoul(substring, nullptr, 10);
         } else {
-            data[dataIndex] = std::stoul(substring, nullptr, 16);
+            std::cerr << "Unexpected number of state fields\n";
+            exit(1);
         }
         ++dataIndex;
         substring = "";
     }
     file.close();
-
-    if (dataIndex < 7) {
-        std::cerr << "Unexpected number of state fields\n";
-        exit(1);
-    }
 
     state.pc = data[0];
     state.sp = data[1];
@@ -208,28 +208,55 @@ void runProgram(CPU& cpu, const std::string& filename) {
         cpu.readInInst(filename);
     }
 
+    std::string commands = "Enter 's' or 'step', 'c' or 'continue', 'b' or 'break', 'p' or 'ppu', "
+        "or 'q' or 'quit': ";
     std::string input;
+    bool showPPU = false;
+    std::cout << commands;
     std::cin >> input;
     while (!cpu.isEndOfProgram()) {
         if (input == "c" || input == "continue") {
             cpu.setHaltAtBrk(true);
-            cpu.print(false);
-            cpu.step(nullptr, nullptr);
-            cpu.print(true);
+            stepAndPrint(cpu, showPPU);
             if (!cpu.isEndOfProgram()) {
                 std::cout << "\n";
             }
         } else if (input == "s" || input == "step") {
-            cpu.print(false);
-            cpu.step(nullptr, nullptr);
-            cpu.print(true);
+            stepAndPrint(cpu, showPPU);
+        } else if (input == "b" || input == "break") {
+            std::cout << "PC to break at: ";
             std::cin >> input;
+            uint16_t targetPC = std::stoul(input, nullptr, 16);
+            do {
+                stepAndPrint(cpu, showPPU);
+            } while (cpu.getPC() != targetPC);
+        } else if (input == "p" || input == "ppu") {
+            showPPU = !showPPU;
+            if (showPPU) {
+                std::cout << "PPU state will be printed\n";
+            } else {
+                std::cout << "PPU state will not be printed\n";
+            }
         } else {
             std::cout << "Exiting\n";
             exit(0);
         }
+
+        if (input != "c" && input != "continue") {
+            std::cout << commands;
+            std::cin >> input;
+        }
     }
     std::cout << "End of the program\n";
+}
+
+void stepAndPrint(CPU& cpu, bool showPPU) {
+    cpu.print(false);
+    cpu.step(nullptr, nullptr);
+    cpu.print(true);
+    if (showPPU) {
+        cpu.printPPU();
+    }
 }
 
 // Given the unit test filenames, this function runs all tests and compares the CPU's state with the

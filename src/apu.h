@@ -16,8 +16,8 @@ class APU {
     public:
         APU();
         void clear();
-        uint8_t readIO(uint16_t addr) const;
-        void writeIO(uint16_t addr, uint8_t val);
+        uint8_t readRegister(uint16_t addr) const;
+        void writeRegister(uint16_t addr, uint8_t val);
 
     private:
         uint8_t registers[APU_REGISTER_SIZE]; // APU registers in the CPU memory map

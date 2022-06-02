@@ -2,15 +2,11 @@
 
 ## Introduction
 
-This is a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, audio and mappers other than mapper 0 have not been implemented. Also, VSync with a 60 Hz monitor is currently required for proper frame timing.
-
-## Installation
-
-The emulator is written in C++ and compiled with Clang. SDL is a dependency.
+This aims to be a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, audio and mappers other than mapper 0 and 1 have not been implemented. Also, VSync with a 60 Hz monitor is currently required for proper frame timing.
 
 ## Usage (Debian Linux)
 
-Install dependencies and compile:
+Install dependencies (Clang and SDL) and compile:
 
 ```
 make install
@@ -24,14 +20,16 @@ Run an .NES file:
 ```
 
 Controls:  
-Z = A button  
-X = B button  
-Up arrow = D-pad up  
-Down arrow = D-pad down  
-Left arrow = D-pad left  
-Right arrow = D-pad right  
-Enter/return = start button  
-Right shift = select button
+| Keyboard     | Joystick      |
+| ---          | ---           |
+| Z            | A             |
+| X            | B             |
+| up arrow     | D-pad up      |
+| down arrow   | D-pad down    |
+| left arrow   | D-pad left    |
+| right arrow  | D-pad right   |
+| enter/return | start button  |
+| right shift  | select button |
 
 Run unit tests from the test directory and the nestest.nes system test:
 
@@ -47,7 +45,7 @@ Run debugger:
 
 Edit the `inst` file to change the instructions that are to be executed. The instructions are 6502 assembly that is represented in hexadecimal and separated by line. Anything after `/`, `//`, or a space will be ignored, so that comments can be made.
 
-Enter `s` to step over the next cycle, `c` to continue until the end of the provided instructions, and `q` or any other character to exit.
+Enter `s` to step over the next cycle, `c` to continue until the end of the provided instructions (i.e., until it reaches a BRK instruction), `b` followed by a 16-bit hexadecimal address (e.g., `e4fd`) to continue until the program counter reaches that location, `p` to toggle printing the PPU's state, and `q` or any other character to exit.
 
 Run debugger on an .NES file:
 
@@ -67,5 +65,5 @@ Run debugger on an .NES file:
 ## Credits
 
 Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes)  
-NESdev wiki for thorough documentation of the NES  
+NESdev wiki for thorough documentation and [other tests](https://www.nesdev.org/wiki/Emulator_tests) (especially blargg's)  
 FCEUX for having a robust debugger to compare with

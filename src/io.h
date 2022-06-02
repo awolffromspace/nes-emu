@@ -18,8 +18,8 @@ class IO {
     public:
         IO();
         void clear();
-        uint8_t readIO(uint16_t addr);
-        void writeIO(uint16_t addr, uint8_t val);
+        uint8_t readRegister(uint16_t addr);
+        void writeRegister(uint16_t addr, uint8_t val);
         void updateButton(const SDL_Event& event);
 
     private:

@@ -11,8 +11,6 @@ class CPUOp {
     public:
         CPUOp();
         void clear(bool clearInterrupts, bool clearDMA);
-        void clearStatusFlags(bool clearIRQ, bool clearBRK, bool clearNMI, bool clearReset,
-            bool clearInterruptPrologue);
         void clearInterruptFlags();
         void clearDMA();
         bool crossedPageBoundary() const;

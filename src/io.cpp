@@ -12,7 +12,9 @@ IO::IO() :
         up(0),
         down(0),
         left(0),
-        right(0) { }
+        right(0) {
+    memset(registers, 0, IO_REGISTER_SIZE);
+}
 
 void IO::clear() {
     memset(registers, 0, IO_REGISTER_SIZE);
@@ -28,9 +30,9 @@ void IO::clear() {
     right = 0;
 }
 
-// Handles I/O reads from the CPU
+// Handles register reads from the CPU
 
-uint8_t IO::readIO(uint16_t addr) {
+uint8_t IO::readRegister(uint16_t addr) {
     addr = getLocalAddr(addr);
     // If strobe mode is on, only return the status of the A button
     if (addr == 0 && strobe) {
@@ -77,9 +79,9 @@ uint8_t IO::readIO(uint16_t addr) {
     return registers[addr];
 }
 
-// Handles I/O writes from the CPU
+// Handles register writes from the CPU
 
-void IO::writeIO(uint16_t addr, uint8_t val) {
+void IO::writeRegister(uint16_t addr, uint8_t val) {
     addr = getLocalAddr(addr);
     registers[addr] = val;
 

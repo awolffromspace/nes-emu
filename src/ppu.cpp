@@ -10,6 +10,7 @@ PPU::PPU() :
         w(false),
         ppuDataBuffer(0),
         totalCycles(0) {
+    memset(registers, 0, PPU_REGISTER_SIZE);
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     initializePalette();
 }
@@ -24,7 +25,7 @@ void PPU::clear() {
     memset(vram, 0, VRAM_SIZE);
     vram[UNIVERSAL_BG_INDEX] = BLACK;
     memset(oam, 0, OAM_SIZE);
-    memset(secondaryOAM, 0, SECONDARY_OAM_SIZE);
+    memset(secondaryOAM, 0xff, SECONDARY_OAM_SIZE);
     memset(frame, 0, FRAME_SIZE);
     op.clear();
     ppuDataBuffer = 0;
@@ -68,28 +69,69 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
     ++totalCycles;
 }
 
-// Handles I/O reads from the CPU
+// Handles register reads mainly from the CPU
 
-uint8_t PPU::readIO(uint16_t addr, MMC& mmc, bool mute) {
-    uint8_t val = readRegister(addr, mmc);
+uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
     if (localAddr == 2) {
+        uint8_t val = registers[2];
         registers[2] &= 0x7f;
-        if ((op.cycle == 0 || op.cycle == 1) && op.scanline == 241) {
+        w = false;
+        if (op.cycle >= 1 && op.cycle <= 3 && op.scanline == 241) {
             op.suppressNMI = true;
+            if (op.cycle >= 2) {
+                return val | 0x80;
+            }
         }
+        return val;
+    // PPUDATA read buffer logic:
+    // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
+    } else if (localAddr == 7) {
+        // If the v register is in not in the palette, then the read is buffered
+        if ((v & 0x3fff) < IMAGE_PALETTE_START) {
+            registers[7] = ppuDataBuffer;
+            ppuDataBuffer = readVRAM(v, mmc);
+        // If the v register is in the palette, then the read is immediate
+        } else {
+            registers[7] = readVRAM(v, mmc);
+            // Subtract by 0x1000 to stay in the nametable:
+            // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
+            ppuDataBuffer = readVRAM(v - 0x1000, mmc);
+        }
+        v += getPPUAddrInc();
+    } else if (addr == OAMDMA) {
+        return oamDMA;
     }
-    return val;
+    return registers[localAddr];
 }
 
-// Handles I/O writes from the CPU
+// Handles register writes mainly from the CPU
 
-void PPU::writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
+void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
-    if (localAddr == 2) {
-        return;
+    switch (localAddr) {
+        case 0:
+            setTempNametableSelect(val & 3);
+            if (isNMIEnabled() != (bool) (val & 0x80)) {
+                op.nmiOccurred = false;
+            }
+            break;
+        case 5:
+            writePPUScroll(val);
+            break;
+        case 6:
+            writePPUAddr(val);
+            break;
+        case 7:
+            writeVRAM(v, val, mmc, mute);
+            v += getPPUAddrInc();
     }
-    writeRegister(addr, val, mmc, mute);
+
+    if (addr == OAMDMA) {
+        oamDMA = val;
+    } else if (localAddr != 2) {
+        registers[localAddr] = val;
+    }
 }
 
 // Allows the CPU to write to the PPU's OAM
@@ -101,8 +143,12 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 // Tells the CPU when it should enter an NMI
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
-    if (isNMIEnabled() && isVblank() && !op.suppressNMI) {
-        op.suppressNMI = true;
+    if (op.cycle == 1 && op.scanline == PRERENDER_LINE) {
+        return false;
+    }
+    if (isNMIEnabled() && (isVblank() || (op.cycle == 1 && op.scanline == 241)) &&
+            !op.nmiOccurred && !op.suppressNMI) {
+        op.nmiOccurred = true;
         return true;
     }
     return false;
@@ -116,11 +162,7 @@ void PPU::clearTotalCycles() {
     totalCycles = 0;
 }
 
-void PPU::print(bool isCycleDone, bool mute) const {
-    if (mute) {
-        return;
-    }
-
+void PPU::print(bool isCycleDone) const {
     unsigned int inc = 0;
     std::string time;
     if (isCycleDone) {
@@ -160,6 +202,7 @@ void PPU::print(bool isCycleDone, bool mute) const {
         "pixel             = " << op.pixel << "\n"
         "attributeQuadrant = " << op.attributeQuadrant << "\n"
         "oddFrame          = " << op.oddFrame << "\n"
+        "nmiOccurred       = " << op.nmiOccurred << "\n"
         "suppressNMI       = " << op.suppressNMI << "\n"
         "cycle             = " << op.cycle << "\n"
         "status            = " << op.status <<
@@ -476,18 +519,7 @@ void PPU::updateScroll() {
     } else if (op.cycle == 257 && (op.scanline <= LAST_RENDER_LINE ||
             op.scanline == PRERENDER_LINE)) {
         setCoarseXScroll(getTempCoarseXScroll());
-
-        unsigned int nametableSelect = getNametableSelect();
-        unsigned int tempNametableSelect = getTempNametableSelect();
-        if ((nametableSelect == 1 && tempNametableSelect == 2) ||
-                (nametableSelect == 0 && tempNametableSelect == 3)) {
-            setNametableSelect(tempNametableSelect - 2);
-        } else if ((nametableSelect == 3 && tempNametableSelect == 0) ||
-                (nametableSelect == 2 && tempNametableSelect == 1)) {
-            setNametableSelect(tempNametableSelect + 2);
-        } else {
-            setNametableSelect(tempNametableSelect);
-        }
+        resetHorizontalNametable();
     } else if (op.cycle >= 280 && op.cycle <= 304 && op.scanline == PRERENDER_LINE) {
         setCoarseYScroll(getTempCoarseYScroll());
         setFineYScroll(getTempFineYScroll());
@@ -548,60 +580,23 @@ void PPU::switchVerticalNametable() {
     }
 }
 
+void PPU::resetHorizontalNametable() {
+    unsigned int nametableSelect = getNametableSelect();
+    unsigned int tempNametableSelect = getTempNametableSelect();
+    if (nametableSelect >= 2 && tempNametableSelect <= 1) {
+        setNametableSelect(tempNametableSelect + 2);
+    } else if (nametableSelect <= 1 && tempNametableSelect >= 2) {
+        setNametableSelect(tempNametableSelect - 2);
+    } else {
+        setNametableSelect(tempNametableSelect);
+    }
+}
+
 void PPU::updatePPUStatus(MMC& mmc) {
     if (op.scanline == 241 && !op.suppressNMI) {
         registers[2] |= 0x80;
     } else if (op.scanline == PRERENDER_LINE) {
         registers[2] &= 0x3f;
-    }
-}
-
-// Handles register reads mainly from the CPU
-
-uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
-    uint16_t localAddr = getLocalRegisterAddr(addr);
-    if (localAddr == 2) {
-        w = false;
-    // PPUDATA read buffer logic:
-    // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
-    } else if (localAddr == 7) {
-        // If the v register is in not in the palette, then the read is buffered
-        if ((v & 0x3fff) < IMAGE_PALETTE_START) {
-            registers[7] = ppuDataBuffer;
-            ppuDataBuffer = readVRAM(v, mmc);
-        // If the v register is in the palette, then the read is immediate
-        } else {
-            registers[7] = readVRAM(v, mmc);
-            // Subtract by 0x1000 to stay in the nametable:
-            // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
-            ppuDataBuffer = readVRAM(v - 0x1000, mmc);
-        }
-        v += getPPUAddrInc();
-    } else if (addr == OAMDMA) {
-        return oamDMA;
-    }
-    return registers[localAddr];
-}
-
-// Handles register writes mainly from the CPU
-
-void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
-    uint16_t localAddr = getLocalRegisterAddr(addr);
-    if (localAddr == 0) {
-        setTempNametableSelect(val & 3);
-    } else if (localAddr == 5) {
-        writePPUScroll(val);
-    } else if (localAddr == 6) {
-        writePPUAddr(val);
-    } else if (localAddr == 7) {
-        writeVRAM(v, val, mmc, mute);
-        v += getPPUAddrInc();
-    }
-
-    if (addr == OAMDMA) {
-        oamDMA = val;
-    } else {
-        registers[localAddr] = val;
     }
 }
 

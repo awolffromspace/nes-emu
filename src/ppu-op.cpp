@@ -16,6 +16,7 @@ PPUOp::PPUOp() :
         pixel(0),
         attributeQuadrant(0),
         oddFrame(false),
+        nmiOccurred(false),
         suppressNMI(false),
         cycle(0),
         status(0) { }
@@ -37,6 +38,7 @@ void PPUOp::clear() {
     pixel = 0;
     attributeQuadrant = 0;
     oddFrame = false;
+    nmiOccurred = false;
     suppressNMI = false;
     cycle = 0;
     status = 0;
@@ -124,6 +126,7 @@ void PPUOp::prepNextCycle() {
     if (scanline == PRERENDER_LINE && cycle == LAST_CYCLE) {
         scanline = 0;
         oddFrame = !oddFrame;
+        nmiOccurred = false;
         suppressNMI = false;
         cycle = 0;
     } else if (cycle == LAST_CYCLE) {

@@ -57,36 +57,12 @@ void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
     done = false;
 }
 
-void CPUOp::clearStatusFlags(bool clearIRQ, bool clearBRK, bool clearNMI, bool clearReset,
-        bool clearInterruptPrologue) {
-    modify = false;
-    write = false;
-    writeUnmodified = false;
-    writeModified = false;
-    if (clearIRQ) {
-        irq = false;
-    }
-    if (clearBRK) {
-        brk = false;
-    }
-    if (clearNMI) {
-        nmi = false;
-    }
-    if (clearReset) {
-        reset = false;
-    }
-    if (clearInterruptPrologue) {
-        interruptPrologue = false;
-    }
-    oamDMATransfer = false;
-    done = false;
-}
-
 void CPUOp::clearInterruptFlags() {
     irq = false;
     brk = false;
     nmi = false;
     reset = false;
+    interruptPrologue = false;
 }
 
 void CPUOp::clearDMA() {

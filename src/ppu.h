@@ -52,15 +52,15 @@ class PPU {
         void step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute);
 
         // Read/Write I/O Functions
-        uint8_t readIO(uint16_t addr, MMC& mmc, bool mute);
-        void writeIO(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
+        uint8_t readRegister(uint16_t addr, MMC& mmc);
+        void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         void writeOAM(uint8_t addr, uint8_t val);
 
         // Miscellaneous Functions
         bool isNMIActive(MMC& mmc, bool mute);
         unsigned int getTotalCycles() const;
         void clearTotalCycles();
-        void print(bool isCycleDone, bool mute) const;
+        void print(bool isCycleDone) const;
 
     private:
         struct RGBVal {
@@ -132,13 +132,12 @@ class PPU {
         void incrementYScroll();
         void switchHorizontalNametable();
         void switchVerticalNametable();
+        void resetHorizontalNametable();
 
         // Update Flags
         void updatePPUStatus(MMC& mmc);
 
         // Read/Write Functions
-        uint8_t readRegister(uint16_t addr, MMC& mmc);
-        void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
         void writePPUScroll(uint8_t val);
         void writePPUAddr(uint8_t val);
         uint8_t readVRAM(uint16_t addr, MMC& mmc) const;

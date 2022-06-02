@@ -2,22 +2,24 @@
 
 // Public Member Functions
 
-APU::APU() { }
+APU::APU() {
+    memset(registers, 0, APU_REGISTER_SIZE);
+}
 
 void APU::clear() {
     memset(registers, 0, APU_REGISTER_SIZE);
 }
 
-// Handles I/O reads from the CPU
+// Handles register reads from the CPU
 
-uint8_t APU::readIO(uint16_t addr) const {
+uint8_t APU::readRegister(uint16_t addr) const {
     addr = getLocalAddr(addr);
     return registers[addr];
 }
 
-// Handles I/O writes from the CPU
+// Handles register writes from the CPU
 
-void APU::writeIO(uint16_t addr, uint8_t val) {
+void APU::writeRegister(uint16_t addr, uint8_t val) {
     addr = getLocalAddr(addr);
     registers[addr] = val;
 }

@@ -179,6 +179,10 @@ uint32_t CPU::getFutureInst() {
     return inst;
 }
 
+uint16_t CPU::getPC() const {
+    return pc;
+}
+
 unsigned int CPU::getTotalCycles() const {
     return totalCycles;
 }
@@ -289,6 +293,10 @@ void CPU::printStateInst(uint32_t inst) const {
         "\n";
 }
 
+void CPU::printPPU() const {
+    ppu.print(true);
+}
+
 // Private Member Functions
 
 // Addressing Modes
@@ -324,7 +332,9 @@ void CPU::abs() {
             break;
         case 4:
             op.writeUnmodified = true;
-            pollInterrupts();
+            if (op.instType == CPUOp::RMWInst) {
+                pollInterrupts();
+            }
             break;
         case 5:
             op.writeModified = true;
@@ -354,7 +364,8 @@ void CPU::abx() {
             // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = x;
             op.fixedAddr += (op.operandHi << 8) + op.operandLo;
-            if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
+            if ((op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) &&
+                    !op.crossedPageBoundary()) {
                 pollInterrupts();
             }
             ++pc;
@@ -367,7 +378,9 @@ void CPU::abx() {
             // the operation by one cycle (i.e., don't set modify to true until next cycle)
             if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
-                pollInterrupts();
+                if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
+                    pollInterrupts();
+                }
             } else {
                 op.modify = true;
             }
@@ -413,7 +426,8 @@ void CPU::aby() {
             // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = y;
             op.fixedAddr += (op.operandHi << 8) + op.operandLo;
-            if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
+            if ((op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) &&
+                    !op.crossedPageBoundary()) {
                 pollInterrupts();
             }
             ++pc;
@@ -426,7 +440,9 @@ void CPU::aby() {
             // the operation by one cycle (i.e., don't set modify to true until next cycle)
             if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
-                pollInterrupts();
+                if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
+                    pollInterrupts();
+                }
             } else {
                 op.modify = true;
             }
@@ -482,7 +498,6 @@ void CPU::imp() {
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::Implied;
-            pollInterrupts();
             ++pc;
             break;
         case 1:
@@ -588,7 +603,8 @@ void CPU::idy() {
             // The proper address with the high byte fixed (i.e., can cross the page boundary)
             op.fixedAddr = y;
             op.fixedAddr += (read(temp) << 8) + read(op.operandLo);
-            if (op.instType == CPUOp::ReadInst && op.tempAddr == op.fixedAddr) {
+            if ((op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) &&
+                    !op.crossedPageBoundary()) {
                 pollInterrupts();
             }
             break;
@@ -600,7 +616,9 @@ void CPU::idy() {
             // the operation by one cycle (i.e., don't set modify to true until next cycle)
             if (op.crossedPageBoundary()) {
                 op.tempAddr = op.fixedAddr;
-                pollInterrupts();
+                if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::WriteInst) {
+                    pollInterrupts();
+                }
             } else {
                 op.modify = true;
             }
@@ -628,7 +646,6 @@ void CPU::rel() {
     switch (op.cycle) {
         case 0:
             op.addrMode = CPUOp::Relative;
-            pollInterrupts();
             ++pc;
             break;
         case 1:
@@ -654,7 +671,6 @@ void CPU::rel() {
                 op.tempAddr = op.fixedAddr;
                 pollInterrupts();
             } else {
-                op.clearInterruptFlags();
                 op.done = true;
             }
             break;
@@ -848,9 +864,13 @@ void CPU::axs() {
 }
 
 void CPU::bcc() {
-    if (op.cycle == 1 && isCarry()) {
+    if (isCarry()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && !isCarry()) {
         // Branch taken
         pc = op.tempAddr;
@@ -858,9 +878,13 @@ void CPU::bcc() {
 }
 
 void CPU::bcs() {
-    if (op.cycle == 1 && !isCarry()) {
+    if (!isCarry()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && isCarry()) {
         // Branch taken
         pc = op.tempAddr;
@@ -868,9 +892,13 @@ void CPU::bcs() {
 }
 
 void CPU::beq() {
-    if (op.cycle == 1 && !isZero()) {
+    if (!isZero()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && isZero()) {
         // Branch taken
         pc = op.tempAddr;
@@ -889,9 +917,13 @@ void CPU::bit() {
 }
 
 void CPU::bmi() {
-    if (op.cycle == 1 && !isNegative()) {
+    if (!isNegative()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && isNegative()) {
         // Branch taken
         pc = op.tempAddr;
@@ -899,9 +931,13 @@ void CPU::bmi() {
 }
 
 void CPU::bne() {
-    if (op.cycle == 1 && isZero()) {
+    if (isZero()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && !isZero()) {
         // Branch taken
         pc = op.tempAddr;
@@ -909,9 +945,13 @@ void CPU::bne() {
 }
 
 void CPU::bpl() {
-    if (op.cycle == 1 && isNegative()) {
+    if (isNegative()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && !isNegative()) {
         // Branch taken
         pc = op.tempAddr;
@@ -921,17 +961,22 @@ void CPU::bpl() {
 void CPU::brk() {
     if (haltAtBrk) {
         endOfProgram = true;
-    } else {
+    } else if (op.cycle == 0) {
         op.irq = true;
         op.brk = true;
+        op.interruptPrologue = true;
         prepareIRQ();
     }
 }
 
 void CPU::bvc() {
-    if (op.cycle == 1 && isOverflow()) {
+    if (isOverflow()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && !isOverflow()) {
         // Branch taken
         pc = op.tempAddr;
@@ -939,9 +984,13 @@ void CPU::bvc() {
 }
 
 void CPU::bvs() {
-    if (op.cycle == 1 && !isOverflow()) {
+    if (!isOverflow()) {
         // Branch not taken
-        op.done = true;
+        if (op.cycle == 0) {
+            pollInterrupts();
+        } else if (op.cycle == 1) {
+            op.done = true;
+        }
     } else if (op.modify && isOverflow()) {
         // Branch taken
         pc = op.tempAddr;
@@ -949,28 +998,36 @@ void CPU::bvs() {
 }
 
 void CPU::clc() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setCarryFlag(false);
         op.done = true;
     }
 }
 
 void CPU::cld() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setDecimalMode(false);
         op.done = true;
     }
 }
 
 void CPU::cli() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setInterruptDisable(false);
         op.done = true;
     }
 }
 
 void CPU::clv() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setOverflowFlag(false);
         op.done = true;
     }
@@ -1033,7 +1090,9 @@ void CPU::dec() {
 }
 
 void CPU::dex() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         --x;
         updateZeroFlag(x);
         updateNegativeFlag(x);
@@ -1042,7 +1101,9 @@ void CPU::dex() {
 }
 
 void CPU::dey() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         --y;
         updateZeroFlag(y);
         updateNegativeFlag(y);
@@ -1074,7 +1135,9 @@ void CPU::inc() {
 }
 
 void CPU::inx() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         ++x;
         updateZeroFlag(x);
         updateNegativeFlag(x);
@@ -1083,7 +1146,9 @@ void CPU::inx() {
 }
 
 void CPU::iny() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         ++y;
         updateZeroFlag(y);
         updateNegativeFlag(y);
@@ -1111,9 +1176,7 @@ void CPU::jmp() {
         }
     } else {
         // Indirect addressing mode
-        if (op.cycle == 3) {
-            pollInterrupts();
-        } else if (op.cycle == 4) {
+        if (op.cycle == 4) {
             pc = op.tempAddr;
             op.done = true;
         }
@@ -1214,7 +1277,9 @@ void CPU::lsr() {
 
 void CPU::nop() {
     op.instType = CPUOp::ReadInst;
-    if (op.modify) {
+    if (op.cycle == 0 && op.addrMode == CPUOp::Implied) {
+        pollInterrupts();
+    } else if (op.modify) {
         op.done = true;
     }
 }
@@ -1409,21 +1474,27 @@ void CPU::sbc() {
 }
 
 void CPU::sec() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setCarryFlag(true);
         op.done = true;
     }
 }
 
 void CPU::sed() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setDecimalMode(true);
         op.done = true;
     }
 }
 
 void CPU::sei() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         setInterruptDisable(true);
         op.done = true;
     }
@@ -1494,7 +1565,9 @@ void CPU::tas() {
 }
 
 void CPU::tax() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         x = a;
         updateZeroFlag(x);
         updateNegativeFlag(x);
@@ -1503,7 +1576,9 @@ void CPU::tax() {
 }
 
 void CPU::tay() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         y = a;
         updateZeroFlag(y);
         updateNegativeFlag(y);
@@ -1512,7 +1587,9 @@ void CPU::tay() {
 }
 
 void CPU::tsx() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         x = sp;
         updateZeroFlag(x);
         updateNegativeFlag(x);
@@ -1521,7 +1598,9 @@ void CPU::tsx() {
 }
 
 void CPU::txa() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         a = x;
         updateZeroFlag(a);
         updateNegativeFlag(a);
@@ -1530,14 +1609,18 @@ void CPU::txa() {
 }
 
 void CPU::txs() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         sp = x;
         op.done = true;
     }
 }
 
 void CPU::tya() {
-    if (op.modify) {
+    if (op.cycle == 0) {
+        pollInterrupts();
+    } else if (op.modify) {
         a = y;
         updateZeroFlag(a);
         updateNegativeFlag(a);
@@ -1556,11 +1639,11 @@ uint8_t CPU::read(uint16_t addr) {
     if (addr < PPUCTRL) {
         return ram.read(addr);
     } else if (addr < SQ1_VOL || addr == OAMDMA) {
-        return ppu.readIO(addr, mmc, mute);
+        return ppu.readRegister(addr, mmc);
     } else if (addr < JOY1) {
-        return apu.readIO(addr);
+        return apu.readRegister(addr);
     } else if (addr <= JOY2) {
-        return io.readIO(addr);
+        return io.readRegister(addr);
     } else if (addr >= SAVE_WORK_RAM_START) {
         return mmc.readPRG(addr);
     }
@@ -1574,20 +1657,20 @@ void CPU::write(uint16_t addr, uint8_t val) {
     if (addr < PPUCTRL) {
         ram.write(addr, val);
     } else if (addr < SQ1_VOL || addr == OAMDMA) {
-        ppu.writeIO(addr, val, mmc, mute);
+        ppu.writeRegister(addr, val, mmc, mute);
         if (addr == OAMDMA) {
             // Start the OAM DMA transfer
             op.oamDMATransfer = true;
         }
     } else if (addr < JOY1) {
-        apu.writeIO(addr, val);
+        apu.writeRegister(addr, val);
     } else if (addr <= JOY2) {
         if (addr == JOY2) {
             // This register is shared between the APU and I/O, so write the value to both to ensure
             // that they're equal
-            apu.writeIO(addr, val);
+            apu.writeRegister(addr, val);
         }
-        io.writeIO(addr, val);
+        io.writeRegister(addr, val);
     } else if (addr >= SAVE_WORK_RAM_START)  {
         mmc.writePRG(addr, val, totalCycles);
     }
@@ -1615,7 +1698,7 @@ void CPU::oamDMATransfer() {
     // it'll increase code complexity
     } else if (op.dmaCycle > 0 && op.dmaCycle % 2 == 0) {
         unsigned int oamAddr = op.dmaCycle / 2 - 1;
-        uint16_t cpuBaseAddr = ppu.readIO(OAMDMA, mmc, mute) << 8;
+        uint16_t cpuBaseAddr = ppu.readRegister(OAMDMA, mmc) << 8;
         uint16_t cpuAddr = cpuBaseAddr + oamAddr;
         uint8_t cpuData = read(cpuAddr);
         ppu.writeOAM(oamAddr, cpuData);
@@ -1634,7 +1717,6 @@ void CPU::oamDMATransfer() {
 // https://www.nesdev.org/wiki/CPU_interrupts#Branch_instructions_and_interrupts
 
 void CPU::pollInterrupts() {
-    op.clearInterruptFlags();
     if (ppu.isNMIActive(mmc, mute)) {
         op.nmi = true;
     }
@@ -1664,6 +1746,14 @@ void CPU::prepareIRQ() {
             ram.push(sp, temp, mute);
             break;
         case 4:
+            pollInterrupts();
+            if (op.reset) {
+                prepareReset();
+                return;
+            } else if (op.nmi) {
+                prepareNMI();
+                return;
+            }
             temp = p;
             // When pushing the P register to the stack, only set the Break flag if the IRQ was
             // triggered by the BRK instruction
@@ -1671,7 +1761,6 @@ void CPU::prepareIRQ() {
                 temp &= ~Break;
             }
             ram.push(sp, temp, mute);
-            op.clearStatusFlags(false, false, true, true, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_IRQ_ADDR);
@@ -1680,7 +1769,6 @@ void CPU::prepareIRQ() {
         case 6:
             op.tempAddr |= read(UPPER_IRQ_ADDR) << 8;
             pc = op.tempAddr;
-            op.interruptPrologue = false;
             op.clearInterruptFlags();
             op.done = true;
     }
@@ -1705,12 +1793,16 @@ void CPU::prepareNMI() {
             ram.push(sp, temp, mute);
             break;
         case 4:
+            pollInterrupts();
+            if (op.reset) {
+                prepareReset();
+                return;
+            }
             temp = p;
             if (!op.brk) {
                 temp &= ~Break;
             }
             ram.push(sp, temp, mute);
-            op.clearStatusFlags(true, true, false, true, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_NMI_ADDR);
@@ -1719,7 +1811,6 @@ void CPU::prepareNMI() {
         case 6:
             op.tempAddr |= read(UPPER_NMI_ADDR) << 8;
             pc = op.tempAddr;
-            op.interruptPrologue = false;
             op.clearInterruptFlags();
             op.done = true;
     }
@@ -1743,7 +1834,6 @@ void CPU::prepareReset() {
             break;
         case 4:
             --sp;
-            op.clearStatusFlags(true, true, true, false, false);
             break;
         case 5:
             op.tempAddr = read(LOWER_RESET_ADDR);
@@ -1752,7 +1842,6 @@ void CPU::prepareReset() {
         case 6:
             op.tempAddr |= read(UPPER_RESET_ADDR) << 8;
             pc = op.tempAddr;
-            op.interruptPrologue = false;
             op.clearInterruptFlags();
             op.done = true;
     }
