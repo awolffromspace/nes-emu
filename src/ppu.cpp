@@ -687,10 +687,10 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
                 addr = getVerticalMirrorAddr(addr);
                 break;
             case MMC::SingleScreenLowerBank:
-                addr = getSingleScreenMirrorAddr(addr);
+                addr = getSingleLowerMirrorAddr(addr);
                 break;
             case MMC::SingleScreenUpperBank:
-                addr = getSingleScreenMirrorAddr(addr);
+                addr = getSingleUpperMirrorAddr(addr);
                 break;
             case MMC::FourScreen:
                 addr = getFourScreenMirrorAddr(addr);
@@ -726,13 +726,24 @@ uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleScreenMirrorAddr(uint16_t addr) const {
+uint16_t PPU::getSingleLowerMirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0xc00;
     } else if (addr >= NAMETABLE2_START) {
         addr -= 0x800;
     } else if (addr >= NAMETABLE1_START) {
         addr -= 0x400;
+    }
+    return addr;
+}
+
+uint16_t PPU::getSingleUpperMirrorAddr(uint16_t addr) const {
+    if (addr >= NAMETABLE3_START) {
+        addr -= 0x800;
+    } else if (addr >= NAMETABLE2_START) {
+        addr -= 0x400;
+    } else if (addr < NAMETABLE1_START) {
+        addr += 0x400;
     }
     return addr;
 }

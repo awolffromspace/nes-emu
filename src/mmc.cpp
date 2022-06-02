@@ -264,17 +264,10 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
 unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
     if (mapperID == 1) {
         if (chrBankMode) {
-            unsigned int lowerBank = chrBank0;
-            unsigned int upperBank = chrBank1;
-            if (mirroring == SingleScreenLowerBank) {
-                upperBank = lowerBank;
-            } else if (mirroring == SingleScreenUpperBank) {
-                lowerBank = upperBank;
-            }
             if (addr < 0x1000) {
-                addr += lowerBank * CHR_BANK_SIZE;
+                addr += chrBank0 * CHR_BANK_SIZE;
             } else {
-                addr += (upperBank - 1) * CHR_BANK_SIZE;
+                addr += (chrBank1 - 1) * CHR_BANK_SIZE;
             }
         } else {
             addr += (chrBank0 >> 1) * CHR_BANK_SIZE * 2;
