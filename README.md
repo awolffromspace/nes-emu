@@ -28,8 +28,8 @@ Controls:
 | down arrow   | D-pad down    |
 | left arrow   | D-pad left    |
 | right arrow  | D-pad right   |
-| enter/return | start button  |
-| right shift  | select button |
+| enter/return | start         |
+| right shift  | select        |
 
 Run unit tests from the test directory and the nestest.nes system test:
 
