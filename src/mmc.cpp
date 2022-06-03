@@ -275,9 +275,9 @@ void MMC::updateSettings(uint16_t addr) {
     if (addr < 0xa000) {
         unsigned int mirrorVal = shiftRegister & 3;
         if (mirrorVal == 0) {
-            mirroring = SingleScreenLowerBank;
+            mirroring = SingleScreen0;
         } else if (mirrorVal == 1) {
-            mirroring = SingleScreenUpperBank;
+            mirroring = SingleScreen1;
         } else if (mirrorVal == 2) {
             mirroring = Vertical;
         } else {

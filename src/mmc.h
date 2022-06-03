@@ -43,9 +43,11 @@ class MMC {
         enum Mirroring {
             Horizontal = 0,
             Vertical = 1,
-            SingleScreenLowerBank = 2,
-            SingleScreenUpperBank = 3,
-            FourScreen = 4
+            SingleScreen0 = 2,
+            SingleScreen1 = 3,
+            SingleScreen2 = 4,
+            SingleScreen3 = 5,
+            FourScreen = 6
         };
 
     private:

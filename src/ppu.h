@@ -195,16 +195,6 @@ class PPU {
 
         // Color Palette Initialization
         void initializePalette();
-
-        enum Mirroring {
-            Horizontal = 0,
-            Vertical = 1,
-            SingleScreen0 = 2,
-            SingleScreen1 = 3,
-            SingleScreen2 = 4,
-            SingleScreen3 = 5,
-            FourScreen = 6
-        };
 };
 
 #endif

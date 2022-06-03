@@ -680,22 +680,22 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
         }
 
         switch (mmc.getMirroring()) {
-            case Horizontal:
+            case MMC::Horizontal:
                 addr = getHorizontalMirrorAddr(addr);
                 break;
-            case Vertical:
+            case MMC::Vertical:
                 addr = getVerticalMirrorAddr(addr);
                 break;
-            case SingleScreen0:
+            case MMC::SingleScreen0:
                 addr = getSingleScreen0Addr(addr);
                 break;
-            case SingleScreen1:
+            case MMC::SingleScreen1:
                 addr = getSingleScreen1Addr(addr);
                 break;
-            case SingleScreen2:
+            case MMC::SingleScreen2:
                 addr = getSingleScreen2Addr(addr);
                 break;
-            case SingleScreen3:
+            case MMC::SingleScreen3:
                 addr = getSingleScreen3Addr(addr);
         }
     }
