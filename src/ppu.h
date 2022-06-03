@@ -149,10 +149,10 @@ class PPU {
         uint16_t getUpperMirrorAddr(uint16_t addr) const;
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
-        uint16_t getSingleScreen0Addr(uint16_t addr) const;
-        uint16_t getSingleScreen1Addr(uint16_t addr) const;
-        uint16_t getSingleScreen2Addr(uint16_t addr) const;
-        uint16_t getSingleScreen3Addr(uint16_t addr) const;
+        uint16_t getSingle0MirrorAddr(uint16_t addr) const;
+        uint16_t getSingle1MirrorAddr(uint16_t addr) const;
+        uint16_t getSingle2MirrorAddr(uint16_t addr) const;
+        uint16_t getSingle3MirrorAddr(uint16_t addr) const;
 
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;

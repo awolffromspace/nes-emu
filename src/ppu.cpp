@@ -687,16 +687,16 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
                 addr = getVerticalMirrorAddr(addr);
                 break;
             case MMC::SingleScreen0:
-                addr = getSingleScreen0Addr(addr);
+                addr = getSingle0MirrorAddr(addr);
                 break;
             case MMC::SingleScreen1:
-                addr = getSingleScreen1Addr(addr);
+                addr = getSingle1MirrorAddr(addr);
                 break;
             case MMC::SingleScreen2:
-                addr = getSingleScreen2Addr(addr);
+                addr = getSingle2MirrorAddr(addr);
                 break;
             case MMC::SingleScreen3:
-                addr = getSingleScreen3Addr(addr);
+                addr = getSingle3MirrorAddr(addr);
         }
     }
     return addr - 0x2000;
@@ -729,7 +729,7 @@ uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleScreen0Addr(uint16_t addr) const {
+uint16_t PPU::getSingle0MirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0xc00;
     } else if (addr >= NAMETABLE2_START) {
@@ -740,7 +740,7 @@ uint16_t PPU::getSingleScreen0Addr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleScreen1Addr(uint16_t addr) const {
+uint16_t PPU::getSingle1MirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
     } else if (addr >= NAMETABLE2_START) {
@@ -751,7 +751,7 @@ uint16_t PPU::getSingleScreen1Addr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleScreen2Addr(uint16_t addr) const {
+uint16_t PPU::getSingle2MirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0x400;
     } else if (addr < NAMETABLE1_START) {
@@ -762,7 +762,7 @@ uint16_t PPU::getSingleScreen2Addr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleScreen3Addr(uint16_t addr) const {
+uint16_t PPU::getSingle3MirrorAddr(uint16_t addr) const {
     if (addr < NAMETABLE1_START) {
         addr += 0xc00;
     } else if (addr < NAMETABLE2_START) {
