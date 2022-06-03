@@ -76,6 +76,7 @@ uint8_t IO::readRegister(uint16_t addr) {
     } else if (addr == 1) {
         registers[addr] = 0;
     }
+    registers[addr] |= 0x40;
     return registers[addr];
 }
 

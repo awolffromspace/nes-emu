@@ -3,8 +3,8 @@
 // Public Member Functions
 
 MMC::MMC() :
-        prgROM(PRG_BANK_SIZE * 2, 0),
-        chrMemory(CHR_BANK_SIZE * 2, 0),
+        prgROM(DEFAULT_PRG_BANK_SIZE * 2, 0),
+        chrMemory(DEFAULT_CHR_BANK_SIZE * 2, 0),
         prgROMSize(2),
         chrMemorySize(2),
         mirroring(0),
@@ -21,11 +21,11 @@ MMC::MMC() :
 
 void MMC::clear() {
     memset(prgRAM, 0, PRG_RAM_SIZE);
-    prgROM.resize(PRG_BANK_SIZE * 2);
+    prgROM.resize(DEFAULT_PRG_BANK_SIZE * 2);
     for (uint8_t& entry : prgROM) {
         entry = 0;
     }
-    chrMemory.resize(CHR_BANK_SIZE * 2);
+    chrMemory.resize(DEFAULT_CHR_BANK_SIZE * 2);
     for (uint8_t& entry : chrMemory) {
         entry = 0;
     }
@@ -67,29 +67,48 @@ void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
         return;
     }
 
-    if (mapperID == 1) {
-        unsigned int lastWriteCycleWrapped = 0;
-        unsigned int totalCyclesWrapped = 0;
-        if (lastWriteCycle > totalCycles) {
-            lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
-            totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
-        }
-        if (val & 0x80) {
-            shiftRegister = 0x10;
-        } else if (lastWriteCycle + 1 < totalCycles ||
-                lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
-            bool full = false;
-            if (shiftRegister & 1) {
-                full = true;
+    switch (mapperID) {
+        case 1:
+            writeShiftRegister(addr, val, totalCycles);
+            break;
+        case 2:
+            prgBank = val & 0xf;
+            break;
+        case 3:
+            chrBank0 = val & 3;
+            break;
+        case 7:
+            prgBank = val & 7;
+            if (val & 0x10) {
+                mirroring = SingleScreen1;
+            } else {
+                mirroring = SingleScreen0;
             }
-            shiftRegister = shiftRegister >> 1;
-            shiftRegister |= (val & 1) << 4;
-            if (full) {
-                updateSettings(addr);
-            }
-        }
-        lastWriteCycle = totalCycles;
     }
+}
+
+void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
+    unsigned int lastWriteCycleWrapped = 0;
+    unsigned int totalCyclesWrapped = 0;
+    if (lastWriteCycle > totalCycles) {
+        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
+        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
+    }
+    if (val & 0x80) {
+        shiftRegister = 0x10;
+    } else if (lastWriteCycle + 1 < totalCycles ||
+            lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
+        bool fullRegister = false;
+        if (shiftRegister & 1) {
+            fullRegister = true;
+        }
+        shiftRegister = shiftRegister >> 1;
+        shiftRegister |= (val & 1) << 4;
+        if (fullRegister) {
+            updateSettings(addr);
+        }
+    }
+    lastWriteCycle = totalCycles;
 }
 
 // Handles reads from the PPU
@@ -164,10 +183,10 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
         file.read((char*) &readInByte, 1);
         if (i == 4) {
             prgROMSize = readInByte;
-            prgROM.resize(prgROMSize * PRG_BANK_SIZE);
+            prgROM.resize(prgROMSize * DEFAULT_PRG_BANK_SIZE);
         } else if (i == 5) {
             chrMemorySize = readInByte;
-            chrMemory.resize(chrMemorySize * CHR_BANK_SIZE * 2);
+            chrMemory.resize(chrMemorySize * DEFAULT_CHR_BANK_SIZE * 2);
         } else if (i == 6) {
             if (readInByte & 1) {
                 mirroring = Vertical;
@@ -183,8 +202,8 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
         }
     }
 
-    if (mapperID > 1) {
-        std::cerr << "Only mapper 0 and 1 are supported\n";
+    if (mapperID > 3 && mapperID != 7) {
+        std::cerr << "Only mappers 0, 1, 2, 3, and 7 are supported\n";
         exit(1);
     }
 
@@ -196,12 +215,12 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
     }
 
     // Read in PRG-ROM
-    for (unsigned int i = 0; i < prgROMSize * PRG_BANK_SIZE; ++i) {
+    for (unsigned int i = 0; i < prgROMSize * DEFAULT_PRG_BANK_SIZE; ++i) {
         file.read((char*) &prgROM[i], 1);
     }
 
     // Read in CHR-ROM
-    for (unsigned int i = 0; i < chrMemorySize * CHR_BANK_SIZE * 2; ++i) {
+    for (unsigned int i = 0; i < chrMemorySize * DEFAULT_CHR_BANK_SIZE * 2; ++i) {
         file.read((char*) &chrMemory[i], 1);
     }
 
@@ -213,7 +232,7 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
 
     if (chrMemorySize == 0) {
         chrRAM = true;
-        chrMemory.resize(CHR_BANK_SIZE * 32);
+        chrMemory.resize(DEFAULT_CHR_BANK_SIZE * 32);
     }
 }
 
@@ -231,42 +250,77 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
         // subtracted by 0x4020 so that $4020 becomes 0, $4021 becomes 1, etc.
         return addr - PRG_RAM_START;
     }
-    if (prgROMSize == 1) {
-        // If there is only one PRG bank, then $c000 - $ffff is a mirror of $8000 - $bfff. This
-        // operation clears out the upper bits that set the address to a value higher than $bfff, so
-        // the result is a mirrored address
-        addr &= 0xbfff;
-    } else if (mapperID == 1) {
-        if (prgBankMode <= 1) {
-            addr += (prgBank >> 1) * PRG_BANK_SIZE * 2;
-        } else if (prgBankMode == 2) {
-            if (addr >= 0xc000) {
-                addr += (prgBank - 1) * PRG_BANK_SIZE;
+
+    switch (mapperID) {
+        case 0:
+            // If there is only one PRG bank, then $c000 - $ffff is a mirror of $8000 - $bfff. This
+            // operation clears out the upper bits that set the address to a value higher than $bfff, so
+            // the result is a mirrored address
+            if (prgROMSize == 1) {
+                addr &= 0xbfff;
             }
-        } else {
-            if (addr < 0xc000) {
-                addr += prgBank * PRG_BANK_SIZE;
-            } else {
-                addr += (prgROMSize - 2) * PRG_BANK_SIZE;
-            }
-        }
+            break;
+        case 1:
+            addr = getMapper1PRGAddr(addr);
+            break;
+        case 2:
+            addr = getMapper2PRGAddr(addr);
+            break;
+        case 7:
+            addr += prgBank * DEFAULT_PRG_BANK_SIZE * 2;
     }
+
     // PRG-ROM starts at $8000. The address is subtracted by 0x8000 so that $8000 becomes 0, $8001
     // becomes 1, etc.
     return addr - PRG_ROM_START;
 }
 
-unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
-    if (mapperID == 1) {
-        if (chrBankMode) {
-            if (addr < 0x1000) {
-                addr += chrBank0 * CHR_BANK_SIZE;
-            } else {
-                addr += (chrBank1 - 1) * CHR_BANK_SIZE;
-            }
-        } else {
-            addr += (chrBank0 >> 1) * CHR_BANK_SIZE * 2;
+unsigned int MMC::getMapper1PRGAddr(unsigned int addr) const {
+    if (prgBankMode <= 1) {
+        addr += (prgBank >> 1) * DEFAULT_PRG_BANK_SIZE * 2;
+    } else if (prgBankMode == 2) {
+        if (addr >= 0xc000) {
+            addr += (prgBank - 1) * DEFAULT_PRG_BANK_SIZE;
         }
+    } else {
+        if (addr < 0xc000) {
+            addr += prgBank * DEFAULT_PRG_BANK_SIZE;
+        } else {
+            addr += (prgROMSize - 2) * DEFAULT_PRG_BANK_SIZE;
+        }
+    }
+    return addr;
+}
+
+unsigned int MMC::getMapper2PRGAddr(unsigned int addr) const {
+    if (addr < 0xc000) {
+        addr += prgBank * DEFAULT_PRG_BANK_SIZE;
+    } else {
+        addr += (prgROMSize - 2) * DEFAULT_PRG_BANK_SIZE;
+    }
+    return addr;
+}
+
+unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
+    switch (mapperID) {
+        case 1:
+            addr = getMapper1CHRAddr(addr);
+            break;
+        case 3:
+            addr += chrBank0 * DEFAULT_CHR_BANK_SIZE * 2;
+    }
+    return addr;
+}
+
+unsigned int MMC::getMapper1CHRAddr(unsigned int addr) const {
+    if (chrBankMode) {
+        if (addr < 0x1000) {
+            addr += chrBank0 * DEFAULT_CHR_BANK_SIZE;
+        } else {
+            addr += (chrBank1 - 1) * DEFAULT_CHR_BANK_SIZE;
+        }
+    } else {
+        addr += (chrBank0 >> 1) * DEFAULT_CHR_BANK_SIZE * 2;
     }
     return addr;
 }
@@ -274,14 +328,18 @@ unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
 void MMC::updateSettings(uint16_t addr) {
     if (addr < 0xa000) {
         unsigned int mirrorVal = shiftRegister & 3;
-        if (mirrorVal == 0) {
-            mirroring = SingleScreen0;
-        } else if (mirrorVal == 1) {
-            mirroring = SingleScreen1;
-        } else if (mirrorVal == 2) {
-            mirroring = Vertical;
-        } else {
-            mirroring = Horizontal;
+        switch (mirrorVal) {
+            case 0:
+                mirroring = SingleScreen0;
+                break;
+            case 1:
+                mirroring = SingleScreen1;
+                break;
+            case 2:
+                mirroring = Vertical;
+                break;
+            case 3:
+                mirroring = Horizontal;
         }
         prgBankMode = (shiftRegister >> 2) & 3;
         chrBankMode = (shiftRegister >> 4) & 1;

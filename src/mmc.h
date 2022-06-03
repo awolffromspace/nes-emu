@@ -13,10 +13,10 @@ class PPU;
 
 #include "ppu.h"
 
-#define CHR_BANK_SIZE 0x1000
+#define DEFAULT_CHR_BANK_SIZE 0x1000
+#define DEFAULT_PRG_BANK_SIZE 0x4000
 #define HEADER_SIZE 0x10
 #define LOWER_RESET_ADDR 0xfffc
-#define PRG_BANK_SIZE 0x4000
 #define PRG_RAM_SIZE 0x8000 - 0x4020
 #define PRG_RAM_START 0x4020
 #define PRG_ROM_START 0x8000
@@ -34,6 +34,7 @@ class MMC {
         void clear();
         uint8_t readPRG(uint16_t addr) const;
         void writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles);
+        void writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles);
         uint8_t readCHR(uint16_t addr) const;
         void writeCHR(uint16_t addr, uint8_t val);
         void readInInst(const std::string& filename);
@@ -76,7 +77,10 @@ class MMC {
         bool testMode;
 
         unsigned int getLocalPRGAddr(unsigned int addr) const;
+        unsigned int getMapper1PRGAddr(unsigned int addr) const;
+        unsigned int getMapper2PRGAddr(unsigned int addr) const;
         unsigned int getLocalCHRAddr(unsigned int addr) const;
+        unsigned int getMapper1CHRAddr(unsigned int addr) const;
         void updateSettings(uint16_t addr);
 };
 

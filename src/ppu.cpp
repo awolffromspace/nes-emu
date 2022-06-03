@@ -693,10 +693,14 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
                 addr = getSingle1MirrorAddr(addr);
                 break;
             case MMC::SingleScreen2:
-                addr = getSingle2MirrorAddr(addr);
-                break;
+                std:cerr "Single-screen 2 mirroring is not implemented\n";
+                exit(1);
             case MMC::SingleScreen3:
-                addr = getSingle3MirrorAddr(addr);
+                std:cerr "Single-screen 3 mirroring is not implemented\n";
+                exit(1);
+            case MMC::FourScreen:
+                std:cerr "Four-screen mirroring is not implemented\n";
+                exit(1);
         }
     }
     return addr - 0x2000;
@@ -746,28 +750,6 @@ uint16_t PPU::getSingle1MirrorAddr(uint16_t addr) const {
     } else if (addr >= NAMETABLE2_START) {
         addr -= 0x400;
     } else if (addr < NAMETABLE1_START) {
-        addr += 0x400;
-    }
-    return addr;
-}
-
-uint16_t PPU::getSingle2MirrorAddr(uint16_t addr) const {
-    if (addr >= NAMETABLE3_START) {
-        addr -= 0x400;
-    } else if (addr < NAMETABLE1_START) {
-        addr += 0x800;
-    } else if (addr < NAMETABLE2_START) {
-        addr += 0x400;
-    }
-    return addr;
-}
-
-uint16_t PPU::getSingle3MirrorAddr(uint16_t addr) const {
-    if (addr < NAMETABLE1_START) {
-        addr += 0xc00;
-    } else if (addr < NAMETABLE2_START) {
-        addr += 0x800;
-    } else if (addr < NAMETABLE3_START) {
         addr += 0x400;
     }
     return addr;
