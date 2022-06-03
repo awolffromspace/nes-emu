@@ -60,10 +60,10 @@ class MMC {
         unsigned int prgROMSize;
         // Number of CHR banks
         unsigned int chrMemorySize;
+        unsigned int mirroring;
         // Mapper ID: https://www.nesdev.org/wiki/Mapper
         unsigned int mapperID;
         uint8_t shiftRegister;
-        unsigned int mirroring;
         unsigned int prgBankMode;
         unsigned int chrBankMode;
         unsigned int prgBank;

@@ -96,11 +96,11 @@ class PPU {
         uint8_t frame[FRAME_SIZE];
         // Palette that contains the RGB values for displaying pixel colors
         struct RGBVal palette[PALETTE_SIZE];
-        // Current operation that holds info about the current pixel and scanline being rendered
-        PPUOp op;
         // PPUDATA read buffer:
         // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppuDataBuffer;
+        // Current operation that holds info about the current pixel and scanline being rendered
+        PPUOp op;
         // Total number of cycles since initialization
         unsigned int totalCycles;
 

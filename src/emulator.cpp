@@ -1,5 +1,7 @@
 #include "cpu.h"
 
+#define WINDOW_SIZE_MULTIPLIER 4
+
 void readInFilenames(std::vector<std::string>& filenames);
 
 struct CPU::State readInState(const std::string& filename);
@@ -267,7 +269,6 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
     for (unsigned int testNum = 0; testNum < filenames.size(); ++testNum) {
         std::string& currentFilename = filenames[testNum];
         struct CPU::State state = readInState(currentFilename);
-
         if (testNum > 0) {
             cpu.clear();
         }
@@ -278,7 +279,6 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
                 cpu.setHaltAtBrk(false);
             }
         }
-
         while ((cpu.isHaltAtBrk() && !cpu.isEndOfProgram()) ||
                 (!cpu.isHaltAtBrk() && cpu.getTotalCycles() < state.totalCycles)) {
             cpu.step(nullptr, nullptr);
@@ -286,7 +286,6 @@ void runTests(CPU& cpu, std::vector<std::string>& filenames) {
         if (!cpu.compareState(state)) {
             failedTests.push_back(testNum);
         }
-
         if (!cpu.isHaltAtBrk()) {
             cpu.setHaltAtBrk(true);
         }
@@ -331,7 +330,6 @@ void runNESTest(CPU& cpu) {
             }
             ++instNum;
         }
-
         cpu.step(nullptr, nullptr);
     }
 
@@ -360,7 +358,8 @@ void runNESGame(CPU& cpu, const std::string& filename) {
 
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        FRAME_WIDTH, FRAME_HEIGHT, SDL_WINDOW_OPENGL);
+        FRAME_WIDTH * WINDOW_SIZE_MULTIPLIER, FRAME_HEIGHT * WINDOW_SIZE_MULTIPLIER,
+        SDL_WINDOW_OPENGL);
     if (window == nullptr) {
         std::cerr << "Could not create window\n" << SDL_GetError();
         exit(1);

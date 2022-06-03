@@ -3,6 +3,7 @@
 // Public Member Functions
 
 CPU::CPU() :
+        pc(0),
         sp(0xfd),
         a(0),
         x(0),
@@ -11,12 +12,10 @@ CPU::CPU() :
         totalCycles(0),
         endOfProgram(false),
         haltAtBrk(false),
-        mute(true) {
-    // Initialize PC to the reset vector
-    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
-}
+        mute(true) { }
 
 void CPU::clear() {
+    pc = 0;
     sp = 0xfd;
     a = 0;
     x = 0;
@@ -28,8 +27,6 @@ void CPU::clear() {
     apu.clear();
     io.clear();
     mmc.clear();
-    // Initialize PC to the reset vector
-    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
     totalCycles = 0;
     endOfProgram = false;
 }
@@ -44,17 +41,16 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
         // operation and must remain for the next operation in order for the interrupt or OAM DMA
         // transfer to occur as the next operation
         op.clear(false, false);
+        op.pc = pc;
 
         // If any interrupts are flagged, start the interrupt prologue. Ignore IRQs if the Interrupt
         // Disable flag is set
         if ((op.irq && !areInterruptsDisabled()) || op.nmi || op.reset) {
             op.interruptPrologue = true;
+        } else {
+            op.inst = read(pc);
+            op.opcode = op.inst;
         }
-
-        // Fetch
-        op.pc = pc;
-        op.inst = read(pc);
-        op.opcode = op.inst;
     }
 
     // Priority list of what to do next if there are multiple options
@@ -67,7 +63,6 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
     } else if (op.interruptPrologue && op.irq) {
         prepareIRQ();
     } else {
-        // Decode and execute
         // Use the opcode to look up in the addressing mode and opcode arrays to get the two
         // relevant functions
         (this->*addrModeArr[op.opcode])();
@@ -107,7 +102,7 @@ void CPU::updateButton(const SDL_Event& event) {
 
 // Compares the current registers and total cycles with a given CPU state
 
-bool CPU::compareState(struct CPU::State& state) const {
+bool CPU::compareState(const struct CPU::State& state) const {
     // Ignore bits 4 and 5 of the P register because they're always set
     if (state.pc != pc || state.sp != sp || state.a != a || state.x != x || state.y != y ||
             (state.p & 0xcf) != (p & 0xcf) || state.totalCycles != totalCycles) {
@@ -276,11 +271,8 @@ void CPU::print(bool isCycleDone) const {
 
 void CPU::printUnknownOp() const {
     if (op.cycle == 2) {
-        if (!mute) {
-            std::cout << "NOTE: Opcode 0x" << std::hex << (unsigned int) op.opcode << " has not "
-            "been implemented yet\n--------------------------------------------------\n" <<
-            std::dec;
-        }
+        std::cerr << "NOTE: Opcode 0x" << std::hex << (unsigned int) op.opcode << " has not been "
+            "implemented yet\n--------------------------------------------------\n" << std::dec;
     }
 }
 
@@ -389,9 +381,7 @@ void CPU::abx() {
             if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!op.modify) {
-                op.modify = true;
-            }
+            op.modify = true;
             op.write = true;
             break;
         case 5:
@@ -451,9 +441,7 @@ void CPU::aby() {
             if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!op.modify) {
-                op.modify = true;
-            }
+            op.modify = true;
             op.write = true;
             break;
         case 5:
@@ -627,9 +615,7 @@ void CPU::idy() {
             if (op.instType == CPUOp::ReadInst || op.instType == CPUOp::RMWInst) {
                 op.val = read(op.tempAddr);
             }
-            if (!op.modify) {
-                op.modify = true;
-            }
+            op.modify = true;
             op.write = true;
             break;
         case 6:
@@ -1728,10 +1714,6 @@ void CPU::pollInterrupts() {
 void CPU::prepareIRQ() {
     uint8_t temp;
     switch (op.cycle) {
-        case 0:
-            op.inst = 0;
-            op.opcode = 0;
-            break;
         case 1:
             if (op.brk) {
                 ++pc;
@@ -1780,10 +1762,6 @@ void CPU::prepareIRQ() {
 void CPU::prepareNMI() {
     uint8_t temp;
     switch (op.cycle) {
-        case 0:
-            op.inst = 0;
-            op.opcode = 0;
-            break;
         case 2:
             temp = (pc & 0xff00) >> 8;
             ram.push(sp, temp, mute);
@@ -1822,10 +1800,6 @@ void CPU::prepareNMI() {
 
 void CPU::prepareReset() {
     switch (op.cycle) {
-        case 0:
-            op.inst = 0;
-            op.opcode = 0;
-            break;
         case 2:
             --sp;
             break;

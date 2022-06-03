@@ -39,7 +39,7 @@ class CPU {
 
         // Miscellaneous Functions
         void updateButton(const SDL_Event& event);
-        bool compareState(struct CPU::State& state) const;
+        bool compareState(const struct CPU::State& state) const;
 
         // Getters
         uint32_t getFutureInst();

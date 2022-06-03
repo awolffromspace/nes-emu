@@ -61,7 +61,7 @@ uint8_t RAM::pull(uint8_t& pointer, bool mute) {
 // Maps the CPU address to the RAM's local field, data
 
 uint16_t RAM::getLocalAddr(uint16_t addr) const {
-    // RAM is located from $0000 - $2000 in the CPU memory map. However, $0800 - $2000 is mirrored.
+    // RAM is located from $0000 - $1fff in the CPU memory map. However, $0800 - $1fff is mirrored.
     // This operation clears out the upper bits that set the address to a value higher than $07ff,
     // so the result is a mirrored address
     return addr & 0x7ff;

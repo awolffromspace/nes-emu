@@ -22,13 +22,13 @@ void PPU::clear() {
     t = 0;
     x = 0;
     w = false;
-    memset(vram, 0, VRAM_SIZE);
-    vram[UNIVERSAL_BG_INDEX] = BLACK;
     memset(oam, 0, OAM_SIZE);
     memset(secondaryOAM, 0xff, SECONDARY_OAM_SIZE);
+    memset(vram, 0, VRAM_SIZE);
+    vram[UNIVERSAL_BG_INDEX] = BLACK;
     memset(frame, 0, FRAME_SIZE);
-    op.clear();
     ppuDataBuffer = 0;
+    op.clear();
     totalCycles = 0;
 }
 
@@ -264,9 +264,9 @@ void PPU::fetch(MMC& mmc) {
 }
 
 uint16_t PPU::getNametableAddr() const {
+    unsigned int nametableBaseAddr = getNametableSelectAddr();
     unsigned int coarseXScroll = getCoarseXScroll();
     unsigned int coarseYScroll = getCoarseYScroll();
-    unsigned int nametableBaseAddr = getNametableSelectAddr();
     return nametableBaseAddr + coarseXScroll + coarseYScroll * TILES_PER_ROW;
 }
 
@@ -628,7 +628,7 @@ void PPU::writePPUAddr(uint8_t val) {
 uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
     uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
     addr = getLocalVRAMAddr(addr, mmc, true);
-    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
+    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM,
     // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
     // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
     // if it lies within $0000 - $1fff
@@ -647,7 +647,7 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
 
     uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
     addr = getLocalVRAMAddr(addr, mmc, false);
-    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM, the
+    // Since addresses $0000 - $1fff are in the CHR memory on the cartridge and not the VRAM,
     // getLocalVRAMAddr subtracts its resulting address by 0x2000. To identify whether the address
     // is for CHR memory or VRAM, the mirrored address in the range $0000 - $3fff is checked to see
     // if it lies within $0000 - $1fff

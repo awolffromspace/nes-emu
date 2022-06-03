@@ -60,10 +60,11 @@ uint8_t PPUOp::getPalette(uint8_t x) {
     }
     uint8_t upperPaletteBits = getUpperPalette(*tileRowIterator);
     uint8_t bgPalette = 0;
-    if (tileRowIterator->patternEntryLo & (0x80 >> ((pixel + x) % 8))) {
+    uint8_t pixelInTileRow = 0x80 >> ((pixel + x) % 8);
+    if (tileRowIterator->patternEntryLo & pixelInTileRow) {
         bgPalette |= 1;
     }
-    if (tileRowIterator->patternEntryHi & (0x80 >> ((pixel + x) % 8))) {
+    if (tileRowIterator->patternEntryHi & pixelInTileRow) {
         bgPalette |= 2;
     }
     if (upperPaletteBits & 1) {
@@ -98,9 +99,6 @@ uint8_t PPUOp::getUpperPalette(const struct TileRow& tileRow) const {
 
 void PPUOp::prepNextCycle() {
     if (canFetch()) {
-        if (cycle == 320 && !tileRows.empty()) {
-            tileRows.clear();
-        }
         updateStatus();
     }
 
@@ -114,6 +112,10 @@ void PPUOp::prepNextCycle() {
         }
     }
 
+    if (cycle == 320 && scanline <= LAST_RENDER_LINE && !tileRows.empty()) {
+        tileRows.clear();
+    }
+
     if (cycle == 256) {
         spriteNum = 0;
         oamEntryNum = 0;
@@ -123,7 +125,7 @@ void PPUOp::prepNextCycle() {
         nextSprites.clear();
     }
 
-    if (scanline == PRERENDER_LINE && cycle == LAST_CYCLE) {
+    if (cycle == LAST_CYCLE && scanline == PRERENDER_LINE) {
         scanline = 0;
         oddFrame = !oddFrame;
         nmiOccurred = false;
@@ -157,9 +159,8 @@ unsigned int PPUOp::getRenderLine() const {
     }
     if (scanline == PRERENDER_LINE) {
         return 0;
-    } else {
-        return scanline + 1;
     }
+    return scanline + 1;
 }
 
 bool PPUOp::isRendering() const {
@@ -174,20 +175,20 @@ bool PPUOp::canFetch() const {
     if (cycle % 2 || cycle == 0) {
         return false;
     }
-    if (scanline < LAST_RENDER_LINE && (cycle < 249 || cycle > 256) && cycle < 337) {
+    if (scanline < LAST_RENDER_LINE && (cycle <= 248 || cycle >= 257) && cycle <= 336) {
         return true;
     }
-    if (scanline == LAST_RENDER_LINE && cycle < 241) {
+    if (scanline == LAST_RENDER_LINE && cycle <= 248) {
         return true;
     }
-    if (scanline == PRERENDER_LINE && cycle > 320 && cycle < 337) {
+    if (scanline == PRERENDER_LINE && cycle >= 321 && cycle <= 336) {
         return true;
     }
     return false;
 }
 
 bool PPUOp::isFetchingBG() const {
-    if (cycle < 257 || cycle > 320) {
+    if (cycle <= 256 || cycle >= 321) {
         return true;
     }
     return false;

@@ -7,14 +7,15 @@ MMC::MMC() :
         chrMemory(CHR_BANK_SIZE * 2, 0),
         prgROMSize(2),
         chrMemorySize(2),
+        mirroring(0),
         mapperID(0),
         shiftRegister(0x10),
-        mirroring(0),
         prgBankMode(0),
         chrBankMode(0),
         prgBank(0),
         chrBank0(0),
         chrBank1(0),
+        chrRAM(false),
         lastWriteCycle(0),
         testMode(false) { }
 
@@ -30,14 +31,15 @@ void MMC::clear() {
     }
     prgROMSize = 2;
     chrMemorySize = 2;
+    mirroring = 0;
     mapperID = 0;
     shiftRegister = 0x10;
-    mirroring = 0;
     prgBankMode = 0;
     chrBankMode = 0;
     prgBank = 0;
     chrBank0 = 0;
     chrBank1 = 0;
+    chrRAM = false;
     lastWriteCycle = 0;
     testMode = false;
 }
@@ -60,19 +62,18 @@ void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
         prgRAM[localAddr] = val;
         return;
     }
-
     if (testMode) {
         prgROM[localAddr] = val;
         return;
     }
 
-    unsigned int lastWriteCycleWrapped = 0;
-    unsigned int totalCyclesWrapped = 0;
-    if (lastWriteCycle > totalCycles) {
-        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
-        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
-    }
     if (mapperID == 1) {
+        unsigned int lastWriteCycleWrapped = 0;
+        unsigned int totalCyclesWrapped = 0;
+        if (lastWriteCycle > totalCycles) {
+            lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
+            totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
+        }
         if (val & 0x80) {
             shiftRegister = 0x10;
         } else if (lastWriteCycle + 1 < totalCycles ||
@@ -161,7 +162,6 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
     // Use any relevant info from the header
     for (unsigned int i = 0; i < HEADER_SIZE; ++i) {
         file.read((char*) &readInByte, 1);
-
         if (i == 4) {
             prgROMSize = readInByte;
             prgROM.resize(prgROMSize * PRG_BANK_SIZE);
@@ -237,7 +237,7 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
         // the result is a mirrored address
         addr &= 0xbfff;
     } else if (mapperID == 1) {
-        if (prgBankMode < 2) {
+        if (prgBankMode <= 1) {
             addr += (prgBank >> 1) * PRG_BANK_SIZE * 2;
         } else if (prgBankMode == 2) {
             if (addr >= 0xc000) {
