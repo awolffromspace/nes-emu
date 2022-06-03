@@ -88,7 +88,7 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
     } else if (localAddr == 7) {
         // If the v register is in not in the palette, then the read is buffered
-        if ((v & 0x3fff) < IMAGE_PALETTE_START) {
+        if ((v & 0x3fff) < BG_PALETTE_START) {
             registers[7] = ppuDataBuffer;
             ppuDataBuffer = readVRAM(v, mmc);
         // If the v register is in the palette, then the read is immediate
@@ -457,14 +457,14 @@ void PPU::setPixel(MMC& mmc) {
         setSprite0Hit(*spriteIterator, bgPalette);
     } else if (isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
         // Output the background pixel
-        paletteEntry = readVRAM(IMAGE_PALETTE_START + bgPalette, mmc);
+        paletteEntry = readVRAM(BG_PALETTE_START + bgPalette, mmc);
         if (foundSprite && areSpritesShown()) {
             setSprite0Hit(*spriteIterator, bgPalette);
         }
     } else {
         // Output the universal background color:
         // https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
-        paletteEntry = readVRAM(IMAGE_PALETTE_START, mmc);
+        paletteEntry = readVRAM(BG_PALETTE_START, mmc);
     }
     setRGB(paletteEntry);
 }
@@ -666,12 +666,12 @@ uint16_t PPU::getLocalRegisterAddr(uint16_t addr) const {
 
 uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
     addr = getUpperMirrorAddr(addr);
-    if (addr >= IMAGE_PALETTE_START) {
+    if (addr >= BG_PALETTE_START) {
         addr &= 0x3f1f;
         if (addr % 4 == 0 && isRead) {
-            addr = IMAGE_PALETTE_START;
+            addr = BG_PALETTE_START;
         } else if (addr == 0x3f10 && !isRead) {
-            addr = IMAGE_PALETTE_START;
+            addr = BG_PALETTE_START;
         }
         addr -= 0x1700;
     } else if (addr >= NAMETABLE0_START) {
