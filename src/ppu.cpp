@@ -680,20 +680,23 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
         }
 
         switch (mmc.getMirroring()) {
-            case MMC::Horizontal:
+            case Horizontal:
                 addr = getHorizontalMirrorAddr(addr);
                 break;
-            case MMC::Vertical:
+            case Vertical:
                 addr = getVerticalMirrorAddr(addr);
                 break;
-            case MMC::SingleScreenLowerBank:
-                addr = getSingleLowerMirrorAddr(addr);
+            case SingleScreen0:
+                addr = getSingleScreen0Addr(addr);
                 break;
-            case MMC::SingleScreenUpperBank:
-                addr = getSingleUpperMirrorAddr(addr);
+            case SingleScreen1:
+                addr = getSingleScreen1Addr(addr);
                 break;
-            case MMC::FourScreen:
-                addr = getFourScreenMirrorAddr(addr);
+            case SingleScreen2:
+                addr = getSingleScreen2Addr(addr);
+                break;
+            case SingleScreen3:
+                addr = getSingleScreen3Addr(addr);
         }
     }
     return addr - 0x2000;
@@ -726,7 +729,7 @@ uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleLowerMirrorAddr(uint16_t addr) const {
+uint16_t PPU::getSingleScreen0Addr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0xc00;
     } else if (addr >= NAMETABLE2_START) {
@@ -737,7 +740,7 @@ uint16_t PPU::getSingleLowerMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getSingleUpperMirrorAddr(uint16_t addr) const {
+uint16_t PPU::getSingleScreen1Addr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
     } else if (addr >= NAMETABLE2_START) {
@@ -748,10 +751,26 @@ uint16_t PPU::getSingleUpperMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
-uint16_t PPU::getFourScreenMirrorAddr(uint16_t addr) const {
-    std::cerr << "Four-screen mirroring is not implemented\n";
-    exit(1);
-    return 0;
+uint16_t PPU::getSingleScreen2Addr(uint16_t addr) const {
+    if (addr >= NAMETABLE3_START) {
+        addr -= 0x400;
+    } else if (addr < NAMETABLE1_START) {
+        addr += 0x800;
+    } else if (addr < NAMETABLE2_START) {
+        addr += 0x400;
+    }
+    return addr;
+}
+
+uint16_t PPU::getSingleScreen3Addr(uint16_t addr) const {
+    if (addr < NAMETABLE1_START) {
+        addr += 0xc00;
+    } else if (addr < NAMETABLE2_START) {
+        addr += 0x800;
+    } else if (addr < NAMETABLE3_START) {
+        addr += 0x400;
+    }
+    return addr;
 }
 
 uint16_t PPU::getNametableBaseAddr() const {

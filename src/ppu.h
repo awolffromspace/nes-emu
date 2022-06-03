@@ -149,9 +149,10 @@ class PPU {
         uint16_t getUpperMirrorAddr(uint16_t addr) const;
         uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
         uint16_t getVerticalMirrorAddr(uint16_t addr) const;
-        uint16_t getSingleLowerMirrorAddr(uint16_t addr) const;
-        uint16_t getSingleUpperMirrorAddr(uint16_t addr) const;
-        uint16_t getFourScreenMirrorAddr(uint16_t addr) const;
+        uint16_t getSingleScreen0Addr(uint16_t addr) const;
+        uint16_t getSingleScreen1Addr(uint16_t addr) const;
+        uint16_t getSingleScreen2Addr(uint16_t addr) const;
+        uint16_t getSingleScreen3Addr(uint16_t addr) const;
 
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
@@ -194,6 +195,16 @@ class PPU {
 
         // Color Palette Initialization
         void initializePalette();
+
+        enum Mirroring {
+            Horizontal = 0,
+            Vertical = 1,
+            SingleScreen0 = 2,
+            SingleScreen1 = 3,
+            SingleScreen2 = 4,
+            SingleScreen3 = 5,
+            FourScreen = 6
+        };
 };
 
 #endif
