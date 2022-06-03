@@ -1,6 +1,6 @@
 #include "cpu.h"
 
-#define WINDOW_SIZE_MULTIPLIER 4
+#define WINDOW_SIZE_MULTIPLIER 1
 
 void readInFilenames(std::vector<std::string>& filenames);
 
