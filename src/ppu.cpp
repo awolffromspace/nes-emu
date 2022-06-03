@@ -693,13 +693,13 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
                 addr = getSingle1MirrorAddr(addr);
                 break;
             case MMC::SingleScreen2:
-                std:cerr "Single-screen 2 mirroring is not implemented\n";
+                std::cerr << "Single-screen 2 mirroring is not implemented\n";
                 exit(1);
             case MMC::SingleScreen3:
-                std:cerr "Single-screen 3 mirroring is not implemented\n";
+                std::cerr << "Single-screen 3 mirroring is not implemented\n";
                 exit(1);
             case MMC::FourScreen:
-                std:cerr "Four-screen mirroring is not implemented\n";
+                std::cerr << "Four-screen mirroring is not implemented\n";
                 exit(1);
         }
     }
