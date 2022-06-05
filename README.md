@@ -6,7 +6,7 @@ This aims to be a cycle-accurate NES emulator, developed with the goal of learni
 
 ## Usage (Debian Linux)
 
-Install dependencies (Clang and SDL) and compile:
+Install the dependencies (Clang and SDL) and compile:
 
 ```
 make install
@@ -39,7 +39,7 @@ Run the unit and system tests:
 ./nes-emu
 ```
 
-Run debugger:
+Run the debugger:
 
 ```
 ./nes-emu inst debug
@@ -49,7 +49,7 @@ Edit the `inst` file to change the instructions that are to be executed. The ins
 
 Enter `s` to step over the next cycle, `c` to continue until the end of the provided instructions (i.e., until it reaches a BRK instruction), `b` followed by a 16-bit hexadecimal address (e.g., `e4fd`) to continue until the program counter reaches that location, `p` to toggle printing the PPU's state, and `q` or any other character to exit.
 
-Run debugger on an .NES file:
+Run the debugger on an .NES file:
 
 ```
 ./nes-emu filename.nes debug
