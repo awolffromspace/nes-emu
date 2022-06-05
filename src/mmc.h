@@ -76,11 +76,11 @@ class MMC {
         bool testMode;
 
         unsigned int getLocalPRGAddr(unsigned int addr) const;
-        void writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles);
         unsigned int getMapper1PRGAddr(unsigned int addr) const;
         unsigned int getMapper2PRGAddr(unsigned int addr) const;
         unsigned int getLocalCHRAddr(unsigned int addr) const;
         unsigned int getMapper1CHRAddr(unsigned int addr) const;
+        void writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles);
         void updateSettings(uint16_t addr);
 };
 

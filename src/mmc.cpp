@@ -251,30 +251,6 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
     return addr - PRG_ROM_START;
 }
 
-void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
-    unsigned int lastWriteCycleWrapped = 0;
-    unsigned int totalCyclesWrapped = 0;
-    if (lastWriteCycle > totalCycles) {
-        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
-        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
-    }
-    if (val & 0x80) {
-        shiftRegister = 0x10;
-    } else if (lastWriteCycle + 1 < totalCycles ||
-            lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
-        bool fullRegister = false;
-        if (shiftRegister & 1) {
-            fullRegister = true;
-        }
-        shiftRegister = shiftRegister >> 1;
-        shiftRegister |= (val & 1) << 4;
-        if (fullRegister) {
-            updateSettings(addr);
-        }
-    }
-    lastWriteCycle = totalCycles;
-}
-
 unsigned int MMC::getMapper1PRGAddr(unsigned int addr) const {
     if (prgBankMode <= 1) {
         addr += (prgBank >> 1) * DEFAULT_PRG_BANK_SIZE * 2;
@@ -323,6 +299,30 @@ unsigned int MMC::getMapper1CHRAddr(unsigned int addr) const {
         addr += (chrBank0 >> 1) * DEFAULT_CHR_BANK_SIZE * 2;
     }
     return addr;
+}
+
+void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
+    unsigned int lastWriteCycleWrapped = 0;
+    unsigned int totalCyclesWrapped = 0;
+    if (lastWriteCycle > totalCycles) {
+        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
+        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
+    }
+    if (val & 0x80) {
+        shiftRegister = 0x10;
+    } else if (lastWriteCycle + 1 < totalCycles ||
+            lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
+        bool fullRegister = false;
+        if (shiftRegister & 1) {
+            fullRegister = true;
+        }
+        shiftRegister = shiftRegister >> 1;
+        shiftRegister |= (val & 1) << 4;
+        if (fullRegister) {
+            updateSettings(addr);
+        }
+    }
+    lastWriteCycle = totalCycles;
 }
 
 void MMC::updateSettings(uint16_t addr) {
