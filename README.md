@@ -66,7 +66,7 @@ Run the debugger on an .NES file:
 
 ## Credits
 
-Kevin Horton for nestest  
-blargg for the following tests: branch_timing_tests, cpu_timing_tests6, instr_test-v5, ppu_sprite_hit, ppu_vbl_nmi, sprite_hit_tests_2005.10.05, and vbl_nmi_timing  
-NESdev wiki for thorough documentation of the NES  
-FCEUX for having a robust debugger to compare with
+- Kevin Horton for nestest
+- blargg for the following tests: branch_timing_tests, cpu_timing_tests6, instr_test-v5, ppu_sprite_hit, ppu_vbl_nmi, sprite_hit_tests_2005.10.05, and vbl_nmi_timing
+- NESdev wiki for thorough documentation of the NES
+- FCEUX for having a robust debugger to compare with
