@@ -87,30 +87,6 @@ void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
     }
 }
 
-void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
-    unsigned int lastWriteCycleWrapped = 0;
-    unsigned int totalCyclesWrapped = 0;
-    if (lastWriteCycle > totalCycles) {
-        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
-        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
-    }
-    if (val & 0x80) {
-        shiftRegister = 0x10;
-    } else if (lastWriteCycle + 1 < totalCycles ||
-            lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
-        bool fullRegister = false;
-        if (shiftRegister & 1) {
-            fullRegister = true;
-        }
-        shiftRegister = shiftRegister >> 1;
-        shiftRegister |= (val & 1) << 4;
-        if (fullRegister) {
-            updateSettings(addr);
-        }
-    }
-    lastWriteCycle = totalCycles;
-}
-
 // Handles reads from the PPU
 
 uint8_t MMC::readCHR(uint16_t addr) const {
@@ -273,6 +249,30 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
     // PRG-ROM starts at $8000. The address is subtracted by 0x8000 so that $8000 becomes 0, $8001
     // becomes 1, etc.
     return addr - PRG_ROM_START;
+}
+
+void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
+    unsigned int lastWriteCycleWrapped = 0;
+    unsigned int totalCyclesWrapped = 0;
+    if (lastWriteCycle > totalCycles) {
+        lastWriteCycleWrapped = UINT_MAX - lastWriteCycle;
+        totalCyclesWrapped = totalCycles + lastWriteCycleWrapped + 1;
+    }
+    if (val & 0x80) {
+        shiftRegister = 0x10;
+    } else if (lastWriteCycle + 1 < totalCycles ||
+            lastWriteCycleWrapped + 1 < totalCyclesWrapped) {
+        bool fullRegister = false;
+        if (shiftRegister & 1) {
+            fullRegister = true;
+        }
+        shiftRegister = shiftRegister >> 1;
+        shiftRegister |= (val & 1) << 4;
+        if (fullRegister) {
+            updateSettings(addr);
+        }
+    }
+    lastWriteCycle = totalCycles;
 }
 
 unsigned int MMC::getMapper1PRGAddr(unsigned int addr) const {
