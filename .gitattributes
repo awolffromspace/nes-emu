@@ -4,3 +4,4 @@
 *.h linguist-detectable=true
 *.inc linguist-detectable=false
 *.s linguist-detectable=false
+test/* linguist-vendored
