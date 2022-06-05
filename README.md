@@ -33,7 +33,7 @@ Controls:
 
 To increase the window size, change the WINDOW_SIZE_MULTIPLIER in emulator.cpp to a larger integer and run `make` again.
 
-Run the unit and system tests from the test directory:
+Run the unit and system tests:
 
 ```
 ./nes-emu
