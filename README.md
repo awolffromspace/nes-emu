@@ -33,7 +33,7 @@ Controls:
 
 To increase the window size, change the WINDOW_SIZE_MULTIPLIER in emulator.cpp to a larger integer and run `make` again.
 
-Run unit tests from the test directory and the nestest.nes system test:
+Run the unit and system tests from the test directory:
 
 ```
 ./nes-emu
@@ -66,6 +66,7 @@ Run debugger on an .NES file:
 
 ## Credits
 
-Kevin Horton for [nestest.nes](https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.nes)  
-NESdev wiki for thorough documentation and [other tests](https://www.nesdev.org/wiki/Emulator_tests) (especially blargg's)  
+Kevin Horton for nestest  
+blargg for the following tests: branch_timing_tests, cpu_timing_tests6, instr_test-v5, ppu_sprite_hit, ppu_vbl_nmi, sprite_hit_tests_2005.10.05, and vbl_nmi_timing  
+NESdev wiki for thorough documentation of the NES  
 FCEUX for having a robust debugger to compare with

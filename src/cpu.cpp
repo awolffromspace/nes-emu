@@ -87,7 +87,7 @@ void CPU::readInInst(const std::string& filename) {
 void CPU::readInINES(const std::string& filename) {
     // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInINES(filename, ppu);
-    if (filename == "nestest.nes") {
+    if (filename == "test/nestest/nestest.nes") {
         // Use the start PC for an automated run of nestest.nes
         pc = 0xc000;
     } else {
@@ -194,16 +194,16 @@ unsigned int CPU::getOpCycles() const {
     return op.cycle;
 }
 
-uint8_t CPU::getValidOpResult() const {
-    return ram.read(2);
-}
-
-uint8_t CPU::getInvalidOpResult() const {
-    return ram.read(3);
+uint8_t CPU::readRAM(uint16_t addr) const {
+    return ram.read(addr);
 }
 
 unsigned int CPU::getTotalPPUCycles() const {
     return ppu.getTotalCycles();
+}
+
+uint8_t CPU::readPRG(uint16_t addr) const {
+    return mmc.readPRG(addr);
 }
 
 void CPU::setHaltAtBrk(bool h) {

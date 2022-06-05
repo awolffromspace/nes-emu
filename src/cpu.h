@@ -48,9 +48,9 @@ class CPU {
         bool isEndOfProgram() const;
         bool isHaltAtBrk() const;
         unsigned int getOpCycles() const;
-        uint8_t getValidOpResult() const;
-        uint8_t getInvalidOpResult() const;
+        uint8_t readRAM(uint16_t addr) const;
         unsigned int getTotalPPUCycles() const;
+        uint8_t readPRG(uint16_t addr) const;
 
         // Setters
         void setHaltAtBrk(bool h);
