@@ -57,6 +57,7 @@ Run the debugger on an .NES file:
 
 ## Screenshots
 
+https://raw.githubusercontent.com/awolffromspace/nes-emu/master/screenshots/super-mario-bros.mp4
 ![Donkey Kong Screenshot](/screenshots/donkey-kong.png)
 ![Pac-Man Screenshot](/screenshots/pac-man.png)
 ![The Legend of Zelda Screenshot](/screenshots/legend-of-zelda.png)
