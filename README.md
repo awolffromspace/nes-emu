@@ -31,7 +31,7 @@ Controls:
 | enter/return | start         |
 | right shift  | select        |
 
-To increase the window size, change the WINDOW_SIZE_MULTIPLIER in emulator.cpp to a larger integer and run `make` again.
+To increase the window size, change the `WINDOW_SIZE_MULTIPLIER` in emulator.cpp to a larger integer and run `make` again.
 
 Run the unit and system tests:
 
