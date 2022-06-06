@@ -57,7 +57,7 @@ Run the debugger on an .NES file:
 
 ## Screenshots
 
-![Super Mario Bros. GIF](/screenshots/super-mario-bros.gif)
+![Super Mario Bros. GIF](/screenshots/super-mario-bros.gif)  
 ![Donkey Kong Screenshot](/screenshots/donkey-kong.png)
 ![Pac-Man Screenshot](/screenshots/pac-man.png)
 ![The Legend of Zelda Screenshot](/screenshots/legend-of-zelda.png)
