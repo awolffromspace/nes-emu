@@ -29,6 +29,8 @@ void runNESGame(CPU& cpu, const std::string& filename);
 int main(int argc, char* argv[]) {
     CPU cpu;
     if (argc == 1) {
+        // The end of the instruction tests are when the program reaches zeroed out memory, and the
+        // BRK instruction is 0
         cpu.setHaltAtBrk(true);
         std::vector<std::string> filenames;
         readInFilenames(filenames);
@@ -78,7 +80,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
     std::string line;
     while (file.good()) {
         getline(file, line);
-        if (line.at(line.size() - 1) == '\n') {
+        if (line[line.size() - 1] == '\n') {
             filenames.push_back("test/inst/" + line.substr(0, line.size() - 1));
         } else {
             filenames.push_back("test/inst/" + line);
@@ -107,7 +109,8 @@ struct CPU::State readInState(const std::string& filename) {
         getline(file, line);
         std::string substring = "";
         for (char currentChar : line) {
-            if (currentChar == '/' || currentChar == ' ') {
+            // Ignore comments and spaces
+            if (currentChar == '/' || currentChar == ' ' || currentChar == '\n') {
                 break;
             }
             substring += currentChar;
@@ -166,13 +169,13 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
         inst = std::stoul(substring, nullptr, 16);
 
         substring = line.substr(9, 2);
-        if (substring.at(0) != ' ') {
+        if (substring[0] != ' ') {
             inst = inst << 8;
             inst |= std::stoul(substring, nullptr, 16);
         }
 
         substring = line.substr(12, 2);
-        if (substring.at(0) != ' ') {
+        if (substring[0] != ' ') {
             inst = inst << 8;
             inst |= std::stoul(substring, nullptr, 16);
         }
@@ -202,8 +205,10 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
     file.close();
 }
 
-// Runs the .NES or instruction file without graphics for debugging. "continue" input runs the
-// program until the BRK instruction is executed. "step" input runs the program for one CPU cycle
+// Runs the .NES or instruction file without graphics for debugging. "step" input runs the program
+// for one CPU cycle. "continue" input runs the program until the BRK instruction is executed.
+// "break" input runs the program until the CPU reaches the specified PC. "ppu" input displays the
+// PPU's state
 
 void runProgram(CPU& cpu, const std::string& filename) {
     bool nesFile = false;
@@ -260,6 +265,8 @@ void runProgram(CPU& cpu, const std::string& filename) {
     std::cout << "End of the program\n";
 }
 
+// Runs the CPU for one cycle and prints the debug info
+
 void stepAndPrint(CPU& cpu, bool showPPU) {
     cpu.print(false);
     cpu.step(nullptr, nullptr);
@@ -283,10 +290,13 @@ void runInstTests(CPU& cpu, std::vector<std::string>& filenames) {
         cpu.readInInst(currentFilename);
         if (currentFilename.size() >= 13) {
             std::string testType = currentFilename.substr(10, 3);
+            // If the instruction test uses BRK, then the CPU can't halt the moment it reaches BRK
             if (testType == "brk") {
                 cpu.setHaltAtBrk(false);
             }
         }
+        // The second group of conditions after the OR is for BRK instruction tests. The CPU will
+        // halt after reaching the same number of total cycles as the state file
         while ((cpu.isHaltAtBrk() && !cpu.isEndOfProgram()) ||
                 (!cpu.isHaltAtBrk() && cpu.getTotalCycles() < state.totalCycles)) {
             cpu.step(nullptr, nullptr);
@@ -316,6 +326,8 @@ void runNESTests(CPU& cpu) {
     runPPUTests(cpu);
 }
 
+// Runs tests that are focused on the CPU
+
 void runCPUTests(CPU& cpu) {
     std::string filename = "test/nestest/nestest.nes";
     std::vector<struct CPU::State> states;
@@ -327,6 +339,9 @@ void runCPUTests(CPU& cpu) {
     unsigned int instNum = 0;
     bool passed = true;
     while (!cpu.isEndOfProgram() && instNum < states.size()) {
+        // Wait until the operation is 1 cycle in so that the addressing mode and operation
+        // functions have been called once. This makes it easy to know which addressing mode and
+        // operation the opcode is for
         if (cpu.getOpCycles() == 1) {
             struct CPU::State state = states[instNum];
             uint32_t testInst = instructions[instNum];
@@ -344,8 +359,8 @@ void runCPUTests(CPU& cpu) {
     }
 
     // nestest.nes puts a nonzero value in the RAM address $0002 if any valid opcodes fail and in
-    // $0003 if any invalid/unofficial opcodes fail, so they get printed out as well if they're ever
-    // nonzero
+    // $0003 if any invalid/unofficial opcodes fail, so they get printed out as well if the test
+    // fails
     uint8_t testResult = cpu.readRAM(2);
     if (testResult != 0) {
         std::cout << "Failed nestest.nes valid opcodes: 0x" << std::hex << (unsigned int) testResult
@@ -364,6 +379,9 @@ void runCPUTests(CPU& cpu) {
 
     runIndividualTest(cpu, "official_only.nes", "instr_test-v5/", 0xec5c, 0, 0x6000);
 
+    // cpu_timing_test.nes doesn't store the test results anywhere as far as I know, so instead the
+    // while loop waits until the CPU reaches the "passed test" or the "failed test" branch in the
+    // program
     cpu.clear();
     cpu.readInINES("test/cpu_timing_test6/cpu_timing_test.nes");
     uint16_t passedPC = 0xe1b7;
@@ -383,6 +401,8 @@ void runCPUTests(CPU& cpu) {
     runIndividualTest(cpu, "2.Backward_Branch.nes", branchDir, 0xe4f0, 1, 0xf8);
     runIndividualTest(cpu, "3.Forward_Branch.nes", branchDir, 0xe4f0, 1, 0xf8);
 }
+
+// Runs tests that are focused on the PPU
 
 void runPPUTests(CPU& cpu) {
     std::string nmiDir1 = "vbl_nmi_timing/";
@@ -433,6 +453,9 @@ void runPPUTests(CPU& cpu) {
     runIndividualTest(cpu, "09-timing.nes", spriteHitDir2, 0xebd5, 0, prgRAMAddr);
     runIndividualTest(cpu, "10-timing_order.nes", spriteHitDir2, 0xead5, 0, prgRAMAddr);
 }
+
+// Runs an individual .NES test until the CPU reaches the specified PC to stop at, then compares the
+// test result with the known passed value to determine whether the test passed or not
 
 void runIndividualTest(CPU& cpu, const std::string& testName, const std::string& testDirectory,
         uint16_t stopPC, uint8_t passedTestResult, uint16_t testResultAddr) {
@@ -503,6 +526,7 @@ void runNESGame(CPU& cpu, const std::string& filename) {
             cpu.step(renderer, texture);
         }
 
+        // Listen for keypresses and pass them off to the I/O class
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_KEYDOWN:

@@ -44,9 +44,11 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
         op.pc = pc;
 
         // If any interrupts are flagged, start the interrupt prologue. Ignore IRQs if the Interrupt
-        // Disable flag is set
+        // Disable flag is set. Note that the BRK instruction bypasses this by setting
+        // interruptPrologue in its function
         if ((op.irq && !areInterruptsDisabled()) || op.nmi || op.reset) {
             op.interruptPrologue = true;
+        // Otherwise, read in the first byte of the instruction and start it as the next operation
         } else {
             op.inst = read(pc);
             op.opcode = op.inst;
@@ -88,7 +90,7 @@ void CPU::readInINES(const std::string& filename) {
     // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInINES(filename, ppu);
     if (filename == "test/nestest/nestest.nes") {
-        // Use the start PC for an automated run of nestest.nes
+        // Use this start PC for an automated run of nestest.nes
         pc = 0xc000;
     } else {
         // In all other cases, initialize PC to the reset vector
@@ -487,6 +489,10 @@ void CPU::imp() {
         case 0:
             op.addrMode = CPUOp::Implied;
             ++pc;
+            // Polling for interrupts isn't done here because some implied instructions are 2 cycles
+            // long and others are longer. At this point, the operation function hasn't been called
+            // once yet for the current operation, so polling for interrupts can't be selectively
+            // done for certain instructions. Instead, polling is done in the operation functions
             break;
         case 1:
             op.modify = true;
@@ -826,12 +832,15 @@ void CPU::asl() {
         op.instType = CPUOp::RMWInst;
     }
 
+    // If the addressing mode is accumulator, then this operation only operates on the accumulator
+    // and doesn't read or write
     if (op.modify && op.addrMode == CPUOp::Accumulator) {
         setCarryFlag(a & Negative);
         a = a << 1;
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.done = true;
+    // Otherwise, this is a read-modify-write operation
     } else if (op.writeModified) {
         write(op.tempAddr, op.val);
         op.done = true;
@@ -859,6 +868,8 @@ void CPU::bcc() {
         }
     } else if (op.modify && !isCarry()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -873,6 +884,8 @@ void CPU::bcs() {
         }
     } else if (op.modify && isCarry()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -887,6 +900,8 @@ void CPU::beq() {
         }
     } else if (op.modify && isZero()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -912,6 +927,8 @@ void CPU::bmi() {
         }
     } else if (op.modify && isNegative()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -926,6 +943,8 @@ void CPU::bne() {
         }
     } else if (op.modify && !isZero()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -940,6 +959,8 @@ void CPU::bpl() {
         }
     } else if (op.modify && !isNegative()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -950,8 +971,8 @@ void CPU::brk() {
     } else if (op.cycle == 0) {
         op.irq = true;
         op.brk = true;
+        // Start the interrupt prologue regardless if the Interrupt Disable flag is set
         op.interruptPrologue = true;
-        prepareIRQ();
     }
 }
 
@@ -965,6 +986,8 @@ void CPU::bvc() {
         }
     } else if (op.modify && !isOverflow()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -979,6 +1002,8 @@ void CPU::bvs() {
         }
     } else if (op.modify && isOverflow()) {
         // Branch taken
+        // Polling for interrupts is only done when the page boundary is crossed, which is checked
+        // for in the relative addressing mode function
         pc = op.tempAddr;
     }
 }
@@ -1243,12 +1268,15 @@ void CPU::lsr() {
         op.instType = CPUOp::RMWInst;
     }
 
+    // If the addressing mode is accumulator, then this operation only operates on the accumulator
+    // and doesn't read or write
     if (op.modify && op.addrMode == CPUOp::Accumulator) {
         setCarryFlag(a & Carry);
         a = a >> 1;
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.done = true;
+    // Otherwise, this is a read-modify-write operation
     } else if (op.writeModified) {
         write(op.tempAddr, op.val);
         op.done = true;
@@ -1345,6 +1373,8 @@ void CPU::rol() {
         op.instType = CPUOp::RMWInst;
     }
 
+    // If the addressing mode is accumulator, then this operation only operates on the accumulator
+    // and doesn't read or write
     if (op.modify && op.addrMode == CPUOp::Accumulator) {
         uint8_t temp = a << 1;
         if (isCarry()) {
@@ -1355,6 +1385,7 @@ void CPU::rol() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.done = true;
+    // Otherwise, this is a read-modify-write operation
     } else if (op.writeModified) {
         write(op.tempAddr, op.val);
         op.done = true;
@@ -1376,6 +1407,8 @@ void CPU::ror() {
         op.instType = CPUOp::RMWInst;
     }
 
+    // If the addressing mode is accumulator, then this operation only operates on the accumulator
+    // and doesn't read or write
     if (op.modify && op.addrMode == CPUOp::Accumulator) {
         uint8_t temp = a >> 1;
         if (isCarry()) {
@@ -1386,6 +1419,7 @@ void CPU::ror() {
         updateZeroFlag(a);
         updateNegativeFlag(a);
         op.done = true;
+    // Otherwise, this is a read-modify-write operation
     } else if (op.writeModified) {
         write(op.tempAddr, op.val);
         op.done = true;
@@ -1715,6 +1749,7 @@ void CPU::prepareIRQ() {
     uint8_t temp;
     switch (op.cycle) {
         case 1:
+            // Increment the PC again because the BRK instruction is 2 bytes long
             if (op.brk) {
                 ++pc;
             }
@@ -1728,6 +1763,8 @@ void CPU::prepareIRQ() {
             ram.push(sp, temp, mute);
             break;
         case 4:
+            // This cycle is when the CPU decides which interrupt vector to take:
+            // https://www.nesdev.org/wiki/CPU_interrupts#Interrupt_hijacking
             pollInterrupts();
             if (op.reset) {
                 prepareReset();
@@ -1771,12 +1808,15 @@ void CPU::prepareNMI() {
             ram.push(sp, temp, mute);
             break;
         case 4:
+            // This cycle is when the CPU decides which interrupt vector to take:
+            // https://www.nesdev.org/wiki/CPU_interrupts#Interrupt_hijacking
             pollInterrupts();
             if (op.reset) {
                 prepareReset();
                 return;
             }
             temp = p;
+            // The Break flag is still set if the NMI interrupts a BRK instruction
             if (!op.brk) {
                 temp &= ~Break;
             }

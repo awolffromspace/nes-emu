@@ -121,11 +121,11 @@ void MMC::readInInst(const std::string& filename) {
 
         for (unsigned int i = 0; i < line.size(); ++i) {
             // Ignore comments and spaces
-            if (line.at(i) == '/' || line.at(i) == ' ') {
+            if (line[i] == '/' || line[i] == ' ' || line[i] == '\n') {
                 break;
             }
 
-            substring += line.at(i);
+            substring += line[i];
 
             // Every two characters in an instruction file represents a byte
             if (i % 2) {
