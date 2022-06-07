@@ -472,6 +472,7 @@ void PPU::setPixel(MMC& mmc) {
     }
 
     uint8_t paletteEntry = 0;
+    uint16_t mirroredV = getUpperMirrorAddr(v);
     // The palette is used as an index for retrieving the palette entry, which is associated with
     // RGB values
     if (spriteChosen && areSpritesShown() && (op.pixel > 7 || areSpritesLeftColShown())) {
@@ -484,7 +485,7 @@ void PPU::setPixel(MMC& mmc) {
         if (foundSprite && areSpritesShown()) {
             setSprite0Hit(*spriteIterator, bgPalette);
         }
-    } else if (!isRenderingEnabled() && v >= PALETTE_START && v <= PALETTE_END) {
+    } else if (!isRenderingEnabled() && mirroredV >= PALETTE_START && mirroredV <= PALETTE_END) {
         // Output the current VRAM address:
         // https://www.nesdev.org/wiki/PPU_palettes#The_background_palette_hack
         paletteEntry = readVRAM(v, mmc);
