@@ -16,7 +16,8 @@
 // PPU Operation
 // PPUOp holds more stateful, temporary data for the current operation (i.e., rendering the current
 // pixel of the current scanline), whereas the PPU class includes more general, broader actions,
-// such as fetching, evaluating sprites, rendering, and reading/writing
+// such as fetching, evaluating sprites, rendering, and reading/writing. This class is heavily
+// dependent on this timing: https://www.nesdev.org/wiki/PPU_rendering#Line-by-line_timing
 
 class PPUOp {
     public:
@@ -68,7 +69,11 @@ class PPUOp {
         unsigned int attributeQuadrant;
         // Set to true if the current frame is odd (flips between true/false each frame)
         bool oddFrame;
+        // If an NMI has occurred for the current frame. Can be reset by toggling bit 7 of PPUCTRL:
+        // https://www.nesdev.org/wiki/NMI#Operation
         bool nmiOccurred;
+        // If NMIs should be suppressed. This only used for the PPUSTATUS race condition:
+        // https://www.nesdev.org/wiki/PPU_frame_timing#VBL_Flag_Timing
         bool suppressNMI;
         // How many cycles the PPU has taken to render the current scanline (max 340)
         unsigned int cycle;
@@ -85,7 +90,6 @@ class PPUOp {
         void updateStatus();
 
         // Miscellaneous Functions
-        unsigned int getRenderLine() const;
         bool isRendering() const;
         bool canFetch() const;
         bool isFetchingBG() const;

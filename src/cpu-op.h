@@ -56,6 +56,7 @@ class CPUOp {
         bool writeModified;
         // If an IRQ or maskable interrupt was triggered
         bool irq;
+        // If a BRK instruction is being executed
         bool brk;
         // If an NMI or non-maskable interrupt was triggered
         bool nmi;

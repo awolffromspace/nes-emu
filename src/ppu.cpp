@@ -73,10 +73,13 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute
 
 uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
-    if (localAddr == 2) {
-        uint8_t val = registers[2];
-        registers[2] &= 0x7f;
+    if (localAddr == PPUSTATUS_INDEX) {
+        uint8_t val = registers[PPUSTATUS_INDEX];
+        // Reset the vblank flag and write toggle whenever PPUSTATUS is read from
+        registers[PPUSTATUS_INDEX] &= 0x7f;
         w = false;
+        // This if statement is for the PPUSTATUS race condition:
+        // https://www.nesdev.org/wiki/PPU_frame_timing#VBL_Flag_Timing
         if (op.cycle >= 1 && op.cycle <= 3 && op.scanline == 241) {
             op.suppressNMI = true;
             if (op.cycle >= 2) {
@@ -86,14 +89,14 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
         return val;
     // PPUDATA read buffer logic:
     // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
-    } else if (localAddr == 7) {
+    } else if (localAddr == PPUDATA_INDEX) {
         // If the v register is in not in the palette, then the read is buffered
-        if ((v & 0x3fff) < BG_PALETTE_START) {
-            registers[7] = ppuDataBuffer;
+        if ((v & 0x3fff) < PALETTE_START) {
+            registers[PPUDATA_INDEX] = ppuDataBuffer;
             ppuDataBuffer = readVRAM(v, mmc);
         // If the v register is in the palette, then the read is immediate
         } else {
-            registers[7] = readVRAM(v, mmc);
+            registers[PPUDATA_INDEX] = readVRAM(v, mmc);
             // Subtract by 0x1000 to stay in the nametable:
             // https://forums.nesdev.org/viewtopic.php?f=3&t=18627
             ppuDataBuffer = readVRAM(v - 0x1000, mmc);
@@ -110,26 +113,28 @@ uint8_t PPU::readRegister(uint16_t addr, MMC& mmc) {
 void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     uint16_t localAddr = getLocalRegisterAddr(addr);
     switch (localAddr) {
-        case 0:
+        case PPUCTRL_INDEX:
             setTempNametableSelect(val & 3);
-            if (isNMIEnabled() != (bool) (val & 0x80)) {
+            // If the NMI flag was toggled from 0 to 1 in PPUCTRL, then another NMI can occur
+            if (!isNMIEnabled() && (val & 0x80)) {
                 op.nmiOccurred = false;
             }
             break;
-        case 5:
+        case PPUSCROLL_INDEX:
             writePPUScroll(val);
             break;
-        case 6:
+        case PPUADDR_INDEX:
             writePPUAddr(val);
             break;
-        case 7:
+        case PPUDATA_INDEX:
             writeVRAM(v, val, mmc, mute);
             v += getPPUAddrInc();
     }
 
     if (addr == OAMDMA) {
         oamDMA = val;
-    } else if (localAddr != 2) {
+    // PPUSTATUS is read-only
+    } else if (localAddr != PPUSTATUS_INDEX) {
         registers[localAddr] = val;
     }
 }
@@ -143,6 +148,9 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 // Tells the CPU when it should enter an NMI
 
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
+    // Since the PPU runs after the CPU on each CPU cycle, the vblank flag isn't updated yet when
+    // the CPU polls for interrupts on the exact cycle that it changes. Those cycles are referred to
+    // explicitly here to handle those cases
     if (op.cycle == 1 && op.scanline == PRERENDER_LINE) {
         return false;
     }
@@ -175,9 +183,9 @@ void PPU::print(bool isCycleDone) const {
     std::cout << "Cycle " << totalCycles + inc << ": " << time
         << std::hex << "\n----------------------------\n"
         "PPU Fields\n----------------------------\n"
-        "registers[0]      = 0x" << (unsigned int) registers[0] << "\n"
-        "registers[1]      = 0x" << (unsigned int) registers[1] << "\n"
-        "registers[2]      = 0x" << (unsigned int) registers[2] << "\n"
+        "registers[PPUCTRL_INDEX]      = 0x" << (unsigned int) registers[PPUCTRL_INDEX] << "\n"
+        "registers[PPUMASK_INDEX]      = 0x" << (unsigned int) registers[PPUMASK_INDEX] << "\n"
+        "registers[PPUSTATUS_INDEX]      = 0x" << (unsigned int) registers[PPUSTATUS_INDEX] << "\n"
         "registers[3]      = 0x" << (unsigned int) registers[3] << "\n"
         "registers[4]      = 0x" << (unsigned int) registers[4] << "\n"
         "registers[5]      = 0x" << (unsigned int) registers[5] << "\n"
@@ -263,12 +271,18 @@ void PPU::fetch(MMC& mmc) {
     }
 }
 
+// Calculates the nametable address for the current tile row
+
 uint16_t PPU::getNametableAddr() const {
     unsigned int nametableBaseAddr = getNametableSelectAddr();
+    // Coarse X scroll is like an x-coordinate in terms of tiles
     unsigned int coarseXScroll = getCoarseXScroll();
+    // Coarse Y scroll is like a y-coordinate in terms of tiles
     unsigned int coarseYScroll = getCoarseYScroll();
     return nametableBaseAddr + coarseXScroll + coarseYScroll * TILES_PER_ROW;
 }
+
+// Returns the base nametable address for the current tile row
 
 uint16_t PPU::getNametableSelectAddr() const {
     unsigned int nametableSelect = getNametableSelect();
@@ -289,20 +303,31 @@ uint16_t PPU::getNametableSelectAddr() const {
     return nametableBaseAddr;
 }
 
+// Updates both the attribute table address and attribute quadrant once the nametable address is
+// known
+
 void PPU::updateAttribute() {
     unsigned int nametableBaseAddr = getNametableSelectAddr();
-    unsigned int xTile = (op.nametableAddr - nametableBaseAddr) % TILES_PER_ROW;
-    unsigned int yTile = (op.nametableAddr - nametableBaseAddr) / TILES_PER_ROW;
-    unsigned int xAttribute = xTile / 4;
-    unsigned int yAttribute = yTile / 4;
-    op.attributeAddr = nametableBaseAddr + ATTRIBUTE_OFFSET + xAttribute + yAttribute * 8;
+    // Coarse X scroll is like an x-coordinate in terms of tiles
+    unsigned int coarseXScroll = getCoarseXScroll();
+    // Coarse Y scroll is like a y-coordinate in terms of tiles
+    unsigned int coarseYScroll = getCoarseYScroll();
+    // Divide by 4 because each attribute table is 4x4 tiles
+    unsigned int xAttribute = coarseXScroll / 4;
+    unsigned int yAttribute = coarseYScroll / 4;
+    op.attributeAddr = nametableBaseAddr + ATTRIBUTE_OFFSET + xAttribute + yAttribute *
+        TILES_PER_ROW / 4;
 
     bool right = false;
     bool bottom = false;
-    if (op.nametableAddr & 2) {
+    // The first 2 tiles / nametable addresses out of the 4 tiles are on the left side of the
+    // attribute entry, while the last 2 are on the right
+    if (coarseXScroll & 2) {
         right = true;
     }
-    if (yTile & 2) {
+    // Likewise, the first 2 tiles from the top are on the top side, while the last 2 are on the
+    // bottom
+    if (coarseYScroll & 2) {
         bottom = true;
     }
 
@@ -338,8 +363,7 @@ void PPU::fetchSpriteEntry(MMC& mmc) {
     }
 
     uint16_t addr = basePatternAddr + tileIndexNum * patternEntriesPerSprite;
-    unsigned int renderLine = op.getRenderLine();
-    unsigned int tileRowIndex = sprite.getTileRowIndex(renderLine, spriteHeight);
+    unsigned int tileRowIndex = sprite.getTileRowIndex(op.scanline, spriteHeight);
     addr += tileRowIndex;
     if (op.status == PPUOp::FetchSpriteEntryLo) {
         sprite.patternEntryLo = readVRAM(addr, mmc);
@@ -378,14 +402,13 @@ void PPU::evaluateSprites() {
 
     // Write to secondary OAM on even cycles
     Sprite sprite(op.oamEntry, op.spriteNum);
-    unsigned int renderLine = op.getRenderLine();
     unsigned int spriteHeight = getSpriteHeight();
     unsigned int foundSpriteNum = op.nextSprites.size();
     switch (op.oamEntryNum) {
         case 0:
             // If the sprite is in range of the current scanline, add it to the list and start
             // collecting the remaining data for it. Otherwise, move on to the next sprite
-            if (sprite.isYInRange(renderLine, spriteHeight)) {
+            if (sprite.isYInRange(op.scanline, spriteHeight)) {
                 secondaryOAM[foundSpriteNum * 4 + op.oamEntryNum] = op.oamEntry;
                 op.nextSprites.push_back(sprite);
                 ++op.oamEntryNum;
@@ -457,14 +480,18 @@ void PPU::setPixel(MMC& mmc) {
         setSprite0Hit(*spriteIterator, bgPalette);
     } else if (isBGShown() && (op.pixel > 7 || isBGLeftColShown())) {
         // Output the background pixel
-        paletteEntry = readVRAM(BG_PALETTE_START + bgPalette, mmc);
+        paletteEntry = readVRAM(PALETTE_START + bgPalette, mmc);
         if (foundSprite && areSpritesShown()) {
             setSprite0Hit(*spriteIterator, bgPalette);
         }
+    } else if (!isRenderingEnabled() && !isVblank() && v >= PALETTE_START && v <= PALETTE_END) {
+        // Output the current VRAM address:
+        // https://www.nesdev.org/wiki/PPU_palettes#The_background_palette_hack
+        paletteEntry = readVRAM(v, mmc);
     } else {
         // Output the universal background color:
         // https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
-        paletteEntry = readVRAM(BG_PALETTE_START, mmc);
+        paletteEntry = readVRAM(PALETTE_START, mmc);
     }
     setRGB(paletteEntry);
 }
@@ -475,17 +502,16 @@ void PPU::setPixel(MMC& mmc) {
 void PPU::setSprite0Hit(const Sprite& sprite, uint8_t bgPalette) {
     if (sprite.spriteNum == 0 && bgPalette && isBGShown() && op.pixel != 255 &&
             (op.pixel > 7 || (isBGLeftColShown() && areSpritesLeftColShown()))) {
-        registers[2] |= 0x40;
+        registers[PPUSTATUS_INDEX] |= 0x40;
     }
 }
 
 // Sets the current pixel's RGB values in the frame
 
 void PPU::setRGB(uint8_t paletteEntry) {
-    unsigned int renderLine = op.getRenderLine();
     // Each 4 bytes in the frame is a pixel. The first byte is the blue value, the second is the
     // green value, the third is the red value, and the fourth is the opacity
-    unsigned int blueIndex = (op.pixel + renderLine * FRAME_WIDTH) * 4;
+    unsigned int blueIndex = (op.pixel + op.scanline * FRAME_WIDTH) * 4;
     unsigned int greenIndex = blueIndex + 1;
     unsigned int redIndex = blueIndex + 2;
     frame[redIndex] = palette[paletteEntry].red;
@@ -509,17 +535,28 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
     }
 }
 
+// Updates the current scrolling position in the v register if necessary
+
 void PPU::updateScroll() {
+    // The high byte of the pattern entry is the last fetch of the tile row, so coarse X scroll can
+    // be incremented to the next tile if that was the last fetch
     if (op.status == PPUOp::FetchPatternEntryHi && op.canFetch()) {
         incrementCoarseXScroll();
     }
 
+    // The following cycles are from this timing diagram:
+    // https://www.nesdev.org/w/images/default/d/d1/Ntsc_timing.png
+    // If the cycle is 256 or 257, all tile rows are done being fetched for the current scanline and
+    // it is safe to make updates
     if (op.cycle == 256 && op.scanline <= LAST_RENDER_LINE) {
         incrementYScroll();
     } else if (op.cycle == 257 && (op.scanline <= LAST_RENDER_LINE ||
             op.scanline == PRERENDER_LINE)) {
+        // Reset the horizontal scrolling position to the left side
         setCoarseXScroll(getTempCoarseXScroll());
         resetHorizontalNametable();
+    // If the scanline is the pre-render line, then all tiles are done being fetched and it is time
+    // to reset the vertical scrolling position
     } else if (op.cycle >= 280 && op.cycle <= 304 && op.scanline == PRERENDER_LINE) {
         setCoarseYScroll(getTempCoarseYScroll());
         setFineYScroll(getTempFineYScroll());
@@ -532,7 +569,9 @@ void PPU::updateScroll() {
 
 void PPU::incrementCoarseXScroll() {
     unsigned int coarseXScroll = getCoarseXScroll();
-    if (coarseXScroll == 31) {
+    // The scrolling positions start at 0, so the total tiles per row in a frame is subtracted by 1
+    if (coarseXScroll == TILES_PER_ROW - 1) {
+        // Handle wraparound
         setCoarseXScroll(0);
         switchHorizontalNametable();
     } else {
@@ -545,22 +584,32 @@ void PPU::incrementCoarseXScroll() {
 
 void PPU::incrementYScroll() {
     unsigned int fineYScroll = getFineYScroll();
-    if (fineYScroll < 7) {
-        setFineYScroll(fineYScroll + 1);
-    } else {
+    // The scrolling positions start at 0, so the total pixels per tile is subtracted by 1
+    if (fineYScroll == PIXELS_PER_TILE - 1) {
+        // Handle wraparound for inside the tile
         setFineYScroll(0);
 
         unsigned int coarseYScroll = getCoarseYScroll();
-        if (coarseYScroll == 29) {
+        // The scrolling positions start at 0, so the total tiles per row in a frame is subtracted
+        // by 1
+        if (coarseYScroll == TILES_PER_COLUMN - 1) {
+            // Handle wraparound
             setCoarseYScroll(0);
             switchVerticalNametable();
-        } else if (coarseYScroll == 31) {
+        // If coarse Y scroll is 31, then it wraps around to 0 without switching the nametable
+        } else if (coarseYScroll == TILES_PER_ROW - 1) {
             setCoarseYScroll(0);
         } else {
             setCoarseYScroll(coarseYScroll + 1);
         }
+    } else {
+        setFineYScroll(fineYScroll + 1);
     }
 }
+
+// Switches the nametable from left to right or vice versa:
+// https://www.nesdev.org/wiki/PPU_nametables. Nametable 0 is top left, 1 is top right, 2 is bottom
+// left, and 3 is bottom right
 
 void PPU::switchHorizontalNametable() {
     unsigned int nametableSelect = getNametableSelect();
@@ -571,6 +620,10 @@ void PPU::switchHorizontalNametable() {
     }
 }
 
+// Switches the nametable from top to bottom or vice versa:
+// https://www.nesdev.org/wiki/PPU_nametables. Nametable 0 is top left, 1 is top right, 2 is bottom
+// left, and 3 is bottom right
+
 void PPU::switchVerticalNametable() {
     unsigned int nametableSelect = getNametableSelect();
     if (nametableSelect == 0 || nametableSelect == 1) {
@@ -580,25 +633,43 @@ void PPU::switchVerticalNametable() {
     }
 }
 
+// Resets the nametable to horizontal position of the t register (the top left corner of the frame)
+// without losing the current vertical position: https://www.nesdev.org/wiki/PPU_nametables.
+// Nametable 0 is top left, 1 is top right, 2 is bottom left, and 3 is bottom right
+
 void PPU::resetHorizontalNametable() {
     unsigned int nametableSelect = getNametableSelect();
     unsigned int tempNametableSelect = getTempNametableSelect();
+    // If the nametable in v is either of the bottom nametables and the nametable in t is either of
+    // the top nametables, reset to the nametable directly below t's nametable
     if (nametableSelect >= 2 && tempNametableSelect <= 1) {
         setNametableSelect(tempNametableSelect + 2);
+    // If the nametable in v is either of the top nametables and the nametable in t is either of the
+    // bottom nametables, reset to the nametable directly above t's nametable (as if it wrapped
+    // around)
     } else if (nametableSelect <= 1 && tempNametableSelect >= 2) {
         setNametableSelect(tempNametableSelect - 2);
+    // If both of the above cases are false, the vertical position of v's nametable is the same as
+    // t's nametable, so v can reset to t's nametable
     } else {
         setNametableSelect(tempNametableSelect);
     }
 }
 
+// Sets the vblank flag when vblank starts, and clears the vblank flag and sprite 0 hit flag before
+// rendering starts. This function is only called on cycle 1 as shown in this diagram:
+// https://www.nesdev.org/w/images/default/d/d1/Ntsc_timing.png
+
 void PPU::updatePPUStatus(MMC& mmc) {
     if (op.scanline == 241 && !op.suppressNMI) {
-        registers[2] |= 0x80;
+        registers[PPUSTATUS_INDEX] |= 0x80;
     } else if (op.scanline == PRERENDER_LINE) {
-        registers[2] &= 0x3f;
+        registers[PPUSTATUS_INDEX] &= 0x3f;
     }
 }
+
+// Retrieves the new position of the top left corner of the frame from the CPU and stores it in the
+// t register: https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
 
 void PPU::writePPUScroll(uint8_t val) {
     if (w) {
@@ -612,6 +683,9 @@ void PPU::writePPUScroll(uint8_t val) {
     }
 }
 
+// Gets the high and low bytes of the VRAM address from the CPU and eventually stores it in the v
+// register: https://www.nesdev.org/wiki/PPU_registers#Address_($2006)_%3E%3E_write_x2
+
 void PPU::writePPUAddr(uint8_t val) {
     if (w) {
         t &= 0xff00;
@@ -620,7 +694,7 @@ void PPU::writePPUAddr(uint8_t val) {
         w = false;
     } else {
         t &= 0xff;
-        t |= (val & 0x3f) << 8;
+        t |= (val & 0x7f) << 8;
         w = true;
     }
 }
@@ -658,20 +732,26 @@ void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     }
 }
 
+// Maps the CPU address to the PPU's local field, registers
+
 uint16_t PPU::getLocalRegisterAddr(uint16_t addr) const {
     // Addresses $2008 - $3fff in the CPU memory map are mirrors of $2000 - $2007, so only the lower
     // 7 bits are needed
     return addr & 7;
 }
 
+// Maps the PPU/VRAM address to the PPU's local field, vram
+
 uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
     addr = getUpperMirrorAddr(addr);
-    if (addr >= BG_PALETTE_START) {
+    if (addr >= PALETTE_START) {
         addr &= 0x3f1f;
-        if (addr % 4 == 0 && isRead) {
-            addr = BG_PALETTE_START;
-        } else if (addr == 0x3f10 && !isRead) {
-            addr = BG_PALETTE_START;
+        if (addr % 4 == 0) {
+            if (isRead) {
+                addr = PALETTE_START;
+            } else if (addr >= 0x3f10 && addr <= 0x3f1c && !isRead) {
+                addr &= 0xffef;
+            }
         }
         addr -= 0x1700;
     } else if (addr >= NAMETABLE0_START) {
@@ -756,7 +836,7 @@ uint16_t PPU::getSingle1MirrorAddr(uint16_t addr) const {
 }
 
 uint16_t PPU::getNametableBaseAddr() const {
-    uint8_t flag = registers[0] & 3;
+    uint8_t flag = registers[PPUCTRL_INDEX] & 3;
     switch (flag) {
         case 0:
             return NAMETABLE0_START;
@@ -769,7 +849,7 @@ uint16_t PPU::getNametableBaseAddr() const {
 }
 
 unsigned int PPU::getPPUAddrInc() const {
-    uint8_t flag = registers[0] & 4;
+    uint8_t flag = registers[PPUCTRL_INDEX] & 4;
     if (flag) {
         return 0x20;
     }
@@ -777,7 +857,7 @@ unsigned int PPU::getPPUAddrInc() const {
 }
 
 uint16_t PPU::getSpritePatternAddr() const {
-    uint8_t flag = registers[0] & 8;
+    uint8_t flag = registers[PPUCTRL_INDEX] & 8;
     if (flag) {
         return 0x1000;
     }
@@ -785,7 +865,7 @@ uint16_t PPU::getSpritePatternAddr() const {
 }
 
 uint16_t PPU::getBGPatternAddr() const {
-    uint8_t flag = registers[0] & 0x10;
+    uint8_t flag = registers[PPUCTRL_INDEX] & 0x10;
     if (flag) {
         return 0x1000;
     }
@@ -793,7 +873,7 @@ uint16_t PPU::getBGPatternAddr() const {
 }
 
 unsigned int PPU::getSpriteHeight() const {
-    uint8_t flag = registers[0] & 0x20;
+    uint8_t flag = registers[PPUCTRL_INDEX] & 0x20;
     if (flag) {
         return 16;
     }
@@ -801,31 +881,31 @@ unsigned int PPU::getSpriteHeight() const {
 }
 
 bool PPU::isColorOutputOnEXT() const {
-    return registers[0] & 0x40;
+    return registers[PPUCTRL_INDEX] & 0x40;
 }
 
 bool PPU::isNMIEnabled() const {
-    return registers[0] & 0x80;
+    return registers[PPUCTRL_INDEX] & 0x80;
 }
 
 bool PPU::isGrayscale() const {
-    return registers[1] & 1;
+    return registers[PPUMASK_INDEX] & 1;
 }
 
 bool PPU::isBGLeftColShown() const {
-    return registers[1] & 2;
+    return registers[PPUMASK_INDEX] & 2;
 }
 
 bool PPU::areSpritesLeftColShown() const {
-    return registers[1] & 4;
+    return registers[PPUMASK_INDEX] & 4;
 }
 
 bool PPU::isBGShown() const {
-    return registers[1] & 8;
+    return registers[PPUMASK_INDEX] & 8;
 }
 
 bool PPU::areSpritesShown() const {
-    return registers[1] & 0x10;
+    return registers[PPUMASK_INDEX] & 0x10;
 }
 
 bool PPU::isRenderingEnabled() const {
@@ -833,27 +913,27 @@ bool PPU::isRenderingEnabled() const {
 }
 
 bool PPU::isRedEmphasized() const {
-    return registers[1] & 0x20;
+    return registers[PPUMASK_INDEX] & 0x20;
 }
 
 bool PPU::isGreenEmphasized() const {
-    return registers[1] & 0x40;
+    return registers[PPUMASK_INDEX] & 0x40;
 }
 
 bool PPU::isBlueEmphasized() const {
-    return registers[1] & 0x80;
+    return registers[PPUMASK_INDEX] & 0x80;
 }
 
 bool PPU::isSpriteOverflow() const {
-    return registers[2] & 0x20;
+    return registers[PPUSTATUS_INDEX] & 0x20;
 }
 
 bool PPU::isSpriteZeroHit() const {
-    return registers[2] & 0x40;
+    return registers[PPUSTATUS_INDEX] & 0x40;
 }
 
 bool PPU::isVblank() const {
-    return registers[2] & 0x80;
+    return registers[PPUSTATUS_INDEX] & 0x80;
 }
 
 unsigned int PPU::getCoarseXScroll() const {
