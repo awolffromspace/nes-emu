@@ -750,7 +750,7 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
         if (addr % 4 == 0) {
             if (isRead) {
                 addr = PALETTE_START;
-            } else if (addr >= 0x3f10 && addr <= 0x3f1c && !isRead) {
+            } else if (addr >= 0x3f10 && !isRead) {
                 addr &= 0xffef;
             }
         }
