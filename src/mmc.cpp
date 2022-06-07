@@ -208,7 +208,7 @@ void MMC::readInINES(const std::string& filename, PPU& ppu) {
 
     if (chrMemorySize == 0) {
         chrRAM = true;
-        chrMemory.resize(DEFAULT_CHR_BANK_SIZE * 32);
+        chrMemory.resize(DEFAULT_CHR_BANK_SIZE * 64 * 2);
     }
 }
 

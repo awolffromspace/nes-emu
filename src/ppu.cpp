@@ -817,6 +817,12 @@ uint16_t PPU::getUpperMirrorAddr(uint16_t addr) const {
     return addr & 0x3fff;
 }
 
+// Shifts the address ranges so that nametable 0 and attribute table 0 ($2000 - $23ff) as well as
+// nametable 1 and attribute table 1 ($2400 - $27ff) refer to the first nametable ($2000 - $23ff),
+// while nametable 2 and attribute table 2 ($2800 - $2bff) as well as nametable 3 and attribute
+// table 3 ($2c00 - $2fff) refer to the second nametable ($2400 - $27ff)
+// https://www.nesdev.org/wiki/Mirroring#Horizontal
+
 uint16_t PPU::getHorizontalMirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
@@ -828,6 +834,12 @@ uint16_t PPU::getHorizontalMirrorAddr(uint16_t addr) const {
     return addr;
 }
 
+// Shifts the address ranges so that nametable 0 and attribute table 0 ($2000 - $23ff) as well as
+// nametable 2 and attribute table 2 ($2800 - $2bff) refer to the first nametable ($2000 - $23ff),
+// while nametable 1 and attribute table 1 ($2400 - $27ff) as well as nametable 3 and attribute
+// table 3 ($2c00 - $2fff) refer to the second nametable ($2400 - $27ff)
+// https://www.nesdev.org/wiki/Mirroring#Vertical
+
 uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
         addr -= 0x800;
@@ -836,6 +848,12 @@ uint16_t PPU::getVerticalMirrorAddr(uint16_t addr) const {
     }
     return addr;
 }
+
+// Shifts the address ranges so that nametable 0 and attribute table 0 ($2000 - $23ff), nametable 1
+// and attribute table 1 ($2400 - $27ff), nametable 2 and attribute table 2 ($2800 - $2bff), and
+// nametable 3 and attribute table 3 ($2c00 - $2fff) all refer to the first nametable ($2000 -
+// $23ff)
+// https://www.nesdev.org/wiki/Mirroring#Single-Screen
 
 uint16_t PPU::getSingle0MirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
@@ -847,6 +865,12 @@ uint16_t PPU::getSingle0MirrorAddr(uint16_t addr) const {
     }
     return addr;
 }
+
+// Shifts the address ranges so that nametable 0 and attribute table 0 ($2000 - $23ff), nametable 1
+// and attribute table 1 ($2400 - $27ff), nametable 2 and attribute table 2 ($2800 - $2bff), and
+// nametable 3 and attribute table 3 ($2c00 - $2fff) all refer to the second nametable ($2400 -
+// $27ff)
+// https://www.nesdev.org/wiki/Mirroring#Single-Screen
 
 uint16_t PPU::getSingle1MirrorAddr(uint16_t addr) const {
     if (addr >= NAMETABLE3_START) {
@@ -1031,6 +1055,9 @@ void PPU::setTempFineYScroll(unsigned int val) {
     t &= 0xfff;
     t |= (val & 7) << 12;
 }
+
+// Initializes the palette with interpreted RGB values that correspond to the given palette entry
+// (the array indices). These RGB values were taken from: https://www.nesdev.com/NESDoc.pdf
 
 void PPU::initializePalette() {
     palette[0x00] = {0x75, 0x75, 0x75};

@@ -62,17 +62,31 @@ class MMC {
         unsigned int prgROMSize;
         // Number of CHR banks
         unsigned int chrMemorySize;
+        // Which nametable mirroring to use: https://www.nesdev.org/wiki/Mirroring. Depends on enum
+        // Mirroring
         unsigned int mirroring;
         // Mapper ID: https://www.nesdev.org/wiki/Mapper
         unsigned int mapperID;
+        // Shift register for MMC1: https://www.nesdev.org/wiki/MMC1#Registers
         uint8_t shiftRegister;
+        // PRG bank mode that specifies settings for the PRG banks, such as the size of a bank and
+        // which banks to switch. Has a different meaning depending what the mapper ID is
         unsigned int prgBankMode;
+        // CHR bank mode that specifies settings for the CHR banks, such as the size of a bank and
+        // which banks to switch. Has a different meaning depending what the mapper ID is
         unsigned int chrBankMode;
+        // The PRG bank that is currently swapped in
         unsigned int prgBank;
+        // The first CHR bank that is currently swapped in
         unsigned int chrBank0;
+        // The second CHR bank that is currently swapped in
         unsigned int chrBank1;
+        // Set to true if CHR-RAM is enabled. This happens when the CHR-ROM has no size specified in
+        // the .NES file
         bool chrRAM;
+        // The last cycle that the CPU wrote to the MMC on
         unsigned int lastWriteCycle;
+        // Set to true for instruction tests, which allows them to write to the PRG-ROM
         bool testMode;
 
         unsigned int getLocalPRGAddr(unsigned int addr) const;
