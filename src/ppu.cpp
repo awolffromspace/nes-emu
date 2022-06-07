@@ -321,11 +321,11 @@ void PPU::updateAttribute() {
     bool right = false;
     bool bottom = false;
     // The first 2 tiles / nametable addresses out of the 4 tiles are on the left side of the
-    // attribute entry, while the last 2 are on the right
+    // attribute entry, while the last two are on the right
     if (coarseXScroll & 2) {
         right = true;
     }
-    // Likewise, the first 2 tiles from the top are on the top side, while the last 2 are on the
+    // Likewise, the first 2 tiles from the top are on the top side, while the last two are on the
     // bottom
     if (coarseYScroll & 2) {
         bottom = true;
@@ -642,11 +642,11 @@ void PPU::resetHorizontalNametable() {
     unsigned int nametableSelect = getNametableSelect();
     unsigned int tempNametableSelect = getTempNametableSelect();
     // If the nametable in v is either of the bottom nametables and the nametable in t is either of
-    // the top nametables, reset to the nametable directly below t's nametable
+    // the top nametables, reset v to the nametable directly below t's nametable
     if (nametableSelect >= 2 && tempNametableSelect <= 1) {
         setNametableSelect(tempNametableSelect + 2);
     // If the nametable in v is either of the top nametables and the nametable in t is either of the
-    // bottom nametables, reset to the nametable directly above t's nametable (as if it wrapped
+    // bottom nametables, reset v to the nametable directly above t's nametable (as if it wrapped
     // around)
     } else if (nametableSelect <= 1 && tempNametableSelect >= 2) {
         setNametableSelect(tempNametableSelect - 2);
@@ -700,6 +700,9 @@ void PPU::writePPUAddr(uint8_t val) {
     }
 }
 
+// Handles VRAM reads by both the CPU and PPU, deals with mirrored address ranges, and checks when
+// to send the read request to the MMC if the address is in the pattern table ($0000 - $1fff)
+
 uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
     uint16_t upperMirrorAddr = getUpperMirrorAddr(addr);
     addr = getLocalVRAMAddr(addr, mmc, true);
@@ -712,6 +715,9 @@ uint8_t PPU::readVRAM(uint16_t addr, MMC& mmc) const {
     }
     return vram[addr];
 }
+
+// Handles VRAM writes by both the CPU and PPU, deals with mirrored address ranges, and checks when
+// to send the write request to the MMC if the address is in the pattern table ($0000 - $1fff)
 
 void PPU::writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     if (!mute) {
@@ -746,20 +752,32 @@ uint16_t PPU::getLocalRegisterAddr(uint16_t addr) const {
 uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
     addr = getUpperMirrorAddr(addr);
     if (addr >= PALETTE_START) {
+        // Addresses $3f20 - $3fff are mirrors of $3f00 - $3f1f
         addr &= 0x3f1f;
         if (addr % 4 == 0) {
-            if (isRead) {
-                addr = PALETTE_START;
-            } else if (addr >= 0x3f10 && !isRead) {
+            // Addresses $3f10, $3f14, $3f18, and $3f1c are mirrors of $3f00, $3f04, $3f08, and
+            // $3f0c, respectively: https://www.nesdev.org/wiki/PPU_palettes#Memory_Map
+            if (addr >= 0x3f10) {
                 addr &= 0xffef;
             }
+            // Every fourth address ($3f04, $3f08, etc.) is a mirror of the universal background
+            // color ($3f00) while rendering. However, this isn't the case when rendering is
+            // disabled: https://www.nesdev.org/wiki/PPU_palettes#The_background_palette_hack
+            if (isRead && isRenderingEnabled()) {
+                addr = PALETTE_START;
+            }
         }
+        // The PPU only stores 2 nametables while the other two are mirrored or on the
+        // cartridge/MMC. Since only 2 nametables are actually being stored, the palette address is
+        // subtracted by 0x1700 to reduce it to where the third nametable is, ensuring that the
+        // palette data starts immediately after the two nametables in the vram field
         addr -= 0x1700;
     } else if (addr >= NAMETABLE0_START) {
-        if (addr >= 0x3000) {
-            addr &= 0x2fff;
-        }
+        // Addresses $3000 - $3eff are mirrors are $2000 - $2eff
+        addr &= 0x2fff;
 
+        // Nametable-specific mirroring is now handled here depending on which mirroring is chosen
+        // by the cartridge/MMC
         switch (mmc.getMirroring()) {
             case MMC::Horizontal:
                 addr = getHorizontalMirrorAddr(addr);
@@ -773,6 +791,8 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
             case MMC::SingleScreen1:
                 addr = getSingle1MirrorAddr(addr);
                 break;
+            // The following types of mirroring require mappers that haven't been impelemented yet,
+            // which store 1 or 2 nametables on the cartridge/MMC
             case MMC::SingleScreen2:
                 std::cerr << "Single-screen 2 mirroring is not implemented\n";
                 exit(1);
@@ -784,6 +804,9 @@ uint16_t PPU::getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const {
                 exit(1);
         }
     }
+    // Lastly, the address is subtracted by 0x2000 because the address range $0000 - $1fff is in the
+    // cartridge/MMC, so the first nametable can start at the very beginning of the vram field
+    // instead
     return addr - 0x2000;
 }
 
