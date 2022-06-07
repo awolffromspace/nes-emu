@@ -183,9 +183,9 @@ void PPU::print(bool isCycleDone) const {
     std::cout << "Cycle " << totalCycles + inc << ": " << time
         << std::hex << "\n----------------------------\n"
         "PPU Fields\n----------------------------\n"
-        "registers[PPUCTRL_INDEX]      = 0x" << (unsigned int) registers[PPUCTRL_INDEX] << "\n"
-        "registers[PPUMASK_INDEX]      = 0x" << (unsigned int) registers[PPUMASK_INDEX] << "\n"
-        "registers[PPUSTATUS_INDEX]      = 0x" << (unsigned int) registers[PPUSTATUS_INDEX] << "\n"
+        "registers[0]      = 0x" << (unsigned int) registers[0] << "\n"
+        "registers[1]      = 0x" << (unsigned int) registers[1] << "\n"
+        "registers[2]      = 0x" << (unsigned int) registers[2] << "\n"
         "registers[3]      = 0x" << (unsigned int) registers[3] << "\n"
         "registers[4]      = 0x" << (unsigned int) registers[4] << "\n"
         "registers[5]      = 0x" << (unsigned int) registers[5] << "\n"
