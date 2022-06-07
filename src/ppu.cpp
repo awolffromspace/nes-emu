@@ -484,7 +484,7 @@ void PPU::setPixel(MMC& mmc) {
         if (foundSprite && areSpritesShown()) {
             setSprite0Hit(*spriteIterator, bgPalette);
         }
-    } else if (!isRenderingEnabled() && !isVblank() && v >= PALETTE_START && v <= PALETTE_END) {
+    } else if (!isRenderingEnabled() && v >= PALETTE_START && v <= PALETTE_END) {
         // Output the current VRAM address:
         // https://www.nesdev.org/wiki/PPU_palettes#The_background_palette_hack
         paletteEntry = readVRAM(v, mmc);
