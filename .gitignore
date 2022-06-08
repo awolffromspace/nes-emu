@@ -1,4 +1,3 @@
 nes-emu
 roms
-roms/*
 src/*.o
