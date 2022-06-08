@@ -72,6 +72,7 @@ Run the debugger on an .NES file:
 - [x] custom instruction tests
 - [x] nestest
 - [x] instr_test-v5 (official_only)
+- [x] cpu_timing_test6
 - [x] branch_timing_tests
 - [x] vbl_nmi_timing
 - [ ] ppu_vbl_nmi (passes all but 07-nmi_on_timing and 10-even_odd_timing)
