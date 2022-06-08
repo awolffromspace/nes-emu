@@ -65,9 +65,9 @@ class MMC {
         // Which nametable mirroring to use: https://www.nesdev.org/wiki/Mirroring. Depends on enum
         // Mirroring
         unsigned int mirroring;
-        // Mapper ID: https://www.nesdev.org/wiki/Mapper
+        // Mapper ID which is the type of MMC: https://www.nesdev.org/wiki/Mapper
         unsigned int mapperID;
-        // Shift register for MMC1: https://www.nesdev.org/wiki/MMC1#Registers
+        // 5-bit shift register for MMC1: https://www.nesdev.org/wiki/MMC1#Registers
         uint8_t shiftRegister;
         // PRG bank mode that specifies settings for the PRG banks, such as the size of a bank and
         // which banks to switch. Has a different meaning depending what the mapper ID is
@@ -96,6 +96,7 @@ class MMC {
         unsigned int getMapper1CHRAddr(unsigned int addr) const;
         void writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles);
         void updateSettings(uint16_t addr);
+        void expandCHRMemory(unsigned int selectedCHRBank);
 };
 
 #endif
