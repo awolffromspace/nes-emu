@@ -393,6 +393,7 @@ void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycle
 // https://www.nesdev.org/wiki/MMC1#Registers
 
 void MMC::updateSettings(uint16_t addr) {
+    // The address of the fifth write determines which settings are updated
     if (addr < 0xa000) {
         unsigned int mirrorVal = shiftRegister & 3;
         switch (mirrorVal) {
@@ -419,6 +420,7 @@ void MMC::updateSettings(uint16_t addr) {
     } else {
         prgBank = shiftRegister & 0xf;
     }
+    // Reset shift register to its default value
     shiftRegister = 0x10;
 }
 
