@@ -428,5 +428,6 @@ void MMC::updateSettings(uint16_t addr) {
 void MMC::expandCHRMemory(unsigned int selectedCHRBank) {
     if (chrRAM && selectedCHRBank >= chrMemorySize) {
         chrMemory.resize((selectedCHRBank + 1) * 2);
+        chrMemorySize = selectedCHRBank + 1;
     }
 }
