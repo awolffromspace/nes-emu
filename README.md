@@ -75,7 +75,7 @@ Run the debugger on an .NES file:
 - [x] cpu_timing_test6
 - [x] branch_timing_tests
 - [x] vbl_nmi_timing
-- [ ] ppu_vbl_nmi (passes all but 07-nmi_on_timing and 10-even_odd_timing)
+- [x] ppu_vbl_nmi
 - [x] sprite_hit_tests_2005.10.05
 - [ ] ppu_sprite_hit (passes all but 09-timing)
 
