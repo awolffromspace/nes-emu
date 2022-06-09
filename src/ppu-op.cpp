@@ -18,6 +18,7 @@ PPUOp::PPUOp() :
         oddFrame(false),
         nmiOccurred(false),
         suppressNMI(false),
+        forceNMI(false),
         cycle(0),
         status(0) { }
 
@@ -40,6 +41,7 @@ void PPUOp::clear() {
     oddFrame = false;
     nmiOccurred = false;
     suppressNMI = false;
+    forceNMI = false;
     cycle = 0;
     status = 0;
 }
@@ -142,12 +144,18 @@ void PPUOp::prepNextCycle() {
         nextSprites.clear();
     }
 
+    // Clear the force NMI flag before an NMI gets triggered too late
+    if (cycle == 3 && scanline == PRERENDER_LINE) {
+        forceNMI = false;
+    }
+
     if (cycle == LAST_CYCLE && scanline == PRERENDER_LINE) {
         // Update any relevant fields for the next frame
         scanline = 0;
         oddFrame = !oddFrame;
         nmiOccurred = false;
         suppressNMI = false;
+        forceNMI = false;
         cycle = 0;
     } else if (cycle == LAST_CYCLE) {
         // Update fields for the next scanline

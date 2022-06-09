@@ -115,9 +115,27 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
     switch (localAddr) {
         case PPUCTRL_INDEX:
             setTempNametableSelect(val & 3);
-            // If the NMI flag was toggled from 0 to 1 in PPUCTRL, then another NMI can occur
+            // If the NMI flag is toggled from 0 to 1 in PPUCTRL, then another NMI can occur
             if (!isNMIEnabled() && (val & 0x80)) {
                 op.nmiOccurred = false;
+                // If the NMI flag is toggled at the very end of vblank, ensure that an NMI occurs
+                if ((op.cycle == LAST_CYCLE && op.scanline == PRERENDER_LINE - 1) ||
+                        (op.cycle == 0 && op.scanline == PRERENDER_LINE)) {
+                    op.forceNMI = true;
+                }
+            }
+            break;
+        case PPUMASK_INDEX:
+            // These if statements handle cases where rendering is enabled or disabled shortly
+            // before cycle 0, which affect whether to skip cycle 0. Normally, the skipCycle0
+            // function would handle this, but the timing is too early or late without these if
+            // statements
+            if (op.cycle == LAST_CYCLE && op.scanline == PRERENDER_LINE && (val & 0x18) &&
+                    !isRenderingEnabled()) {
+                --op.cycle;
+            } else if (op.cycle == LAST_CYCLE - 1 && op.scanline == PRERENDER_LINE &&
+                    !(val & 0x18) && isRenderingEnabled()) {
+                op.prepNextCycle();
             }
             break;
         case PPUSCROLL_INDEX:
@@ -150,10 +168,11 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
     // Since the PPU runs after the CPU on each CPU cycle, the vblank flag isn't set yet when the
     // CPU polls for interrupts on the exact cycle that it's set. This cycle is explicitly referred
-    // to here to handle that case
-    if (isNMIEnabled() && (isVblank() || (op.cycle == 1 && op.scanline == 241)) &&
+    // here to handle that case
+    if (isNMIEnabled() && (isVblank() || (op.cycle == 1 && op.scanline == 241) || op.forceNMI) &&
             !op.nmiOccurred && !op.suppressNMI) {
         op.nmiOccurred = true;
+        op.forceNMI = false;
         return true;
     }
     return false;

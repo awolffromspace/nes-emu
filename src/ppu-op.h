@@ -75,6 +75,9 @@ class PPUOp {
         // If NMIs should be suppressed. This only used for the PPUSTATUS race condition:
         // https://www.nesdev.org/wiki/PPU_frame_timing#VBL_Flag_Timing
         bool suppressNMI;
+        // If an NMI should be forced to occur regardless if the vblank flag is set or not. Only
+        // used for fixing specific timing problems
+        bool forceNMI;
         // How many cycles the PPU has taken to render the current scanline (max 340)
         unsigned int cycle;
         // Indicates any cycle-relevant info about the operation. Depends on the enum Status
