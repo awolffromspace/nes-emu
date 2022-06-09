@@ -122,17 +122,12 @@ void PPUOp::prepNextCycle() {
         }
     }
 
-    // After rendering the entire scanline, there is one tile row remaining in the queue that is
-    // past the right border of the frame, which is accessed by prior rendering functions when
-    // outputting one of the last 8 pixels and the fine X scroll is large enough. This ensures that
-    // the queue is empty for the next scanline
-    if (cycle == 320 && scanline <= LAST_RENDER_LINE && !tileRows.empty()) {
-        tileRows.clear();
-    }
-
+    // Clear the force NMI flag before an NMI gets triggered too late
+    if (cycle == 3 && scanline == PRERENDER_LINE) {
+        forceNMI = false;
     // If the cycle is 256, then sprite evaluation is done and spriteNum can be reset and used for
     // sprite fetching next. oamEntryNum is reset for the next scanline's sprite evaluation
-    if (cycle == 256) {
+    } else if (cycle == 256) {
         spriteNum = 0;
         oamEntryNum = 0;
     // If the cycle is 320, then sprite fetching for the next scanline and rendering the current
@@ -142,11 +137,13 @@ void PPUOp::prepNextCycle() {
         spriteNum = 0;
         currentSprites = nextSprites;
         nextSprites.clear();
-    }
-
-    // Clear the force NMI flag before an NMI gets triggered too late
-    if (cycle == 3 && scanline == PRERENDER_LINE) {
-        forceNMI = false;
+        // After rendering the entire scanline, there is one tile row remaining in the queue that is
+        // past the right border of the frame, which is accessed by prior rendering functions when
+        // outputting one of the last 8 pixels and the fine X scroll is large enough. This ensures
+        // that the queue is empty for the next scanline
+        if (scanline <= LAST_RENDER_LINE && !tileRows.empty()) {
+            tileRows.clear();
+        }
     }
 
     if (cycle == LAST_CYCLE && scanline == PRERENDER_LINE) {
