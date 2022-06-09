@@ -155,7 +155,6 @@ void PPUOp::prepNextCycle() {
         oddFrame = !oddFrame;
         nmiOccurred = false;
         suppressNMI = false;
-        forceNMI = false;
         cycle = 0;
     } else if (cycle == LAST_CYCLE) {
         // Update fields for the next scanline
