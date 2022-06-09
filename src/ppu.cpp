@@ -131,10 +131,10 @@ void PPU::writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute) {
             // function would handle this, but the timing is too early or late without these if
             // statements
             if (op.cycle == LAST_CYCLE && op.scanline == PRERENDER_LINE && (val & 0x18) &&
-                    !isRenderingEnabled() && op.oddFrame) {
+                    op.oddFrame && !isRenderingEnabled()) {
                 --op.cycle;
             } else if (op.cycle == LAST_CYCLE - 1 && op.scanline == PRERENDER_LINE &&
-                    !(val & 0x18) && isRenderingEnabled() && !op.oddFrame) {
+                    !(val & 0x18) && !op.oddFrame && isRenderingEnabled()) {
                 op.prepNextCycle();
             }
             break;
