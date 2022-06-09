@@ -711,7 +711,7 @@ void PPU::writePPUAddr(uint8_t val) {
         w = false;
     } else {
         t &= 0xff;
-        t |= (val & 0x7f) << 8;
+        t |= (val & 0x3f) << 8;
         w = true;
     }
 }
