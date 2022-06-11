@@ -168,7 +168,7 @@ void PPU::writeOAM(uint8_t addr, uint8_t val) {
 bool PPU::isNMIActive(MMC& mmc, bool mute) {
     // Since the PPU runs after the CPU on each CPU cycle, the vblank flag isn't set yet when the
     // CPU polls for interrupts on the exact cycle that it's set. This cycle is explicitly referred
-    // here to handle that case
+    // to here to handle that case
     if (isNMIEnabled() && (isVblank() || (op.cycle == 1 && op.scanline == 241) || op.forceNMI) &&
             !op.nmiOccurred && !op.suppressNMI) {
         op.nmiOccurred = true;
