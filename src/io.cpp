@@ -108,17 +108,11 @@ void IO::updateButton(const SDL_Event& event) {
         pressed = 1;
     }
     switch (event.key.keysym.sym) {
-        case SDLK_z:
+        case SDLK_x:
             a = pressed;
             break;
-        case SDLK_x:
+        case SDLK_z:
             b = pressed;
-            break;
-        case SDLK_RSHIFT:
-            select = pressed;
-            break;
-        case SDLK_RETURN:
-            start = pressed;
             break;
         case SDLK_UP:
             up = pressed;
@@ -131,6 +125,12 @@ void IO::updateButton(const SDL_Event& event) {
             break;
         case SDLK_RIGHT:
             right = pressed;
+            break;
+        case SDLK_RETURN:
+            start = pressed;
+            break;
+        case SDLK_RSHIFT:
+            select = pressed;
     }
 }
 

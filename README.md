@@ -22,8 +22,8 @@ Run an .NES file:
 Controls:  
 | Keyboard     | Joystick      |
 | ---          | ---           |
-| Z            | A             |
-| X            | B             |
+| X            | A             |
+| Z            | B             |
 | up arrow     | D-pad up      |
 | down arrow   | D-pad down    |
 | left arrow   | D-pad left    |
