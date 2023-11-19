@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include "cpu.h"
 
 void readInFilenames(std::vector<std::string>& filenames);
@@ -495,8 +497,7 @@ void runNESGame(CPU& cpu, const std::string& filename) {
         std::cerr << "Could not create window\n" << SDL_GetError();
         exit(1);
     }
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED |
-        SDL_RENDERER_PRESENTVSYNC);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr) {
         std::cerr << "Could not create renderer\n" << SDL_GetError();
         exit(1);
@@ -511,6 +512,7 @@ void runNESGame(CPU& cpu, const std::string& filename) {
     SDL_Event event;
     bool running = true;
     while (running) {
+        const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
         const unsigned int ppuCyclesPerFrame = 341 * 262;
         // Ensure that the total PPU cycles will always be less than ppuCycles + ppuCyclesPerFrame
@@ -537,6 +539,16 @@ void runNESGame(CPU& cpu, const std::string& filename) {
                 case SDL_QUIT:
                     running = false;
             }
+        }
+
+        std::chrono::steady_clock::time_point finish = std::chrono::steady_clock::now();
+        // Frame rate of the NTSC NES
+        const double frameRate = 60.0988;
+        // Wait until it's time to render the next frame. While there's probably a more optimal way
+        // to limit frames, this implementation is simple and accurate
+        while (std::chrono::duration_cast<std::chrono::duration<double>>(finish - start).count() <
+                1 / frameRate) {
+            finish = std::chrono::steady_clock::now();
         }
     }
 
