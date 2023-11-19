@@ -11,44 +11,6 @@ class MMC;
 #include "mmc.h"
 #include "ppu-op.h"
 
-#define ATTRIBUTE_OFFSET 0x3c0
-#define BLACK 0xf
-#define FRAME_HEIGHT 240
-#define FRAME_SIZE 256 * 240 * 4
-#define FRAME_WIDTH 256
-#define NAMETABLE0_START 0x2000
-#define NAMETABLE1_START 0x2400
-#define NAMETABLE2_START 0x2800
-#define NAMETABLE3_START 0x2c00
-#define OAM_SIZE 0x100
-#define OAMADDR 0x2003
-#define OAMDATA 0x2004
-#define OAMDMA 0x4014
-#define PALETTE_END 0x3fff
-#define PALETTE_SIZE 0x40
-#define PALETTE_START 0x3f00
-#define PIXELS_PER_TILE 8
-#define PPU_CYCLES_PER_FRAME 341 * 262
-#define PPU_REGISTER_SIZE 8
-#define PPUADDR 0x2006
-#define PPUADDR_INDEX 6
-#define PPUCTRL 0x2000
-#define PPUCTRL_INDEX 0
-#define PPUDATA 0x2007
-#define PPUDATA_INDEX 7
-#define PPUMASK 0x2001
-#define PPUMASK_INDEX 1
-#define PPUSCROLL 0x2005
-#define PPUSCROLL_INDEX 5
-#define PPUSTATUS 0x2002
-#define PPUSTATUS_INDEX 2
-#define SECONDARY_OAM_SIZE 0x20
-#define SPRITE_PALETTE_START 0x3f10
-#define TILES_PER_COLUMN 30
-#define TILES_PER_ROW 32
-#define UNIVERSAL_BG_INDEX 0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000
-#define VRAM_SIZE 0x400 + 0x400 + 0x20
-
 // Picture Processing Unit
 // Handles anything related to graphics. Stores data for addresses $2000 - $2007 (registers), $2008
 // - $3fff (mirrored addresses), and $4014 (OAMDMA) in the CPU memory map. This class is heavily
@@ -80,7 +42,7 @@ class PPU {
 
         // Main registers that are exposed to the CPU. $2000 - $2007 in the CPU memory map
         // https://www.nesdev.org/wiki/PPU_registers
-        uint8_t registers[PPU_REGISTER_SIZE];
+        uint8_t registers[8];
         // Object Attribute Memory Direct Memory Access high-byte address. $4014 in the CPU memory
         // map. When the CPU writes to this register, the CPU starts an OAM DMA transfer that copies
         // data from $xx00 - $xxff to the PPU OAM where xx is the value of this register
@@ -102,20 +64,20 @@ class PPU {
         bool w;
         // Object Attribute Memory that contains data for up to 64 sprites. Each sprite is 4 bytes:
         // https://www.nesdev.org/wiki/PPU_OAM
-        uint8_t oam[OAM_SIZE];
+        uint8_t oam[0x100];
         // Secondary OAM that contains data for up to 8 sprites, which are the sprites that are
         // rendered for the current scanline
-        uint8_t secondaryOAM[SECONDARY_OAM_SIZE];
+        uint8_t secondaryOAM[0x20];
         // Video RAM that includes nametables, attribute tables, and palettes. Makes up $2000 -
         // $ffff in the PPU memory map. Doesn't include the pattern tables in the MMC, which are
         // $0000 - $1fff
-        uint8_t vram[VRAM_SIZE];
+        uint8_t vram[0x400 + 0x400 + 0x20];
         // Frame that SDL displays to the screen. Each 4 bytes is a pixel. The first byte is the
         // blue value, the second is the green value, the third is the red value, and the fourth is
         // the opacity
-        uint8_t frame[FRAME_SIZE];
+        uint8_t frame[256 * 240 * 4];
         // Palette that contains the RGB values for displaying pixel colors
-        struct RGBVal palette[PALETTE_SIZE];
+        struct RGBVal palette[0x40];
         // PPUDATA read buffer:
         // https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppuDataBuffer;
@@ -213,6 +175,18 @@ class PPU {
 
         // Color Palette Initialization
         void initializePalette();
+
+        // Register Indices
+        enum RegisterIndex {
+            PPUCtrl = 0,
+            PPUMask = 1,
+            PPUStatus = 2,
+            OAMADDR = 3,
+            OAMDATA = 4,
+            PPUScroll = 5,
+            PPUAddr = 6,
+            PPUData = 7
+        };
 };
 
 #endif

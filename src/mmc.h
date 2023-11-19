@@ -13,16 +13,6 @@ class PPU;
 
 #include "ppu.h"
 
-#define DEFAULT_CHR_BANK_SIZE 0x1000
-#define DEFAULT_PRG_BANK_SIZE 0x4000
-#define HEADER_SIZE 0x10
-#define LOWER_RESET_ADDR 0xfffc
-#define PRG_RAM_SIZE 0x8000 - 0x4020
-#define PRG_RAM_START 0x4020
-#define PRG_ROM_START 0x8000
-#define TRAINER_SIZE 0x200
-#define UPPER_RESET_ADDR 0xfffd
-
 // Memory Management Controller (Mapper)
 // Handles anything related to the cartridge. Stores data for addresses $4020 - $7fff (PRG-RAM) and
 // $8000 - $ffff (PRG-ROM) in the CPU memory map as well as addresses $0000 - $1fff (CHR memory or
@@ -52,7 +42,7 @@ class MMC {
 
     private:
         // PRG-RAM (i.e., additional workspace for the program)
-        uint8_t prgRAM[PRG_RAM_SIZE];
+        uint8_t prgRAM[0x8000 - 0x4020];
         // PRG-ROM (i.e., the program)
         std::vector<uint8_t> prgROM;
         // CHR-ROM (i.e., character data, which are pattern tables) and CHR-RAM (i.e., additional

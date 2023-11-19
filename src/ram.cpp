@@ -5,7 +5,7 @@
 RAM::RAM() { }
 
 void RAM::clear() {
-    memset(data, 0, RAM_SIZE);
+    memset(data, 0, 0x800);
 }
 
 // Handles reads from the CPU
@@ -25,9 +25,10 @@ void RAM::write(uint16_t addr, uint8_t val) {
 // Handles pushes to the stack from the CPU
 
 void RAM::push(uint8_t& pointer, uint8_t val, bool mute) {
+    const uint16_t zeroPageSize = 0x100;
     // The stack is located after the zero page, so the zero page size is effectively the bottom of
     // the stack
-    uint16_t addr = ZERO_PAGE_SIZE + pointer;
+    uint16_t addr = zeroPageSize + pointer;
     data[addr] = val;
     --pointer;
 
@@ -42,9 +43,10 @@ void RAM::push(uint8_t& pointer, uint8_t val, bool mute) {
 
 uint8_t RAM::pull(uint8_t& pointer, bool mute) {
     ++pointer;
+    const uint16_t zeroPageSize = 0x100;
     // The stack is located after the zero page, so the zero page size is effectively the bottom of
     // the stack
-    uint16_t addr = ZERO_PAGE_SIZE + pointer;
+    uint16_t addr = zeroPageSize + pointer;
     uint8_t val = data[addr];
 
     if (!mute) {

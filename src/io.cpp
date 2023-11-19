@@ -13,11 +13,11 @@ IO::IO() :
         down(0),
         left(0),
         right(0) {
-    memset(registers, 0, IO_REGISTER_SIZE);
+    memset(registers, 0, 2);
 }
 
 void IO::clear() {
-    memset(registers, 0, IO_REGISTER_SIZE);
+    memset(registers, 0, 2);
     strobe = false;
     currentButton = A;
     a = 0;
@@ -33,16 +33,17 @@ void IO::clear() {
 // Handles register reads from the CPU
 
 uint8_t IO::readRegister(uint16_t addr) {
+    const uint8_t primaryControllerStatus = 1;
     addr = getLocalAddr(addr);
     // If strobe mode is on, only return the status of the A button
     if (addr == 0 && strobe) {
         // Clear the primary controller status bit
-        registers[addr] &= 0xfe;
+        registers[addr] &= ~primaryControllerStatus;
         registers[addr] |= a;
     // If strobe mode is off, cycle through each button on each CPU read
     } else if (addr == 0 && !strobe) {
         // Clear the primary controller status bit
-        registers[addr] &= 0xfe;
+        registers[addr] &= ~primaryControllerStatus;
         switch (currentButton) {
             case A:
                 registers[addr] |= a;

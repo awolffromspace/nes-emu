@@ -9,11 +9,6 @@
 #include "ppu.h"
 #include "ram.h"
 
-#define LOWER_IRQ_ADDR 0xfffe
-#define LOWER_NMI_ADDR 0xfffa
-#define UPPER_IRQ_ADDR 0xffff
-#define UPPER_NMI_ADDR 0xfffb
-
 // Central Processing Unit
 
 class CPU {

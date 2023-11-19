@@ -6,13 +6,6 @@
 
 #include "sprite.h"
 
-#define FIRST_CYCLE_TO_OUTPUT_PIXEL 4
-#define LAST_CYCLE 340
-#define LAST_CYCLE_TO_OUTPUT_PIXEL 4 + 255
-#define LAST_RENDER_LINE 239
-#define PRERENDER_LINE 261
-#define TOTAL_PIXELS_PER_SCANLINE 256
-
 // PPU Operation
 // PPUOp holds more stateful, temporary data for the current operation (i.e., rendering the current
 // pixel of the current scanline), whereas the PPU class includes more general, broader actions,

@@ -1,7 +1,5 @@
 #include "cpu.h"
 
-#define WINDOW_SIZE_MULTIPLIER 1
-
 void readInFilenames(std::vector<std::string>& filenames);
 
 struct CPU::State readInState(const std::string& filename);
@@ -488,10 +486,11 @@ void runIndividualTest(CPU& cpu, const std::string& testName, const std::string&
 void runNESGame(CPU& cpu, const std::string& filename) {
     cpu.readInINES(filename);
 
+    const unsigned int frameWidth = 256;
+    const unsigned int frameHeight = 240;
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_Window* window = SDL_CreateWindow("SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        FRAME_WIDTH * WINDOW_SIZE_MULTIPLIER, FRAME_HEIGHT * WINDOW_SIZE_MULTIPLIER,
-        SDL_WINDOW_OPENGL);
+        frameWidth, frameHeight, SDL_WINDOW_OPENGL);
     if (window == nullptr) {
         std::cerr << "Could not create window\n" << SDL_GetError();
         exit(1);
@@ -503,7 +502,7 @@ void runNESGame(CPU& cpu, const std::string& filename) {
         exit(1);
     }
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING, FRAME_WIDTH, FRAME_HEIGHT);
+        SDL_TEXTUREACCESS_STREAMING, frameWidth, frameHeight);
     if (texture == nullptr) {
         std::cerr << "Could not create texture\n" << SDL_GetError();
         exit(1);
@@ -513,16 +512,16 @@ void runNESGame(CPU& cpu, const std::string& filename) {
     bool running = true;
     while (running) {
         unsigned int ppuCycles = cpu.getTotalPPUCycles();
-        // Ensure that the total PPU cycles will always be less than ppuCycles +
-        // PPU_CYCLES_PER_FRAME
-        if (ppuCycles > UINT_MAX - PPU_CYCLES_PER_FRAME) {
+        const unsigned int ppuCyclesPerFrame = 341 * 262;
+        // Ensure that the total PPU cycles will always be less than ppuCycles + ppuCyclesPerFrame
+        if (ppuCycles > UINT_MAX - ppuCyclesPerFrame) {
             cpu.clearTotalPPUCycles();
             ppuCycles = cpu.getTotalPPUCycles();
         }
         // Run CPU (and other components) for however many cycles it takes to render one frame
         // without polling for I/O. I/O is polled only every frame rather than anything more
         // frequent (e.g., every CPU cycle) to reduce the lag from calling SDL_PollEvent too much
-        while (cpu.getTotalPPUCycles() < ppuCycles + PPU_CYCLES_PER_FRAME) {
+        while (cpu.getTotalPPUCycles() < ppuCycles + ppuCyclesPerFrame) {
             cpu.step(renderer, texture);
         }
 

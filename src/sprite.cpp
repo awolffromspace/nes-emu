@@ -71,7 +71,7 @@ uint8_t Sprite::getTileRowIndex(unsigned int scanline, unsigned int spriteHeight
 // being rendered
 
 uint8_t Sprite::getPalette(unsigned int pixel) const {
-    unsigned int xDiff = getXDifference(pixel);
+    const unsigned int xDiff = getXDifference(pixel);
     // Gets the furthest left bit in the tile and shifts it right however many times the
     // x-difference is (i.e., the difference between the pixel and the sprite's x-coordinate), which
     // will then be the column/bit that the pixel lands on
@@ -102,7 +102,7 @@ uint8_t Sprite::getPalette(unsigned int pixel) const {
 // lower 2 bits of color are relevant
 
 bool Sprite::isChosen(uint8_t bgPalette, uint8_t spritePalette) const {
-    bool priority = isPrioritized();
+    const bool priority = isPrioritized();
     if (bgPalette && spritePalette && priority) {
         return true;
     } else if (!bgPalette && spritePalette) {
@@ -121,7 +121,7 @@ unsigned int Sprite::getYDifference(unsigned int scanline) const {
 // tile can be outputted on the scanline)
 
 bool Sprite::isYInRange(unsigned int scanline, unsigned int spriteHeight) const {
-    unsigned int yDiff = getYDifference(scanline);
+    const unsigned int yDiff = getYDifference(scanline);
     if (yDiff <= spriteHeight - 1) {
         return true;
     }
@@ -138,8 +138,9 @@ unsigned int Sprite::getXDifference(unsigned int pixel) const {
 // tile can be outputted on the scanline)
 
 bool Sprite::isXInRange(unsigned int pixel) const {
-    unsigned int xDiff = getXDifference(pixel);
-    if (xDiff <= SPRITE_WIDTH - 1) {
+    const unsigned int xDiff = getXDifference(pixel);
+    const unsigned int spriteWidth = 8;
+    if (xDiff <= spriteWidth - 1) {
         return true;
     }
     return false;

@@ -3,11 +3,11 @@
 // Public Member Functions
 
 APU::APU() {
-    memset(registers, 0, APU_REGISTER_SIZE);
+    memset(registers, 0, 0x16);
 }
 
 void APU::clear() {
-    memset(registers, 0, APU_REGISTER_SIZE);
+    memset(registers, 0, 0x16);
 }
 
 // Handles register reads from the CPU

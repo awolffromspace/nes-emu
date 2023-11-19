@@ -3,8 +3,6 @@
 
 #include <cstdint>
 
-#define SPRITE_WIDTH 8
-
 class Sprite {
     public:
         Sprite();

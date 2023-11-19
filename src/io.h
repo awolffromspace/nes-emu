@@ -6,10 +6,6 @@
 #include <iostream>
 #include <SDL.h>
 
-#define IO_REGISTER_SIZE 2
-#define JOY1 0x4016
-#define JOY2 0x4017
-
 // Input/Output (Joysticks)
 // Handles anything related to I/O from the user. Stores data for addresses $4016 (joystick 1) and
 // $4017 (joystick 2) in the CPU memory map
@@ -24,7 +20,7 @@ class IO {
 
     private:
         // I/O registers in the CPU memory map, including joystick 1 and joystick 2
-        uint8_t registers[IO_REGISTER_SIZE];
+        uint8_t registers[2];
         // Strobe mode. If strobe mode is set, only the status of the A button is set to the
         // joystick register. Otherwise, it cycles through each button on each CPU read
         bool strobe;

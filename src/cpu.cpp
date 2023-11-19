@@ -81,9 +81,11 @@ void CPU::step(SDL_Renderer* renderer, SDL_Texture* texture) {
 }
 
 void CPU::readInInst(const std::string& filename) {
+    const uint16_t lowerResetAddr = 0xfffc;
+    const uint16_t upperResetAddr = 0xfffd;
     // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
     mmc.readInInst(filename);
-    pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
+    pc = (read(upperResetAddr) << 8) | read(lowerResetAddr);
 }
 
 void CPU::readInINES(const std::string& filename) {
@@ -93,8 +95,10 @@ void CPU::readInINES(const std::string& filename) {
         // Use this start PC for an automated run of nestest.nes
         pc = 0xc000;
     } else {
+        const uint16_t lowerResetAddr = 0xfffc;
+        const uint16_t upperResetAddr = 0xfffd;
         // In all other cases, initialize PC to the reset vector
-        pc = (read(UPPER_RESET_ADDR) << 8) | read(LOWER_RESET_ADDR);
+        pc = (read(upperResetAddr) << 8) | read(lowerResetAddr);
     }
 }
 
@@ -1656,15 +1660,21 @@ void CPU::xaa() {
 // Passes the read to the component that is responsible for the address range in the CPU memory map
 
 uint8_t CPU::read(uint16_t addr) {
-    if (addr < PPUCTRL) {
+    const uint16_t ppuCtrl = 0x2000;
+    const uint16_t sq1Vol = 0x4000;
+    const uint16_t oamDMAAddr = 0x4014;
+    const uint16_t joy1 = 0x4016;
+    const uint16_t joy2 = 0x4017;
+    const uint16_t prgRAMStart = 0x4020;
+    if (addr < ppuCtrl) {
         return ram.read(addr);
-    } else if (addr < SQ1_VOL || addr == OAMDMA) {
+    } else if (addr < sq1Vol || addr == oamDMAAddr) {
         return ppu.readRegister(addr, mmc);
-    } else if (addr < JOY1) {
+    } else if (addr < joy1) {
         return apu.readRegister(addr);
-    } else if (addr <= JOY2) {
+    } else if (addr <= joy2) {
         return io.readRegister(addr);
-    } else if (addr >= PRG_RAM_START) {
+    } else if (addr >= prgRAMStart) {
         return mmc.readPRG(addr);
     }
     // Only reached for disabled APU and I/O registers $4018 - $401f
@@ -1674,24 +1684,30 @@ uint8_t CPU::read(uint16_t addr) {
 // Passes the write to the component that is responsible for the address range in the CPU memory map
 
 void CPU::write(uint16_t addr, uint8_t val) {
-    if (addr < PPUCTRL) {
+    const uint16_t ppuCtrl = 0x2000;
+    const uint16_t sq1Vol = 0x4000;
+    const uint16_t oamDMAAddr = 0x4014;
+    const uint16_t joy1 = 0x4016;
+    const uint16_t joy2 = 0x4017;
+    const uint16_t prgRAMStart = 0x4020;
+    if (addr < ppuCtrl) {
         ram.write(addr, val);
-    } else if (addr < SQ1_VOL || addr == OAMDMA) {
+    } else if (addr < sq1Vol || addr == oamDMAAddr) {
         ppu.writeRegister(addr, val, mmc, mute);
-        if (addr == OAMDMA) {
+        if (addr == oamDMAAddr) {
             // Start the OAM DMA transfer
             op.oamDMATransfer = true;
         }
-    } else if (addr < JOY1) {
+    } else if (addr < joy1) {
         apu.writeRegister(addr, val);
-    } else if (addr <= JOY2) {
-        if (addr == JOY2) {
+    } else if (addr <= joy2) {
+        if (addr == joy2) {
             // This register is shared between the APU and I/O, so write the value to both to ensure
             // that they're equal
             apu.writeRegister(addr, val);
         }
         io.writeRegister(addr, val);
-    } else if (addr >= PRG_RAM_START)  {
+    } else if (addr >= prgRAMStart)  {
         mmc.writePRG(addr, val, totalCycles);
     }
 
@@ -1717,8 +1733,9 @@ void CPU::oamDMATransfer() {
     // on the exact cycles that the writes are performed on. Could refactor to be more accurate, but
     // it'll increase code complexity
     } else if (op.dmaCycle > 0 && op.dmaCycle % 2 == 0) {
-        unsigned int oamAddr = op.dmaCycle / 2 - 1;
-        uint16_t cpuBaseAddr = ppu.readRegister(OAMDMA, mmc) << 8;
+        const uint16_t oamDMAAddr = 0x4014;
+        const unsigned int oamAddr = op.dmaCycle / 2 - 1;
+        uint16_t cpuBaseAddr = ppu.readRegister(oamDMAAddr, mmc) << 8;
         uint16_t cpuAddr = cpuBaseAddr + oamAddr;
         uint8_t cpuData = read(cpuAddr);
         ppu.writeOAM(oamAddr, cpuData);
@@ -1747,6 +1764,8 @@ void CPU::pollInterrupts() {
 
 void CPU::prepareIRQ() {
     uint8_t temp;
+    const uint16_t lowerIRQAddr = 0xfffe;
+    const uint16_t upperIRQAddr = 0xffff;
     switch (op.cycle) {
         case 1:
             // Increment the PC again because the BRK instruction is 2 bytes long
@@ -1782,11 +1801,11 @@ void CPU::prepareIRQ() {
             ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = read(LOWER_IRQ_ADDR);
+            op.tempAddr = read(lowerIRQAddr);
             setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(UPPER_IRQ_ADDR) << 8;
+            op.tempAddr |= read(upperIRQAddr) << 8;
             pc = op.tempAddr;
             op.clearInterruptFlags();
             op.done = true;
@@ -1798,6 +1817,8 @@ void CPU::prepareIRQ() {
 
 void CPU::prepareNMI() {
     uint8_t temp;
+    const uint16_t lowerNMIAddr = 0xfffa;
+    const uint16_t upperNMIAddr = 0xfffb;
     switch (op.cycle) {
         case 2:
             temp = (pc & 0xff00) >> 8;
@@ -1823,11 +1844,11 @@ void CPU::prepareNMI() {
             ram.push(sp, temp, mute);
             break;
         case 5:
-            op.tempAddr = read(LOWER_NMI_ADDR);
+            op.tempAddr = read(lowerNMIAddr);
             setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(UPPER_NMI_ADDR) << 8;
+            op.tempAddr |= read(upperNMIAddr) << 8;
             pc = op.tempAddr;
             op.clearInterruptFlags();
             op.done = true;
@@ -1839,6 +1860,8 @@ void CPU::prepareNMI() {
 // the values never get pushed to the stack. However, the SP register still gets decremented
 
 void CPU::prepareReset() {
+    const uint16_t lowerResetAddr = 0xfffc;
+    const uint16_t upperResetAddr = 0xfffd;
     switch (op.cycle) {
         case 2:
             --sp;
@@ -1850,11 +1873,11 @@ void CPU::prepareReset() {
             --sp;
             break;
         case 5:
-            op.tempAddr = read(LOWER_RESET_ADDR);
+            op.tempAddr = read(lowerResetAddr);
             setInterruptDisable(true);
             break;
         case 6:
-            op.tempAddr |= read(UPPER_RESET_ADDR) << 8;
+            op.tempAddr |= read(upperResetAddr) << 8;
             pc = op.tempAddr;
             op.clearInterruptFlags();
             op.done = true;

@@ -104,6 +104,7 @@ uint8_t PPUOp::getUpperPalette(const struct TileRow& tileRow) const {
 // Prepares anything else that needs to be updated for the next cycle
 
 void PPUOp::prepNextCycle() {
+    const unsigned int prerenderLine = 261;
     // Only update the operation status if the current cycle is associated with a valid fetch and
     // not an unused fetch
     if (canFetch()) {
@@ -116,14 +117,15 @@ void PPUOp::prepNextCycle() {
         if (pixel % 8 == 0) {
             tileRows.pop_front();
         }
+        const unsigned int pixelsPerScanline = 256;
         // Ensure that the pixel number wraparounds back to 0 after outputting the last pixel
-        if (pixel == TOTAL_PIXELS_PER_SCANLINE) {
+        if (pixel == pixelsPerScanline) {
             pixel = 0;
         }
     }
 
     // Clear the force NMI flag before an NMI gets triggered too late
-    if (cycle == 3 && scanline == PRERENDER_LINE) {
+    if (cycle == 3 && scanline == prerenderLine) {
         forceNMI = false;
     // If the cycle is 256, then sprite evaluation is done and spriteNum can be reset and used for
     // sprite fetching next. oamEntryNum is reset for the next scanline's sprite evaluation
@@ -137,23 +139,25 @@ void PPUOp::prepNextCycle() {
         spriteNum = 0;
         currentSprites = nextSprites;
         nextSprites.clear();
+        const unsigned int lastRenderLine = 239;
         // After rendering the entire scanline, there is one tile row remaining in the queue that is
         // past the right border of the frame, which is accessed by prior rendering functions when
         // outputting one of the last 8 pixels and the fine X scroll is large enough. This ensures
         // that the queue is empty for the next scanline
-        if (scanline <= LAST_RENDER_LINE && !tileRows.empty()) {
+        if (scanline <= lastRenderLine && !tileRows.empty()) {
             tileRows.clear();
         }
     }
 
-    if (cycle == LAST_CYCLE && scanline == PRERENDER_LINE) {
+    const unsigned int lastCycle = 340;
+    if (cycle == lastCycle && scanline == prerenderLine) {
         // Update any relevant fields for the next frame
         scanline = 0;
         oddFrame = !oddFrame;
         nmiOccurred = false;
         suppressNMI = false;
         cycle = 0;
-    } else if (cycle == LAST_CYCLE) {
+    } else if (cycle == lastCycle) {
         // Update fields for the next scanline
         ++scanline;
         cycle = 0;
@@ -184,8 +188,10 @@ void PPUOp::updateStatus() {
 // Tells the PPU to output a pixel on the current cycle
 
 bool PPUOp::isRendering() const {
-    if (scanline <= LAST_RENDER_LINE && cycle >= FIRST_CYCLE_TO_OUTPUT_PIXEL &&
-            cycle <= LAST_CYCLE_TO_OUTPUT_PIXEL) {
+    const unsigned int lastRenderLine = 239;
+    const unsigned int firstCycle = 4;
+    const unsigned int lastCycle = 4 + 255;
+    if (scanline <= lastRenderLine && cycle >= firstCycle && cycle <= lastCycle) {
         return true;
     }
     return false;
@@ -194,24 +200,26 @@ bool PPUOp::isRendering() const {
 // Determines whether the cycle is associated with a valid fetch and not an unused fetch
 
 bool PPUOp::canFetch() const {
+    const unsigned int lastRenderLine = 239;
     // Each fetch takes 2 cycles, so only the second cycle of each fetch is where the fetch is
     // actually performed
     if (cycle % 2 || cycle == 0) {
         return false;
     }
     // Cycles 249 - 256 are an unused tile fetch
-    if (scanline < LAST_RENDER_LINE && (cycle <= 248 || cycle >= 257) && cycle <= 336) {
+    if (scanline < lastRenderLine && (cycle <= 248 || cycle >= 257) && cycle <= 336) {
         return true;
     }
     // Cycles 257 - 336 are for the next scanline, which are irrelevant for the last render line
-    if (scanline == LAST_RENDER_LINE && cycle <= 248) {
+    if (scanline == lastRenderLine && cycle <= 248) {
         return true;
     }
+    const unsigned int prerenderLine = 261;
     // While cycles 257 - 320 are for the next scanline (that would be scanline 0 here), these are
     // sprite fetches, which are not shown on the first scanline. Only cycles 321 - 336 are
     // relevant, which are where the first two background tile rows are fetched for the next
     // scanline
-    if (scanline == PRERENDER_LINE && cycle >= 321 && cycle <= 336) {
+    if (scanline == prerenderLine && cycle >= 321 && cycle <= 336) {
         return true;
     }
     return false;
