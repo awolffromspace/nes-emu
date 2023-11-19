@@ -2,8 +2,8 @@
 #define RAM_H
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
-#include <string.h>
 
 #define RAM_SIZE 0x800
 #define ZERO_PAGE_SIZE 0x100

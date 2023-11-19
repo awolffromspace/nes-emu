@@ -2,9 +2,9 @@
 #define IO_H
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <SDL.h>
-#include <string.h>
 
 #define IO_REGISTER_SIZE 2
 #define JOY1 0x4016

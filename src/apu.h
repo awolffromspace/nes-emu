@@ -2,8 +2,8 @@
 #define APU_H
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
-#include <string.h>
 
 #define APU_REGISTER_SIZE 0x16
 #define SQ1_VOL 0x4000

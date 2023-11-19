@@ -7,7 +7,6 @@ class MMC;
 #include <cstring>
 #include <iostream>
 #include <SDL.h>
-#include <string.h>
 
 #include "mmc.h"
 #include "ppu-op.h"
