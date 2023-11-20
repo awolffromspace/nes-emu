@@ -43,19 +43,19 @@ class CPU {
         bool isEndOfProgram() const;
         bool isHaltAtBrk() const;
         unsigned int getOpCycles() const;
-        uint8_t readRAM(uint16_t addr) const;
+        uint8_t readRAM(const uint16_t addr) const;
         unsigned int getTotalPPUCycles() const;
-        uint8_t readPRG(uint16_t addr) const;
+        uint8_t readPRG(const uint16_t addr) const;
 
         // Setters
-        void setHaltAtBrk(bool h);
-        void setMute(bool m);
+        void setHaltAtBrk(const bool h);
+        void setMute(const bool m);
         void clearTotalPPUCycles();
 
         // Printing
-        void print(bool isCycleDone) const;
+        void print(const bool isCycleDone) const;
         void printUnknownOp() const;
-        void printStateInst(uint32_t inst) const;
+        void printStateInst(const uint32_t inst) const;
         void printPPU() const;
 
     private:
@@ -253,8 +253,8 @@ class CPU {
         void xaa();
 
         // Read/Write Functions
-        uint8_t read(uint16_t addr);
-        void write(uint16_t addr, uint8_t val);
+        uint8_t read(const uint16_t addr);
+        void write(const uint16_t addr, const uint8_t val);
         void oamDMATransfer();
 
         // Interrupts
@@ -264,8 +264,8 @@ class CPU {
         void prepareReset();
 
         // Processor Status Updates
-        void updateZeroFlag(uint8_t result);
-        void updateNegativeFlag(uint8_t result);
+        void updateZeroFlag(const uint8_t result);
+        void updateNegativeFlag(const uint8_t result);
 
         // Processor Status Getters
         bool isCarry() const;
@@ -275,12 +275,12 @@ class CPU {
         bool isNegative() const;
 
         // Processor Status Setters
-        void setCarryFlag(bool val);
-        void setZeroFlag(bool val);
-        void setInterruptDisable(bool val);
-        void setDecimalMode(bool val);
-        void setOverflowFlag(bool val);
-        void setNegativeFlag(bool val);
+        void setCarryFlag(const bool val);
+        void setZeroFlag(const bool val);
+        void setInterruptDisable(const bool val);
+        void setDecimalMode(const bool val);
+        void setOverflowFlag(const bool val);
+        void setNegativeFlag(const bool val);
 
         // Processor Status Flags
         // Used for getting/setting bits in the P register

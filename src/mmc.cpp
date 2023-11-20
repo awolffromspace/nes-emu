@@ -46,8 +46,8 @@ void MMC::clear() {
 
 // Handles reads from the CPU
 
-uint8_t MMC::readPRG(uint16_t addr) const {
-    unsigned int localAddr = getLocalPRGAddr(addr);
+uint8_t MMC::readPRG(const uint16_t addr) const {
+    const unsigned int localAddr = getLocalPRGAddr(addr);
     const uint16_t prgROMStart = 0x8000;
     // PRG-RAM is in $4020 - $7fff, while PRG-ROM is in $8000 - $ffff
     if (addr < prgROMStart) {
@@ -58,8 +58,8 @@ uint8_t MMC::readPRG(uint16_t addr) const {
 
 // Handles writes from the CPU
 
-void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
-    unsigned int localAddr = getLocalPRGAddr(addr);
+void MMC::writePRG(const uint16_t addr, const uint8_t val, const unsigned int totalCycles) {
+    const unsigned int localAddr = getLocalPRGAddr(addr);
     const uint16_t prgROMStart = 0x8000;
     // PRG-RAM is in $4020 - $7fff, while PRG-ROM is in $8000 - $ffff
     if (addr < prgROMStart) {
@@ -102,15 +102,15 @@ void MMC::writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles) {
 
 // Handles reads from the PPU
 
-uint8_t MMC::readCHR(uint16_t addr) const {
-    unsigned int localAddr = getLocalCHRAddr(addr);
+uint8_t MMC::readCHR(const uint16_t addr) const {
+    const unsigned int localAddr = getLocalCHRAddr(addr);
     return chrMemory[localAddr];
 }
 
 // Handles writes from the PPU
 
-void MMC::writeCHR(uint16_t addr, uint8_t val) {
-    unsigned int localAddr = getLocalCHRAddr(addr);
+void MMC::writeCHR(const uint16_t addr, const uint8_t val) {
+    const unsigned int localAddr = getLocalCHRAddr(addr);
     // If CHR-RAM or test mode is enabled, allow writes to CHR-ROM
     if (chrRAM || testMode) {
         chrMemory[localAddr] = val;
@@ -161,7 +161,7 @@ void MMC::readInInst(const std::string& filename) {
 
 // Reads in an .NES file: https://www.nesdev.org/wiki/INES
 
-void MMC::readInINES(const std::string& filename, PPU& ppu) {
+void MMC::readInINES(const std::string& filename) {
     std::ifstream file(filename.c_str(), std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
@@ -247,13 +247,14 @@ unsigned int MMC::getMirroring() const {
 
 // Maps the CPU address to the MMC's local fields, prgRAM and prgROM
 
-unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
+unsigned int MMC::getLocalPRGAddr(const unsigned int addr) const {
+    unsigned int localAddr = addr;
     const uint16_t prgROMStart = 0x8000;
-    if (addr < prgROMStart) {
+    if (localAddr < prgROMStart) {
         const uint16_t prgRAMStart = 0x4020;
         // The cartridge space is from $4020 - $ffff in the CPU memory map. The address is
         // subtracted by 0x4020 so that $4020 becomes 0, $4021 becomes 1, etc.
-        return addr - prgRAMStart;
+        return localAddr - prgRAMStart;
     }
 
     const uint16_t defaultPRGBankSize = 0x4000;
@@ -263,44 +264,45 @@ unsigned int MMC::getLocalPRGAddr(unsigned int addr) const {
             // operation clears out the upper bits that set the address to a value higher than $bfff, so
             // the result is a mirrored address
             if (prgROMSize == 1) {
-                addr &= 0xbfff;
+                localAddr &= 0xbfff;
             }
             break;
         case 1:
-            addr = getMapper1PRGAddr(addr);
+            localAddr = getMapper1PRGAddr(localAddr);
             break;
         case 2:
-            addr = getMapper2PRGAddr(addr);
+            localAddr = getMapper2PRGAddr(localAddr);
             break;
         case 7:
             // PRG bank size is always 32 KB: https://www.nesdev.org/wiki/AxROM
-            addr += prgBank * defaultPRGBankSize * 2;
+            localAddr += prgBank * defaultPRGBankSize * 2;
     }
 
     // PRG-ROM starts at $8000. The address is subtracted by 0x8000 so that $8000 becomes 0, $8001
     // becomes 1, etc.
-    return addr - prgROMStart;
+    return localAddr - prgROMStart;
 }
 
 // Maps the CPU address to the MMC's local field, prgROM, based on mapper 1 settings:
 // https://www.nesdev.org/wiki/MMC1#Registers
 
-unsigned int MMC::getMapper1PRGAddr(unsigned int addr) const {
+unsigned int MMC::getMapper1PRGAddr(const unsigned int addr) const {
+    unsigned int localAddr = addr;
     const uint16_t defaultPRGBankSize = 0x4000;
     if (prgBankMode <= 1) {
         // Ignore low bit in 32 KB mode
-        addr += (prgBank >> 1) * defaultPRGBankSize * 2;
+        localAddr += (prgBank >> 1) * defaultPRGBankSize * 2;
     } else if (prgBankMode == 2) {
-        if (addr >= 0xc000) {
+        if (localAddr >= 0xc000) {
             // Subtract by 1 because $c000 - $ffff is already shifted forward by 0x4000 (the default
             // PRG bank size). Bank 0 should be $8000 - $bfff, bank 1 should be $c000 - $ffff, bank
             // 2 should be $10000 - $13fff, etc. These address ranges later get subtracted by 0x8000
             // in getLocalPRGAddr so that bank 0 starts at 0 in the prgROM field
-            addr += (prgBank - 1) * defaultPRGBankSize;
+            localAddr += (prgBank - 1) * defaultPRGBankSize;
         }
     } else {
-        if (addr < 0xc000) {
-            addr += prgBank * defaultPRGBankSize;
+        if (localAddr < 0xc000) {
+            localAddr += prgBank * defaultPRGBankSize;
         } else {
             // Fix the last bank to this range. Subtract by 1 because the bank numbers start at 0
             // instead of 1. Subtract by 1 again because $c000 - $ffff is already shifted forward by
@@ -308,70 +310,74 @@ unsigned int MMC::getMapper1PRGAddr(unsigned int addr) const {
             // $c000 - $ffff, bank 2 should be $10000 - $13fff, etc. These address ranges later get
             // subtracted by 0x8000 in getLocalPRGAddr so that bank 0 starts at 0 in the prgROM
             // field
-            addr += (prgROMSize - 2) * defaultPRGBankSize;
+            localAddr += (prgROMSize - 2) * defaultPRGBankSize;
         }
     }
-    return addr;
+    return localAddr;
 }
 
 // Maps the CPU address to the MMC's local field, prgROM, based on mapper 2 settings:
 // https://www.nesdev.org/wiki/UxROM#Registers
 
-unsigned int MMC::getMapper2PRGAddr(unsigned int addr) const {
+unsigned int MMC::getMapper2PRGAddr(const unsigned int addr) const {
+    unsigned int localAddr = addr;
     const uint16_t defaultPRGBankSize = 0x4000;
-    if (addr < 0xc000) {
-        addr += prgBank * defaultPRGBankSize;
+    if (localAddr < 0xc000) {
+        localAddr += prgBank * defaultPRGBankSize;
     } else {
         // Fix the last bank to this range. Subtract by 1 because the bank numbers start at 0
         // instead of 1. Subtract by 1 again because $c000 - $ffff is already shifted forward by
         // 0x4000 (the default PRG bank size). Bank 0 should be $8000 - $bfff, bank 1 should be
         // $c000 - $ffff, bank 2 should be $10000 - $13fff, etc. These address ranges later get
         // subtracted by 0x8000 in getLocalPRGAddr so that bank 0 starts at 0 in the prgROM field
-        addr += (prgROMSize - 2) * defaultPRGBankSize;
+        localAddr += (prgROMSize - 2) * defaultPRGBankSize;
     }
-    return addr;
+    return localAddr;
 }
 
 // Maps the PPU address to the MMC's local field, chrMemory
 
-unsigned int MMC::getLocalCHRAddr(unsigned int addr) const {
+unsigned int MMC::getLocalCHRAddr(const unsigned int addr) const {
+    unsigned int localAddr = addr;
     const uint16_t defaultCHRBankSize = 0x1000;
     switch (mapperID) {
         case 1:
-            addr = getMapper1CHRAddr(addr);
+            localAddr = getMapper1CHRAddr(addr);
             break;
         case 3:
             // CHR bank size is always 8 KB: https://www.nesdev.org/wiki/INES_Mapper_003
-            addr += chrBank0 * defaultCHRBankSize * 2;
+            localAddr += chrBank0 * defaultCHRBankSize * 2;
     }
-    return addr;
+    return localAddr;
 }
 
 // Maps the PPU address to the MMC's local field, chrMemory, based on mapper 1 settings:
 // https://www.nesdev.org/wiki/MMC1#Registers
 
-unsigned int MMC::getMapper1CHRAddr(unsigned int addr) const {
+unsigned int MMC::getMapper1CHRAddr(const unsigned int addr) const {
+    unsigned int localAddr = addr;
     const uint16_t defaultCHRBankSize = 0x1000;
     if (chrBankMode) {
-        if (addr < 0x1000) {
-            addr += chrBank0 * defaultCHRBankSize;
+        if (localAddr < 0x1000) {
+            localAddr += chrBank0 * defaultCHRBankSize;
         } else {
             // Subtract by 1 because $1000 - $1fff is already shifted forward by 0x1000 (the default
             // CHR bank size). Bank 0 should be $0000 - $0fff, bank 1 should be $1000 - $1fff, bank
             // 2 should be $2000 - $2fff, etc.
-            addr += (chrBank1 - 1) * defaultCHRBankSize;
+            localAddr += (chrBank1 - 1) * defaultCHRBankSize;
         }
     } else {
         // Ignore low bit in 8 KB mode
-        addr += (chrBank0 >> 1) * defaultCHRBankSize * 2;
+        localAddr += (chrBank0 >> 1) * defaultCHRBankSize * 2;
     }
-    return addr;
+    return localAddr;
 }
 
 // Shifts the new bit into mapper 1's shift register and updates the settings if the register is
 // full: https://www.nesdev.org/wiki/MMC1#Registers
 
-void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles) {
+void MMC::writeShiftRegister(const uint16_t addr, const uint8_t val,
+        const unsigned int totalCycles) {
     unsigned int lastWriteCycleWrapped = 0;
     unsigned int totalCyclesWrapped = 0;
     // The total cycles should always be greater than the last write cycle, so if this condition is
@@ -409,7 +415,7 @@ void MMC::writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycle
 // Extracts the settings from the full shift register and assigns them to the MMC's fields:
 // https://www.nesdev.org/wiki/MMC1#Registers
 
-void MMC::updateSettings(uint16_t addr) {
+void MMC::updateSettings(const uint16_t addr) {
     // The address of the fifth write determines which settings are updated
     if (addr < 0xa000) {
         unsigned int mirrorVal = shiftRegister & 3;
@@ -444,7 +450,7 @@ void MMC::updateSettings(uint16_t addr) {
 // Increases the CHR memory size if CHR-RAM is enabled and the game selects a CHR bank that has not
 // yet been allocated
 
-void MMC::expandCHRMemory(unsigned int selectedCHRBank) {
+void MMC::expandCHRMemory(const unsigned int selectedCHRBank) {
     if (chrRAM && selectedCHRBank >= chrMemorySize) {
         chrMemory.resize((selectedCHRBank + 1) * 2);
         chrMemorySize = selectedCHRBank + 1;

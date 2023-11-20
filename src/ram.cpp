@@ -10,25 +10,25 @@ void RAM::clear() {
 
 // Handles reads from the CPU
 
-uint8_t RAM::read(uint16_t addr) const {
-    addr = getLocalAddr(addr);
-    return data[addr];
+uint8_t RAM::read(const uint16_t addr) const {
+    const uint16_t localAddr = getLocalAddr(addr);
+    return data[localAddr];
 }
 
 // Handles writes from the CPU
 
-void RAM::write(uint16_t addr, uint8_t val) {
-    addr = getLocalAddr(addr);
-    data[addr] = val;
+void RAM::write(const uint16_t addr, const uint8_t val) {
+    const uint16_t localAddr = getLocalAddr(addr);
+    data[localAddr] = val;
 }
 
 // Handles pushes to the stack from the CPU
 
-void RAM::push(uint8_t& pointer, uint8_t val, bool mute) {
+void RAM::push(uint8_t& pointer, const uint8_t val, bool mute) {
     const uint16_t zeroPageSize = 0x100;
     // The stack is located after the zero page, so the zero page size is effectively the bottom of
     // the stack
-    uint16_t addr = zeroPageSize + pointer;
+    const uint16_t addr = zeroPageSize + pointer;
     data[addr] = val;
     --pointer;
 
@@ -41,13 +41,13 @@ void RAM::push(uint8_t& pointer, uint8_t val, bool mute) {
 
 // Handles pulls from the stack from the CPU
 
-uint8_t RAM::pull(uint8_t& pointer, bool mute) {
+uint8_t RAM::pull(uint8_t& pointer, const bool mute) {
     ++pointer;
     const uint16_t zeroPageSize = 0x100;
     // The stack is located after the zero page, so the zero page size is effectively the bottom of
     // the stack
-    uint16_t addr = zeroPageSize + pointer;
-    uint8_t val = data[addr];
+    const uint16_t addr = zeroPageSize + pointer;
+    const uint8_t val = data[addr];
 
     if (!mute) {
         std::cout << std::hex << "0x" << (unsigned int) val << " has been pulled from the stack "
@@ -62,7 +62,7 @@ uint8_t RAM::pull(uint8_t& pointer, bool mute) {
 
 // Maps the CPU address to the RAM's local field, data
 
-uint16_t RAM::getLocalAddr(uint16_t addr) const {
+uint16_t RAM::getLocalAddr(const uint16_t addr) const {
     // RAM is located from $0000 - $1fff in the CPU memory map. However, $0800 - $1fff is mirrored.
     // This operation clears out the upper bits that set the address to a value higher than $07ff,
     // so the result is a mirrored address

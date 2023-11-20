@@ -78,7 +78,7 @@ class PPUOp {
 
         // Backgrounds
         void addTileRow();
-        uint8_t getPalette(uint8_t x);
+        uint8_t getPalette(const uint8_t x);
         uint8_t getUpperPalette(const struct TileRow& tileRow) const;
 
         // Preparation for Next Cycle

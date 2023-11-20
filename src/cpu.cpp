@@ -90,7 +90,7 @@ void CPU::readInInst(const std::string& filename) {
 
 void CPU::readInINES(const std::string& filename) {
     // Addresses $4020 - $ffff belong in the cartridge, so pass it off to the MMC
-    mmc.readInINES(filename, ppu);
+    mmc.readInINES(filename);
     if (filename == "test/nestest/nestest.nes") {
         // Use this start PC for an automated run of nestest.nes
         pc = 0xc000;
@@ -200,7 +200,7 @@ unsigned int CPU::getOpCycles() const {
     return op.cycle;
 }
 
-uint8_t CPU::readRAM(uint16_t addr) const {
+uint8_t CPU::readRAM(const uint16_t addr) const {
     return ram.read(addr);
 }
 
@@ -208,15 +208,15 @@ unsigned int CPU::getTotalPPUCycles() const {
     return ppu.getTotalCycles();
 }
 
-uint8_t CPU::readPRG(uint16_t addr) const {
+uint8_t CPU::readPRG(const uint16_t addr) const {
     return mmc.readPRG(addr);
 }
 
-void CPU::setHaltAtBrk(bool h) {
+void CPU::setHaltAtBrk(const bool h) {
     haltAtBrk = h;
 }
 
-void CPU::setMute(bool m) {
+void CPU::setMute(const bool m) {
     mute = m;
 }
 
@@ -224,14 +224,14 @@ void CPU::clearTotalPPUCycles() {
     ppu.clearTotalCycles();
 }
 
-void CPU::print(bool isCycleDone) const {
+void CPU::print(const bool isCycleDone) const {
     if (mute) {
         return;
     }
 
     unsigned int inc = 0;
     std::string time;
-    std::bitset<8> binaryP(p);
+    const std::bitset<8> binaryP(p);
     if (isCycleDone) {
         time = "After";
     } else {
@@ -284,7 +284,7 @@ void CPU::printUnknownOp() const {
 
 // Prints out the current state in the style of nestest.log
 
-void CPU::printStateInst(uint32_t inst) const {
+void CPU::printStateInst(const uint32_t inst) const {
     std::cout << std::hex << (unsigned int) pc << "  " << (unsigned int) inst << "  A:" <<
         (unsigned int) a << " X:" << (unsigned int) x << " Y:" << (unsigned int) y << " P:" <<
         (unsigned int) p << " SP:" << (unsigned int) sp << " CYC:" << std::dec << totalCycles <<
@@ -1659,7 +1659,7 @@ void CPU::xaa() {
 
 // Passes the read to the component that is responsible for the address range in the CPU memory map
 
-uint8_t CPU::read(uint16_t addr) {
+uint8_t CPU::read(const uint16_t addr) {
     const uint16_t ppuCtrl = 0x2000;
     const uint16_t sq1Vol = 0x4000;
     const uint16_t oamDMAAddr = 0x4014;
@@ -1683,7 +1683,7 @@ uint8_t CPU::read(uint16_t addr) {
 
 // Passes the write to the component that is responsible for the address range in the CPU memory map
 
-void CPU::write(uint16_t addr, uint8_t val) {
+void CPU::write(const uint16_t addr, const uint8_t val) {
     const uint16_t ppuCtrl = 0x2000;
     const uint16_t sq1Vol = 0x4000;
     const uint16_t oamDMAAddr = 0x4014;
@@ -1734,10 +1734,10 @@ void CPU::oamDMATransfer() {
     // it'll increase code complexity
     } else if (op.dmaCycle > 0 && op.dmaCycle % 2 == 0) {
         const uint16_t oamDMAAddr = 0x4014;
+        const uint16_t cpuBaseAddr = ppu.readRegister(oamDMAAddr, mmc) << 8;
         const unsigned int oamAddr = op.dmaCycle / 2 - 1;
-        uint16_t cpuBaseAddr = ppu.readRegister(oamDMAAddr, mmc) << 8;
-        uint16_t cpuAddr = cpuBaseAddr + oamAddr;
-        uint8_t cpuData = read(cpuAddr);
+        const uint16_t cpuAddr = cpuBaseAddr + oamAddr;
+        const uint8_t cpuData = read(cpuAddr);
         ppu.writeOAM(oamAddr, cpuData);
     }
 
@@ -1886,7 +1886,7 @@ void CPU::prepareReset() {
 
 // Sets the Zero flag if the result is zero. Otherwise, clear it
 
-void CPU::updateZeroFlag(uint8_t result) {
+void CPU::updateZeroFlag(const uint8_t result) {
     if (result == 0) {
         p |= Zero;
     } else {
@@ -1896,7 +1896,7 @@ void CPU::updateZeroFlag(uint8_t result) {
 
 // Sets the Negative flag if the result is negative. Otherwise, clear it
 
-void CPU::updateNegativeFlag(uint8_t result) {
+void CPU::updateNegativeFlag(const uint8_t result) {
     p &= ~Negative;
     p |= result & Negative;
 }
@@ -1921,7 +1921,7 @@ bool CPU::isNegative() const {
     return p & Negative;
 }
 
-void CPU::setCarryFlag(bool val) {
+void CPU::setCarryFlag(const bool val) {
     if (val) {
         p |= Carry;
     } else {
@@ -1929,7 +1929,7 @@ void CPU::setCarryFlag(bool val) {
     }
 }
 
-void CPU::setZeroFlag(bool val) {
+void CPU::setZeroFlag(const bool val) {
     if (val) {
         p |= Zero;
     } else {
@@ -1937,7 +1937,7 @@ void CPU::setZeroFlag(bool val) {
     }
 }
 
-void CPU::setInterruptDisable(bool val) {
+void CPU::setInterruptDisable(const bool val) {
     if (val) {
         p |= InterruptDisable;
     } else {
@@ -1945,7 +1945,7 @@ void CPU::setInterruptDisable(bool val) {
     }
 }
 
-void CPU::setDecimalMode(bool val) {
+void CPU::setDecimalMode(const bool val) {
     if (val) {
         p |= DecimalMode;
     } else {
@@ -1953,7 +1953,7 @@ void CPU::setDecimalMode(bool val) {
     }
 }
 
-void CPU::setOverflowFlag(bool val) {
+void CPU::setOverflowFlag(const bool val) {
     if (val) {
         p |= Overflow;
     } else {
@@ -1961,7 +1961,7 @@ void CPU::setOverflowFlag(bool val) {
     }
 }
 
-void CPU::setNegativeFlag(bool val) {
+void CPU::setNegativeFlag(const bool val) {
     if (val) {
         p |= Negative;
     } else {

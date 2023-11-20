@@ -22,12 +22,12 @@ class MMC {
     public:
         MMC();
         void clear();
-        uint8_t readPRG(uint16_t addr) const;
-        void writePRG(uint16_t addr, uint8_t val, unsigned int totalCycles);
-        uint8_t readCHR(uint16_t addr) const;
-        void writeCHR(uint16_t addr, uint8_t val);
+        uint8_t readPRG(const uint16_t addr) const;
+        void writePRG(const uint16_t addr, const uint8_t val, const unsigned int totalCycles);
+        uint8_t readCHR(const uint16_t addr) const;
+        void writeCHR(const uint16_t addr, const uint8_t val);
         void readInInst(const std::string& filename);
-        void readInINES(const std::string& filename, PPU& ppu);
+        void readInINES(const std::string& filename);
         unsigned int getMirroring() const;
 
         enum Mirroring {
@@ -79,14 +79,15 @@ class MMC {
         // Set to true for instruction tests, which allows them to write to the PRG-ROM
         bool testMode;
 
-        unsigned int getLocalPRGAddr(unsigned int addr) const;
-        unsigned int getMapper1PRGAddr(unsigned int addr) const;
-        unsigned int getMapper2PRGAddr(unsigned int addr) const;
-        unsigned int getLocalCHRAddr(unsigned int addr) const;
-        unsigned int getMapper1CHRAddr(unsigned int addr) const;
-        void writeShiftRegister(uint16_t addr, uint8_t val, unsigned int totalCycles);
-        void updateSettings(uint16_t addr);
-        void expandCHRMemory(unsigned int selectedCHRBank);
+        unsigned int getLocalPRGAddr(const unsigned int addr) const;
+        unsigned int getMapper1PRGAddr(const unsigned int addr) const;
+        unsigned int getMapper2PRGAddr(const unsigned int addr) const;
+        unsigned int getLocalCHRAddr(const unsigned int addr) const;
+        unsigned int getMapper1CHRAddr(const unsigned int addr) const;
+        void writeShiftRegister(const uint16_t addr, const uint8_t val,
+            const unsigned int totalCycles);
+        void updateSettings(const uint16_t addr);
+        void expandCHRMemory(const unsigned int selectedCHRBank);
 };
 
 #endif

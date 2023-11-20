@@ -11,7 +11,7 @@ Sprite::Sprite() :
         patternEntryHi(0),
         spriteNum(0) { }
 
-Sprite::Sprite(uint8_t yPos, unsigned int spriteNum) :
+Sprite::Sprite(const uint8_t yPos, const unsigned int spriteNum) :
         tileIndexNum(0),
         attributes(0),
         xPos(0),
@@ -24,7 +24,8 @@ Sprite::Sprite(uint8_t yPos, unsigned int spriteNum) :
 // Gets the tile row index for the given scanline, which can be treated as the current y-coordinate
 // that is being rendered: https://www.nesdev.org/wiki/PPU_OAM#Byte_1
 
-uint8_t Sprite::getTileRowIndex(unsigned int scanline, unsigned int spriteHeight) const {
+uint8_t Sprite::getTileRowIndex(const unsigned int scanline, const unsigned int spriteHeight) const
+        {
     uint8_t index = 0;
     unsigned int yDiff = getYDifference(scanline);
     if (isFlippedVertically()) {
@@ -70,13 +71,13 @@ uint8_t Sprite::getTileRowIndex(unsigned int scanline, unsigned int spriteHeight
 // Gets the palette for the given pixel, which can be treated as the current x-coordinate that is
 // being rendered
 
-uint8_t Sprite::getPalette(unsigned int pixel) const {
+uint8_t Sprite::getPalette(const unsigned int pixel) const {
     const unsigned int xDiff = getXDifference(pixel);
     // Gets the furthest left bit in the tile and shifts it right however many times the
     // x-difference is (i.e., the difference between the pixel and the sprite's x-coordinate), which
     // will then be the column/bit that the pixel lands on
     uint8_t pixelBit = 0x80 >> xDiff;
-    uint8_t upperPaletteBits = getUpperPalette();
+    const uint8_t upperPaletteBits = getUpperPalette();
     uint8_t palette = 0;
     // Perform the above operation in reverse if the sprite is flipped horizontally
     if (isFlippedHorizontally()) {
@@ -101,7 +102,7 @@ uint8_t Sprite::getPalette(unsigned int pixel) const {
 // priority multiplexer decision table: https://www.nesdev.org/wiki/PPU_rendering#Preface. Only the
 // lower 2 bits of color are relevant
 
-bool Sprite::isChosen(uint8_t bgPalette, uint8_t spritePalette) const {
+bool Sprite::isChosen(const uint8_t bgPalette, const uint8_t spritePalette) const {
     const bool priority = isPrioritized();
     if (bgPalette && spritePalette && priority) {
         return true;
@@ -113,14 +114,14 @@ bool Sprite::isChosen(uint8_t bgPalette, uint8_t spritePalette) const {
 
 // Gets the difference between the given scanline and the y-position of the sprite's top edge
 
-unsigned int Sprite::getYDifference(unsigned int scanline) const {
+unsigned int Sprite::getYDifference(const unsigned int scanline) const {
     return scanline - yPos;
 }
 
 // Determines whether the sprite is in range of the given scanline (i.e., if any row of the sprite's
 // tile can be outputted on the scanline)
 
-bool Sprite::isYInRange(unsigned int scanline, unsigned int spriteHeight) const {
+bool Sprite::isYInRange(const unsigned int scanline, const unsigned int spriteHeight) const {
     const unsigned int yDiff = getYDifference(scanline);
     if (yDiff <= spriteHeight - 1) {
         return true;
@@ -130,14 +131,14 @@ bool Sprite::isYInRange(unsigned int scanline, unsigned int spriteHeight) const 
 
 // Gets the difference between the given pixel and the x-position of the sprite's left edge
 
-unsigned int Sprite::getXDifference(unsigned int pixel) const {
+unsigned int Sprite::getXDifference(const unsigned int pixel) const {
     return pixel - xPos;
 }
 
 // Determines whether the sprite is in range of the given pixel (i.e., if any column of the sprite's
 // tile can be outputted on the scanline)
 
-bool Sprite::isXInRange(unsigned int pixel) const {
+bool Sprite::isXInRange(const unsigned int pixel) const {
     const unsigned int xDiff = getXDifference(pixel);
     const unsigned int spriteWidth = 8;
     if (xDiff <= spriteWidth - 1) {

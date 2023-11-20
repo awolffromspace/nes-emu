@@ -13,13 +13,13 @@ class APU {
     public:
         APU();
         void clear();
-        uint8_t readRegister(uint16_t addr) const;
-        void writeRegister(uint16_t addr, uint8_t val);
+        uint8_t readRegister(const uint16_t addr) const;
+        void writeRegister(const uint16_t addr, const uint8_t val);
 
     private:
         uint8_t registers[0x16]; // APU registers in the CPU memory map
 
-        uint16_t getLocalAddr(uint16_t addr) const;
+        uint16_t getLocalAddr(const uint16_t addr) const;
 };
 
 #endif

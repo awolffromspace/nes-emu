@@ -20,18 +20,18 @@ class PPU {
     public:
         PPU();
         void clear();
-        void step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, bool mute);
+        void step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, const bool mute);
 
         // Read/Write I/O Functions
-        uint8_t readRegister(uint16_t addr, MMC& mmc);
-        void writeRegister(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
-        void writeOAM(uint8_t addr, uint8_t val);
+        uint8_t readRegister(const uint16_t addr, MMC& mmc);
+        void writeRegister(const uint16_t addr, const uint8_t val, MMC& mmc, const bool mute);
+        void writeOAM(const uint8_t addr, const uint8_t val);
 
         // Miscellaneous Functions
-        bool isNMIActive(MMC& mmc, bool mute);
+        bool isNMIActive(MMC& mmc, const bool mute);
         unsigned int getTotalCycles() const;
         void clearTotalCycles();
-        void print(bool isCycleDone) const;
+        void print(const bool isCycleDone) const;
 
     private:
         struct RGBVal {
@@ -104,8 +104,8 @@ class PPU {
         void setPixel(MMC& mmc);
         uint8_t getPalette();
         uint8_t getUpperPalette(const struct TileRow& tileRow) const;
-        void setSprite0Hit(const Sprite& sprite, uint8_t bgPalette);
-        void setRGB(uint8_t paletteEntry);
+        void setSprite0Hit(const Sprite& sprite, const uint8_t bgPalette);
+        void setRGB(const uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
 
         // Scrolling
@@ -120,19 +120,19 @@ class PPU {
         void updatePPUStatus(MMC& mmc);
 
         // Read/Write Functions
-        void writePPUScroll(uint8_t val);
-        void writePPUAddr(uint8_t val);
-        uint8_t readVRAM(uint16_t addr, MMC& mmc) const;
-        void writeVRAM(uint16_t addr, uint8_t val, MMC& mmc, bool mute);
+        void writePPUScroll(const uint8_t val);
+        void writePPUAddr(const uint8_t val);
+        uint8_t readVRAM(const uint16_t addr, MMC& mmc) const;
+        void writeVRAM(const uint16_t addr, const uint8_t val, MMC& mmc, const bool mute);
 
         // Mirrored Address Getters
-        uint16_t getLocalRegisterAddr(uint16_t addr) const;
-        uint16_t getLocalVRAMAddr(uint16_t addr, MMC& mmc, bool isRead) const;
-        uint16_t getUpperMirrorAddr(uint16_t addr) const;
-        uint16_t getHorizontalMirrorAddr(uint16_t addr) const;
-        uint16_t getVerticalMirrorAddr(uint16_t addr) const;
-        uint16_t getSingle0MirrorAddr(uint16_t addr) const;
-        uint16_t getSingle1MirrorAddr(uint16_t addr) const;
+        uint16_t getLocalRegisterAddr(const uint16_t addr) const;
+        uint16_t getLocalVRAMAddr(const uint16_t addr, MMC& mmc, const bool isRead) const;
+        uint16_t getUpperMirrorAddr(const uint16_t addr) const;
+        uint16_t getHorizontalMirrorAddr(const uint16_t addr) const;
+        uint16_t getVerticalMirrorAddr(const uint16_t addr) const;
+        uint16_t getSingle0MirrorAddr(const uint16_t addr) const;
+        uint16_t getSingle1MirrorAddr(const uint16_t addr) const;
 
         // Register Flag Getters
         uint16_t getNametableBaseAddr() const;
@@ -164,14 +164,14 @@ class PPU {
         unsigned int getTempFineYScroll() const;
 
         // Register Flag Setters
-        void setCoarseXScroll(unsigned int val);
-        void setTempCoarseXScroll(unsigned int val);
-        void setCoarseYScroll(unsigned int val);
-        void setTempCoarseYScroll(unsigned int val);
-        void setNametableSelect(unsigned int val);
-        void setTempNametableSelect(unsigned int val);
-        void setFineYScroll(unsigned int val);
-        void setTempFineYScroll(unsigned int val);
+        void setCoarseXScroll(const unsigned int val);
+        void setTempCoarseXScroll(const unsigned int val);
+        void setCoarseYScroll(const unsigned int val);
+        void setTempCoarseYScroll(const unsigned int val);
+        void setNametableSelect(const unsigned int val);
+        void setTempNametableSelect(const unsigned int val);
+        void setFineYScroll(const unsigned int val);
+        void setTempFineYScroll(const unsigned int val);
 
         // Color Palette Initialization
         void initializePalette();

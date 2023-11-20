@@ -14,8 +14,8 @@ class IO {
     public:
         IO();
         void clear();
-        uint8_t readRegister(uint16_t addr);
-        void writeRegister(uint16_t addr, uint8_t val);
+        uint8_t readRegister(const uint16_t addr);
+        void writeRegister(const uint16_t addr, const uint8_t val);
         void updateButton(const SDL_Event& event);
 
     private:
@@ -41,7 +41,7 @@ class IO {
         uint8_t left;
         uint8_t right;
 
-        uint16_t getLocalAddr(uint16_t addr) const;
+        uint16_t getLocalAddr(const uint16_t addr) const;
 
         friend class CPU;
 

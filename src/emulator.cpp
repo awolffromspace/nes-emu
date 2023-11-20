@@ -11,9 +11,9 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
 
 void runProgram(CPU& cpu, const std::string& filename);
 
-void stepAndPrint(CPU& cpu, bool showPPU);
+void stepAndPrint(CPU& cpu, const bool showPPU);
 
-void runInstTests(CPU& cpu, std::vector<std::string>& filenames);
+void runInstTests(CPU& cpu, const std::vector<std::string>& filenames);
 
 void runNESTests(CPU& cpu);
 
@@ -22,7 +22,7 @@ void runCPUTests(CPU& cpu);
 void runPPUTests(CPU& cpu);
 
 void runIndividualTest(CPU& cpu, const std::string& testName, const std::string& testDirectory,
-    uint16_t stopPC, uint8_t passedTestResult, uint16_t testResultAddr);
+    const uint16_t stopPC, const uint8_t passedTestResult, const uint16_t testResultAddr);
 
 void runNESGame(CPU& cpu, const std::string& filename);
 
@@ -39,26 +39,26 @@ int main(int argc, char* argv[]) {
         cpu.clear();
         runNESTests(cpu);
     } else if (argc == 2) {
-        std::string filename(argv[1]);
+        const std::string filename(argv[1]);
         if (filename.size() < 5) {
             std::cerr << "Game filename is too short or missing its filename extension\n";
             exit(1);
         }
-        std::string fileFormat = filename.substr(filename.size() - 4, 4);
+        const std::string fileFormat = filename.substr(filename.size() - 4, 4);
         if (fileFormat != ".nes") {
             std::cerr << "Wrong filename extension\n";
             exit(1);
         }
         runNESGame(cpu, filename);
     } else if (argc == 3) {
-        std::string debugStr = "debug";
-        std::string arg(argv[2]);
+        const std::string debugStr = "debug";
+        const std::string arg(argv[2]);
         if (arg != debugStr) {
             std::cerr << "Unexpected argument\n";
             exit(1);
         }
         cpu.setMute(false);
-        std::string filename(argv[1]);
+        const std::string filename(argv[1]);
         runProgram(cpu, filename);
     } else {
         std::cerr << "Unexpected number of arguments\n";
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
 // Adds each filename in test/filenames to a vector
 
 void readInFilenames(std::vector<std::string>& filenames) {
-    std::string filenameList = "test/inst/filenames";
+    const std::string filenameList = "test/inst/filenames";
     std::ifstream file(filenameList.c_str());
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
@@ -94,7 +94,7 @@ void readInFilenames(std::vector<std::string>& filenames) {
 // while loop logic can be better generalized
 
 struct CPU::State readInState(const std::string& filename) {
-    std::string stateFilename = filename + ".state";
+    const std::string stateFilename = filename + ".state";
     std::ifstream file(stateFilename.c_str());
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
@@ -144,7 +144,7 @@ struct CPU::State readInState(const std::string& filename) {
 
 void readInNESTestStates(std::vector<struct CPU::State>& states,
         std::vector<uint32_t>& instructions, std::vector<std::string>& testLogs) {
-    std::string filename = "test/nestest/nestest.log";
+    const std::string filename = "test/nestest/nestest.log";
     std::ifstream file(filename.c_str());
     if (!file.is_open()) {
         std::cerr << "Error reading in file\n";
@@ -213,7 +213,7 @@ void readInNESTestStates(std::vector<struct CPU::State>& states,
 void runProgram(CPU& cpu, const std::string& filename) {
     bool nesFile = false;
     if (filename.size() > 4) {
-        std::string fileFormat = filename.substr(filename.size() - 4, 4);
+        const std::string fileFormat = filename.substr(filename.size() - 4, 4);
         if (fileFormat == ".nes") {
             cpu.readInINES(filename);
             nesFile = true;
@@ -223,8 +223,8 @@ void runProgram(CPU& cpu, const std::string& filename) {
         cpu.readInInst(filename);
     }
 
-    std::string commands = "Enter 's' or 'step', 'c' or 'continue', 'b' or 'break', 'p' or 'ppu', "
-        "or 'q' or 'quit': ";
+    const std::string commands = "Enter 's' or 'step', 'c' or 'continue', 'b' or 'break', 'p' or "
+        "'ppu', or 'q' or 'quit': ";
     std::string input;
     bool showPPU = false;
     std::cout << commands;
@@ -241,7 +241,7 @@ void runProgram(CPU& cpu, const std::string& filename) {
         } else if (input == "b" || input == "break") {
             std::cout << "PC to break at: ";
             std::cin >> input;
-            uint16_t targetPC = std::stoul(input, nullptr, 16);
+            const uint16_t targetPC = std::stoul(input, nullptr, 16);
             do {
                 stepAndPrint(cpu, showPPU);
             } while (cpu.getPC() != targetPC);
@@ -267,7 +267,7 @@ void runProgram(CPU& cpu, const std::string& filename) {
 
 // Runs the CPU for one cycle and prints the debug info
 
-void stepAndPrint(CPU& cpu, bool showPPU) {
+void stepAndPrint(CPU& cpu, const bool showPPU) {
     cpu.print(false);
     cpu.step(nullptr, nullptr);
     cpu.print(true);
@@ -279,17 +279,17 @@ void stepAndPrint(CPU& cpu, bool showPPU) {
 // Given the unit test filenames, this function runs all tests and compares the CPU's state with the
 // test's .state file. Any failed tests are printed out
 
-void runInstTests(CPU& cpu, std::vector<std::string>& filenames) {
+void runInstTests(CPU& cpu, const std::vector<std::string>& filenames) {
     std::vector<unsigned int> failedTests;
     for (unsigned int testNum = 0; testNum < filenames.size(); ++testNum) {
-        std::string& currentFilename = filenames[testNum];
-        struct CPU::State state = readInState(currentFilename);
+        const std::string& currentFilename = filenames[testNum];
+        const struct CPU::State state = readInState(currentFilename);
         if (testNum > 0) {
             cpu.clear();
         }
         cpu.readInInst(currentFilename);
         if (currentFilename.size() >= 13) {
-            std::string testType = currentFilename.substr(10, 3);
+            const std::string testType = currentFilename.substr(10, 3);
             // If the instruction test uses BRK, then the CPU can't halt the moment it reaches BRK
             if (testType == "brk") {
                 cpu.setHaltAtBrk(false);
@@ -310,13 +310,13 @@ void runInstTests(CPU& cpu, std::vector<std::string>& filenames) {
     }
 
     if (failedTests.size() != filenames.size()) {
-        unsigned int numPassedTests = filenames.size() - failedTests.size();
+        const unsigned int numPassedTests = filenames.size() - failedTests.size();
         std::cout << "Passed " << numPassedTests << " instruction tests\n";
     }
 
     for (unsigned int failedTest : failedTests) {
-        std::string& currentFilename = filenames[failedTest];
-        unsigned int sizeMinusDir = currentFilename.size() - 5;
+        const std::string& currentFilename = filenames[failedTest];
+        const unsigned int sizeMinusDir = currentFilename.size() - 5;
         std::cout << "Failed test \"" << currentFilename.substr(5, sizeMinusDir) << "\"\n";
     }
 }
@@ -329,7 +329,7 @@ void runNESTests(CPU& cpu) {
 // Runs tests that are focused on the CPU
 
 void runCPUTests(CPU& cpu) {
-    std::string filename = "test/nestest/nestest.nes";
+    const std::string filename = "test/nestest/nestest.nes";
     std::vector<struct CPU::State> states;
     std::vector<uint32_t> instructions;
     std::vector<std::string> testLogs;
@@ -343,10 +343,10 @@ void runCPUTests(CPU& cpu) {
         // functions have been called once. This makes it easy to know which addressing mode and
         // operation the opcode is for
         if (cpu.getOpCycles() == 1) {
-            struct CPU::State state = states[instNum];
-            uint32_t testInst = instructions[instNum];
-            uint32_t inst = cpu.getFutureInst();
-            std::string testLog = testLogs[instNum];
+            const struct CPU::State state = states[instNum];
+            const uint32_t testInst = instructions[instNum];
+            const uint32_t inst = cpu.getFutureInst();
+            const std::string testLog = testLogs[instNum];
             if (!cpu.compareState(state) || inst != testInst) {
                 std::cout << "Test log: " << testLog << "\nEmulator: ";
                 cpu.printStateInst(inst);
@@ -384,8 +384,8 @@ void runCPUTests(CPU& cpu) {
     // program
     cpu.clear();
     cpu.readInINES("test/cpu_timing_test6/cpu_timing_test.nes");
-    uint16_t passedPC = 0xe1b7;
-    uint16_t failedPC = 0xe0b0;
+    const uint16_t passedPC = 0xe1b7;
+    const uint16_t failedPC = 0xe0b0;
     while (cpu.getPC() != passedPC && cpu.getPC() != failedPC) {
         cpu.step(nullptr, nullptr);
     }
@@ -396,7 +396,7 @@ void runCPUTests(CPU& cpu) {
         std::cout << "Failed cpu_timing_test6/cpu_timing_test.nes\n";
     }
 
-    std::string branchDir = "branch_timing_tests/";
+    const std::string branchDir = "branch_timing_tests/";
     runIndividualTest(cpu, "1.Branch_Basics.nes", branchDir, 0xe4f0, 1, 0xf8);
     runIndividualTest(cpu, "2.Backward_Branch.nes", branchDir, 0xe4f0, 1, 0xf8);
     runIndividualTest(cpu, "3.Forward_Branch.nes", branchDir, 0xe4f0, 1, 0xf8);
@@ -405,8 +405,8 @@ void runCPUTests(CPU& cpu) {
 // Runs tests that are focused on the PPU
 
 void runPPUTests(CPU& cpu) {
-    std::string nmiDir1 = "vbl_nmi_timing/";
-    uint16_t zeroPageAddr = 0xf8;
+    const std::string nmiDir1 = "vbl_nmi_timing/";
+    const uint16_t zeroPageAddr = 0xf8;
     runIndividualTest(cpu, "1.frame_basics.nes", nmiDir1, 0xe589, 1, zeroPageAddr);
     runIndividualTest(cpu, "2.vbl_timing.nes", nmiDir1, 0xe54f, 1, zeroPageAddr);
     runIndividualTest(cpu, "3.even_odd_frames.nes", nmiDir1, 0xe59f, 1, zeroPageAddr);
@@ -415,8 +415,8 @@ void runPPUTests(CPU& cpu) {
     runIndividualTest(cpu, "6.nmi_disable.nes", nmiDir1, 0xe535, 1, zeroPageAddr);
     runIndividualTest(cpu, "7.nmi_timing.nes", nmiDir1, 0xe58e, 1, zeroPageAddr);
 
-    std::string nmiDir2 = "ppu_vbl_nmi/rom_singles/";
-    uint16_t prgRAMAddr = 0x6000;
+    const std::string nmiDir2 = "ppu_vbl_nmi/rom_singles/";
+    const uint16_t prgRAMAddr = 0x6000;
     runIndividualTest(cpu, "01-vbl_basics.nes", nmiDir2, 0xe8d5, 0, prgRAMAddr);
     runIndividualTest(cpu, "02-vbl_set_time.nes", nmiDir2, 0xe8d5, 0, prgRAMAddr);
     runIndividualTest(cpu, "03-vbl_clear_time.nes", nmiDir2, 0xe8d5, 0, prgRAMAddr);
@@ -428,7 +428,7 @@ void runPPUTests(CPU& cpu) {
     runIndividualTest(cpu, "09-even_odd_frames.nes", nmiDir2, 0xe8d5, 0, prgRAMAddr);
     runIndividualTest(cpu, "10-even_odd_timing.nes", nmiDir2, 0xead5, 0, prgRAMAddr);
 
-    std::string spriteHitDir1 = "sprite_hit_tests_2005.10.05/";
+    const std::string spriteHitDir1 = "sprite_hit_tests_2005.10.05/";
     runIndividualTest(cpu, "01.basics.nes", spriteHitDir1, 0xe635, 1, zeroPageAddr);
     runIndividualTest(cpu, "02.alignment.nes", spriteHitDir1, 0xe635, 1, zeroPageAddr);
     runIndividualTest(cpu, "03.corners.nes", spriteHitDir1, 0xe635, 1, zeroPageAddr);
@@ -441,7 +441,7 @@ void runPPUTests(CPU& cpu) {
     runIndividualTest(cpu, "10.timing_order.nes", spriteHitDir1, 0xe635, 1, zeroPageAddr);
     runIndividualTest(cpu, "11.edge_timing.nes", spriteHitDir1, 0xe635, 1, zeroPageAddr);
 
-    std::string spriteHitDir2 = "ppu_sprite_hit/rom_singles/";
+    const std::string spriteHitDir2 = "ppu_sprite_hit/rom_singles/";
     runIndividualTest(cpu, "01-basics.nes", spriteHitDir2, 0xe8d5, 0, prgRAMAddr);
     runIndividualTest(cpu, "02-alignment.nes", spriteHitDir2, 0xe8d5, 0, prgRAMAddr);
     runIndividualTest(cpu, "03-corners.nes", spriteHitDir2, 0xe8d5, 0, prgRAMAddr);
@@ -458,7 +458,7 @@ void runPPUTests(CPU& cpu) {
 // test result with the known passed value to determine whether the test passed or not
 
 void runIndividualTest(CPU& cpu, const std::string& testName, const std::string& testDirectory,
-        uint16_t stopPC, uint8_t passedTestResult, uint16_t testResultAddr) {
+        const uint16_t stopPC, const uint8_t passedTestResult, const uint16_t testResultAddr) {
     cpu.clear();
     cpu.readInINES("test/" + testDirectory + testName);
     while (cpu.getPC() != stopPC) {

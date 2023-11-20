@@ -10,7 +10,7 @@
 class CPUOp {
     public:
         CPUOp();
-        void clear(bool clearInterrupts, bool clearDMA);
+        void clear(const bool clearInterrupts, const bool clearDMA);
         void clearInterruptFlags();
         void clearDMA();
         bool crossedPageBoundary() const;

@@ -14,15 +14,15 @@ class RAM {
     public:
         RAM();
         void clear();
-        uint8_t read(uint16_t addr) const;
-        void write(uint16_t addr, uint8_t val);
-        void push(uint8_t& pointer, uint8_t val, bool mute);
-        uint8_t pull(uint8_t& pointer, bool mute);
+        uint8_t read(const uint16_t addr) const;
+        void write(const uint16_t addr, const uint8_t val);
+        void push(uint8_t& pointer, const uint8_t val, const bool mute);
+        uint8_t pull(uint8_t& pointer, const bool mute);
 
     private:
         uint8_t data[0x800]; // RAM in the CPU memory map
 
-        uint16_t getLocalAddr(uint16_t addr) const;
+        uint16_t getLocalAddr(const uint16_t addr) const;
 };
 
 #endif

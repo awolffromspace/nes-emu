@@ -32,63 +32,63 @@ void IO::clear() {
 
 // Handles register reads from the CPU
 
-uint8_t IO::readRegister(uint16_t addr) {
+uint8_t IO::readRegister(const uint16_t addr) {
+    const uint16_t localAddr = getLocalAddr(addr);
     const uint8_t primaryControllerStatus = 1;
-    addr = getLocalAddr(addr);
     // If strobe mode is on, only return the status of the A button
-    if (addr == 0 && strobe) {
+    if (localAddr == 0 && strobe) {
         // Clear the primary controller status bit
-        registers[addr] &= ~primaryControllerStatus;
-        registers[addr] |= a;
+        registers[localAddr] &= ~primaryControllerStatus;
+        registers[localAddr] |= a;
     // If strobe mode is off, cycle through each button on each CPU read
-    } else if (addr == 0 && !strobe) {
+    } else if (localAddr == 0 && !strobe) {
         // Clear the primary controller status bit
-        registers[addr] &= ~primaryControllerStatus;
+        registers[localAddr] &= ~primaryControllerStatus;
         switch (currentButton) {
             case A:
-                registers[addr] |= a;
+                registers[localAddr] |= a;
                 break;
             case B:
-                registers[addr] |= b;
+                registers[localAddr] |= b;
                 break;
             case Select:
-                registers[addr] |= select;
+                registers[localAddr] |= select;
                 break;
             case Start:
-                registers[addr] |= start;
+                registers[localAddr] |= start;
                 break;
             case Up:
-                registers[addr] |= up;
+                registers[localAddr] |= up;
                 break;
             case Down:
-                registers[addr] |= down;
+                registers[localAddr] |= down;
                 break;
             case Left:
-                registers[addr] |= left;
+                registers[localAddr] |= left;
                 break;
             case Right:
-                registers[addr] |= right;
+                registers[localAddr] |= right;
         }
         ++currentButton;
         // Wraparound back to the A button
         if (currentButton > Right) {
             currentButton = A;
         }
-    } else if (addr == 1) {
-        registers[addr] = 0;
+    } else if (localAddr == 1) {
+        registers[localAddr] = 0;
     }
     // This bit is always set on the bus
-    registers[addr] |= 0x40;
-    return registers[addr];
+    registers[localAddr] |= 0x40;
+    return registers[localAddr];
 }
 
 // Handles register writes from the CPU
 
-void IO::writeRegister(uint16_t addr, uint8_t val) {
-    addr = getLocalAddr(addr);
-    registers[addr] = val;
+void IO::writeRegister(const uint16_t addr, const uint8_t val) {
+    const uint16_t localAddr = getLocalAddr(addr);
+    registers[localAddr] = val;
 
-    if (addr == 0) {
+    if (localAddr == 0) {
         if (val & 1) {
             strobe = true;
             // Reset to the A button whenever strobe mode is set
@@ -139,7 +139,7 @@ void IO::updateButton(const SDL_Event& event) {
 
 // Maps the CPU address to the I/O local field, registers
 
-uint16_t IO::getLocalAddr(uint16_t addr) const {
+uint16_t IO::getLocalAddr(const uint16_t addr) const {
     // Subtract by 0x4016 so that $4016 becomes 0 and $4017 becomes 1
     return addr - 0x4016;
 }

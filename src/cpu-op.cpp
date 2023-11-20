@@ -27,7 +27,7 @@ CPUOp::CPUOp() :
         oamDMATransfer(false),
         done(false) { }
 
-void CPUOp::clear(bool clearInterrupts, bool clearDMA) {
+void CPUOp::clear(const bool clearInterrupts, const bool clearDMA) {
     inst = 0;
     pc = 0;
     opcode = 0;

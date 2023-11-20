@@ -6,20 +6,20 @@
 class Sprite {
     public:
         Sprite();
-        Sprite(uint8_t yPos, unsigned int spriteNum);
+        Sprite(const uint8_t yPos, const unsigned int spriteNum);
 
         // Fetching
-        uint8_t getTileRowIndex(unsigned int scanline, unsigned int spriteHeight) const;
+        uint8_t getTileRowIndex(const unsigned int scanline, const unsigned int spriteHeight) const;
 
         // Rendering
-        uint8_t getPalette(unsigned int pixel) const;
-        bool isChosen(uint8_t bgPalette, uint8_t spritePalette) const;
+        uint8_t getPalette(const unsigned int pixel) const;
+        bool isChosen(const uint8_t bgPalette, const uint8_t spritePalette) const;
 
         // Locating the Sprite in the Frame
-        unsigned int getYDifference(unsigned int scanline) const;
-        bool isYInRange(unsigned int scanline, unsigned int spriteHeight) const;
-        unsigned int getXDifference(unsigned int pixel) const;
-        bool isXInRange(unsigned int pixel) const;
+        unsigned int getYDifference(const unsigned int scanline) const;
+        bool isYInRange(const unsigned int scanline, const unsigned int spriteHeight) const;
+        unsigned int getXDifference(const unsigned int pixel) const;
+        bool isXInRange(const unsigned int pixel) const;
 
         // Attribute Getters
         uint8_t getUpperPalette() const;
