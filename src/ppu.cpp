@@ -206,7 +206,7 @@ void PPU::print(const bool isCycleDone) const {
         ++inc;
         std::cout << "--------------------------------------------------\n";
     }
-    std::cout << "Cycle " << totalCycles + inc << ": " << time
+    std::cout << "PPU Cycle " << totalCycles + inc << ": " << time
         << std::hex << "\n----------------------------\n"
         "PPU Fields\n----------------------------\n"
         "registers[0]      = 0x" << (unsigned int) registers[0] << "\n"

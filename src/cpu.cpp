@@ -239,7 +239,7 @@ void CPU::print(const bool isCycleDone) const {
         ++inc;
         std::cout << "--------------------------------------------------\n";
     }
-    std::cout << "Cycle " << totalCycles + inc << ": " << time << std::hex <<
+    std::cout << "CPU Cycle " << totalCycles + inc << ": " << time << std::hex <<
         "\n----------------------------\nCPU Fields\n----------------------------\n"
         "pc                = 0x" << (unsigned int) pc << "\n"
         "sp                = 0x" << (unsigned int) sp << "\n"
