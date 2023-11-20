@@ -1,5 +1,5 @@
 CXX = clang++ $(CXXFLAGS) ${SDL}
-CXXFLAGS = -Wall -O2 -std=c++11
+CXXFLAGS = -Wall -O2 -std=c++20
 OBJECTS = apu.o cpu.o cpu-op.o emulator.o io.o mmc.o ppu.o ppu-op.o ram.o sprite.o
 SDL = `sdl2-config --cflags --libs` -Wno-unused-command-line-argument
 
