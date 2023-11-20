@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This aims to be a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, the following aspects of the NES have not been implemented yet: audio; mappers other than 0, 1, 2, 3, and 7; rarely used CPU opcodes that have unpredictable behavior; and rarely used PPU features, such as OAMADDR, OAMDATA, and the sprite overflow flag.
+This aims to be a cycle-accurate NES emulator, developed with the goal of learning more about emulators and computer architecture. Currently, the following aspects of the NES have not been implemented yet: audio; mappers other than 0, 1, 2, 3, and 7; rarely used CPU opcodes that have unpredictable behavior; and rarely used PPU features, such as OAMADDR, OAMDATA, and the sprite overflow flag. This emulator is intended for NTSC ROMs, so PAL ROMs may have unexpected behavior.
 
 ## Usage (Debian/Ubuntu Linux)
 
