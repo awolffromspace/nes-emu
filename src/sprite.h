@@ -8,25 +8,6 @@ class Sprite {
         Sprite();
         Sprite(const uint8_t yPos, const unsigned int spriteNum);
 
-        // Fetching
-        uint8_t getTileRowIndex(const unsigned int scanline, const unsigned int spriteHeight) const;
-
-        // Rendering
-        uint8_t getPalette(const unsigned int pixel) const;
-        bool isChosen(const uint8_t bgPalette, const uint8_t spritePalette) const;
-
-        // Locating the Sprite in the Frame
-        unsigned int getYDifference(const unsigned int scanline) const;
-        bool isYInRange(const unsigned int scanline, const unsigned int spriteHeight) const;
-        unsigned int getXDifference(const unsigned int pixel) const;
-        bool isXInRange(const unsigned int pixel) const;
-
-        // Attribute Getters
-        uint8_t getUpperPalette() const;
-        bool isPrioritized() const;
-        bool isFlippedHorizontally() const;
-        bool isFlippedVertically() const;
-
     private:
         // Y-position of the sprite's top edge: https://www.nesdev.org/wiki/PPU_OAM#Byte_0. Since
         // sprite evaluation and fetching aren't performed in advance for scanline 0, sprites aren't
@@ -50,6 +31,25 @@ class Sprite {
         // sprite 0, the next 4 bytes is sprite 1, etc. This is mainly used to identify sprite 0 for
         // sprite 0 hit
         unsigned int spriteNum;
+
+        // Fetching
+        uint8_t getTileRowIndex(const unsigned int scanline, const unsigned int spriteHeight) const;
+
+        // Rendering
+        uint8_t getPalette(const unsigned int pixel) const;
+        bool isChosen(const uint8_t bgPalette, const uint8_t spritePalette) const;
+
+        // Locating the Sprite in the Frame
+        unsigned int getYDifference(const unsigned int scanline) const;
+        bool isYInRange(const unsigned int scanline, const unsigned int spriteHeight) const;
+        unsigned int getXDifference(const unsigned int pixel) const;
+        bool isXInRange(const unsigned int pixel) const;
+
+        // Attribute Getters
+        uint8_t getUpperPalette() const;
+        bool isPrioritized() const;
+        bool isFlippedHorizontally() const;
+        bool isFlippedVertically() const;
 
         friend class PPU;
         friend class PPUOp;

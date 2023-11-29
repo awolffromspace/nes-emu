@@ -21,6 +21,8 @@ Sprite::Sprite(const uint8_t yPos, const unsigned int spriteNum) :
     this->spriteNum = spriteNum;
 }
 
+// Private Member Functions
+
 // Gets the tile row index for the given scanline, which can be treated as the current y-coordinate
 // that is being rendered: https://www.nesdev.org/wiki/PPU_OAM#Byte_1
 
