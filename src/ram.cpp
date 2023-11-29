@@ -24,7 +24,7 @@ void RAM::write(const uint16_t addr, const uint8_t val) {
 
 // Handles pushes to the stack from the CPU
 
-void RAM::push(uint8_t& pointer, const uint8_t val, bool mute) {
+void RAM::push(uint8_t& pointer, const uint8_t val, const bool mute) {
     const uint16_t zeroPageSize = 0x100;
     // The stack is located after the zero page, so the zero page size is effectively the bottom of
     // the stack
