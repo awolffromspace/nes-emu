@@ -20,12 +20,16 @@ MMC::MMC() :
         testMode(false) { }
 
 void MMC::clear() {
-    memset(prgRAM, 0, 0x8000 - 0x4020);
-    prgROM.resize(0x4000 * 2);
+    const uint16_t prgROMStart = 0x8000;
+    const uint16_t ioRegisterEnd = 0x4020;
+    memset(prgRAM, 0, prgROMStart - ioRegisterEnd);
+    const uint16_t defaultPRGBankSize = 0x4000;
+    prgROM.resize(defaultPRGBankSize * 2);
     for (uint8_t& entry : prgROM) {
         entry = 0;
     }
-    chrMemory.resize(0x1000 * 2);
+    const uint16_t defaultCHRBankSize = 0x1000;
+    chrMemory.resize(defaultCHRBankSize * 2);
     for (uint8_t& entry : chrMemory) {
         entry = 0;
     }
@@ -416,8 +420,11 @@ void MMC::writeShiftRegister(const uint16_t addr, const uint8_t val,
 // https://www.nesdev.org/wiki/MMC1#Registers
 
 void MMC::updateSettings(const uint16_t addr) {
+    const uint16_t chrBank0Start = 0xa000;
+    const uint16_t chrBank1Start = 0xc000;
+    const uint16_t prgBankStart = 0xe000;
     // The address of the fifth write determines which settings are updated
-    if (addr < 0xa000) {
+    if (addr < chrBank0Start) {
         unsigned int mirrorVal = shiftRegister & 3;
         switch (mirrorVal) {
             case 0:
@@ -434,10 +441,10 @@ void MMC::updateSettings(const uint16_t addr) {
         }
         prgBankMode = (shiftRegister >> 2) & 3;
         chrBankMode = (shiftRegister >> 4) & 1;
-    } else if (addr < 0xc000) {
+    } else if (addr < chrBank1Start) {
         chrBank0 = shiftRegister & 0x1f;
         expandCHRMemory(chrBank0);
-    } else if (addr < 0xe000) {
+    } else if (addr < prgBankStart) {
         chrBank1 = shiftRegister & 0x1f;
         expandCHRMemory(chrBank1);
     } else {

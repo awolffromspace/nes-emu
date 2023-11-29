@@ -11,8 +11,15 @@ PPU::PPU() :
         ppuDataBuffer(0),
         totalCycles(0) {
     memset(registers, 0, 8);
-    // 0xf is black
-    vram[0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000] = 0xf;
+    const uint16_t universalBGColorAddr = 0x3f00;
+    const uint16_t nametableMirrorSize = 0xf00;
+    const uint16_t nametableSize = 0x3c0;
+    const uint16_t attributeTableSize = 0x40;
+    const uint16_t patternTableSize = 0x1000;
+    const uint16_t universalBGColorLocalAddr = universalBGColorAddr - nametableMirrorSize -
+        (nametableSize + attributeTableSize) * 2 - patternTableSize * 2;
+    const uint8_t black = 0xf;
+    vram[universalBGColorLocalAddr] = black;
     initializePalette();
 }
 
@@ -25,10 +32,21 @@ void PPU::clear() {
     w = false;
     memset(oam, 0, 0x100);
     memset(secondaryOAM, 0xff, 0x20);
-    memset(vram, 0, 0x400 + 0x400 + 0x20);
-    // 0xf is black
-    vram[0x3f00 - 0xf00 - 0x400 - 0x400 - 0x2000] = 0xf;
-    memset(frame, 0, 256 * 240 * 4);
+    const uint16_t nametableSize = 0x3c0;
+    const uint16_t attributeTableSize = 0x40;
+    const uint16_t paletteSize = 0x20;
+    memset(vram, 0, (nametableSize + attributeTableSize) * 2 + paletteSize);
+    const uint16_t universalBGColorAddr = 0x3f00;
+    const uint16_t nametableMirrorSize = 0xf00;
+    const uint16_t patternTableSize = 0x1000;
+    const uint16_t universalBGColorLocalAddr = universalBGColorAddr - nametableMirrorSize -
+        (nametableSize + attributeTableSize) * 2 - patternTableSize * 2;
+    const uint8_t black = 0xf;
+    vram[universalBGColorLocalAddr] = black;
+    const unsigned int frameWidth = 256;
+    const unsigned int frameHeight = 240;
+    const unsigned int bytesPerPixel = 4;
+    memset(frame, 0, frameWidth * frameHeight * bytesPerPixel);
     ppuDataBuffer = 0;
     op.clear();
     totalCycles = 0;
@@ -57,7 +75,8 @@ void PPU::step(MMC& mmc, SDL_Renderer* renderer, SDL_Texture* texture, const boo
         if (op.isRendering()) {
             setPixel(mmc);
         }
-        const unsigned int lastPixelOutputCycle = 4 + 255;
+        const unsigned int firstPixelOutputCycle = 4;
+        const unsigned int lastPixelOutputCycle = firstPixelOutputCycle + 255;
         // If the current scanline is the last render line, and the current cycle is the last cycle
         // to set a pixel in the frame, then the frame is ready to be rendered
         if (op.scanline == lastRenderLine && op.cycle == lastPixelOutputCycle) {
@@ -566,7 +585,10 @@ void PPU::renderFrame(SDL_Renderer* renderer, SDL_Texture* texture) {
         uint8_t* lockedPixels = nullptr;
         int pitch = 0;
         SDL_LockTexture(texture, nullptr, (void**) &lockedPixels, &pitch);
-        const unsigned int frameSize = 256 * 240 * 4;
+        const unsigned int frameWidth = 256;
+        const unsigned int frameHeight = 240;
+        const unsigned int bytesPerPixel = 4;
+        const unsigned int frameSize = frameWidth * frameHeight * bytesPerPixel;
         std::memcpy(lockedPixels, frame, frameSize);
         SDL_UnlockTexture(texture);
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);

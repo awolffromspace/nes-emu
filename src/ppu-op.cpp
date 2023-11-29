@@ -58,15 +58,16 @@ void PPUOp::addTileRow() {
 
 uint8_t PPUOp::getPalette(const uint8_t x) {
     std::deque<TileRow>::iterator tileRowIterator = tileRows.begin();
+    const unsigned int tileRowSize = 8;
     // If this condition is true, then the current pixel and fine X scroll is past the current tile,
     // so the next tile row should be used instead
-    if (pixel % 8 + x > 7) {
+    if (pixel % tileRowSize + x > tileRowSize - 1) {
         ++tileRowIterator;
     }
     const uint8_t upperPaletteBits = getUpperPalette(*tileRowIterator);
     uint8_t bgPalette = 0;
     // Get the bit in the byte that represents the current pixel
-    const uint8_t pixelInTileRow = 0x80 >> ((pixel + x) % 8);
+    const uint8_t pixelInTileRow = 0x80 >> ((pixel + x) % tileRowSize);
     if (tileRowIterator->patternEntryLo & pixelInTileRow) {
         bgPalette |= 1;
     }
@@ -113,8 +114,9 @@ void PPUOp::prepNextCycle() {
 
     if (isRendering()) {
         ++pixel;
+        const unsigned int tileRowSize = 8;
         // Every tile is 8x8, so pop the queue every 8 pixels
-        if (pixel % 8 == 0) {
+        if (pixel % tileRowSize == 0) {
             tileRows.pop_front();
         }
         const unsigned int pixelsPerScanline = 256;
@@ -190,7 +192,7 @@ void PPUOp::updateStatus() {
 bool PPUOp::isRendering() const {
     const unsigned int lastRenderLine = 239;
     const unsigned int firstCycle = 4;
-    const unsigned int lastCycle = 4 + 255;
+    const unsigned int lastCycle = firstCycle + 255;
     if (scanline <= lastRenderLine && cycle >= firstCycle && cycle <= lastCycle) {
         return true;
     }

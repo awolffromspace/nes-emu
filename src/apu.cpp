@@ -30,13 +30,15 @@ void APU::writeRegister(const uint16_t addr, const uint8_t val) {
 
 uint16_t APU::getLocalAddr(const uint16_t addr) const {
     uint16_t localAddr = addr;
+    const uint16_t control = 0x4015;
+    const uint16_t frameCounter = 0x4017;
     // The APU's first set of registers are contiguous from $4000 - $4013 in the CPU memory map.
     // However, $4014 is one of the PPU's registers (OAMDMA), and $4016 is one of the I/O (joystick)
     // registers. The APU has two more registers in-between them ($4015 and $4017). $4015 and $4017
     // are decremented to keep the register array contiguous
-    if (localAddr == 0x4015) {
+    if (localAddr == control) {
         --localAddr;
-    } else if (localAddr == 0x4017) {
+    } else if (localAddr == frameCounter) {
         localAddr -= 2;
     }
     // Clear out the upper bits so that $4000 becomes 0, $4001 becomes 1, etc.
