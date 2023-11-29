@@ -102,8 +102,6 @@ class PPU {
 
         // Rendering
         void setPixel(MMC& mmc);
-        uint8_t getPalette();
-        uint8_t getUpperPalette(const struct TileRow& tileRow) const;
         void setSprite0Hit(const Sprite& sprite, const uint8_t bgPalette);
         void setRGB(const uint8_t paletteEntry);
         void renderFrame(SDL_Renderer* renderer, SDL_Texture* texture);
